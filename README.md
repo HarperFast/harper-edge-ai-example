@@ -1,84 +1,137 @@
-# TensorFlow.js Edge Inference System
+# Edge AI Proxy Service
 
-A production-ready edge inference system that runs ML models directly in the browser with automatic statistics collection for continuous model improvement.
+A production-ready edge AI proxy service that provides transparent caching and personalization layer for e-commerce APIs with real-time ML-powered recommendations and dynamic pricing.
 
 ## Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        Browser (Client)                      │
+│                    E-commerce Frontend                      │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
-│  │   MobileNet  │  │  Statistics  │  │ Performance  │    │
-│  │   Model v2   │  │  Collector   │  │   Monitor    │    │
-│  │  (TF.js)     │  │              │  │              │    │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘    │
-│         │                  │                  │            │
-│         └──────────────────┼──────────────────┘            │
-│                           │                                │
-│                    ┌──────▼───────┐                       │
-│                    │   Batching   │                       │
-│                    │   & Queue    │                       │
-│                    └──────┬───────┘                       │
-│                           │                                │
-└───────────────────────────┼─────────────────────────────────┘
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
+│  │  Product     │  │   Search     │  │   Cart &     │       │
+│  │  Listings    │  │   Results    │  │  Checkout    │       │
+│  └──────┬───────┘  └─────┬────────┘  └──────┬───────┘       │
+│         │                │                  │               │
+│         └────────────────┼──────────────────┘               │
+│                          │ API Calls                        │
+└──────────────────────────┼──────────────────────────────────┘
                            │ HTTPS
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                     Node.js Server                          │
+│                 Edge AI Proxy Service                       │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
-│  │   REST API   │  │   SQLite     │  │   Retrainer  │    │
-│  │   Endpoints  │  │   Database   │  │   Pipeline   │    │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘    │
-│         │                  │                  │            │
-│         └──────────────────┼──────────────────┘            │
-│                           │                                │
-│                    ┌──────▼───────┐                       │
-│                    │  Data Export │                       │
-│                    │  (JSON/CSV)  │                       │
-│                    └───────────────┘                       │
+│  ┌──────────────┐     ┌──────────────┐  ┌──────────────┐    │
+│  │   Proxy      │     │   Cache      │  │  AI Models   │    │
+│  │  Manager     │     │  Manager     │  │  (TF.js)     │    │
+│  └──────┬───────┘     └─────┬────────┘  └──────┬───────┘    │
+│         │                   │                  │            │
+│         └───────────────────┼──────────────────┘            │
+│                             │                               │
+│                    ┌────────▼───────┐                       │
+│                    │ Personalization│                       │
+│                    │   Engine       │                       │
+│                    └──────┬─────────┘                       │
+│                           │                                 │
+└───────────────────────────┼─────────────────────────────────┘
+                            │ Proxied API Calls
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│            E-commerce APIs (Shopify, WooCommerce, etc.)     │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
+│  │   Products   │  │   Orders     │  │   Content    │       │
+│  │   Catalog    │  │   History    │  │   Management │       │
+│  └──────────────┘  └──────────────┘  └──────────────┘       │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ## Key Features
 
-### Client-Side (Browser)
-- **MobileNet v2 Model**: Pre-trained ImageNet model for image classification
-- **Real-time Inference**: <50ms inference time on modern hardware
-- **WebGL Acceleration**: Automatic GPU utilization via TensorFlow.js
-- **Offline Support**: Local storage for statistics when offline
-- **Intelligent Batching**: Automatic batching of statistics for efficient transmission
+### Proxy Layer
+- **Multi-tenant Support**: Configure multiple e-commerce platforms (Shopify, WooCommerce, custom APIs)
+- **Intelligent Caching**: LRU cache with configurable TTL per endpoint type
+- **Rate Limiting**: Per-tenant rate limiting with circuit breaker pattern
+- **Request/Response Transformation**: Normalize different API formats
 
-### Server-Side (Node.js)
-- **Statistics Collection**: RESTful API for receiving inference data
-- **SQLite Database**: Efficient storage with indexing for fast queries
-- **Data Export**: Multiple formats (JSON, CSV, TFRecord) for retraining
-- **Performance Metrics**: Real-time analytics and trend analysis
-- **Automatic Triggers**: Smart retraining triggers based on accuracy drift
+### AI-Powered Personalization
+- **Product Recommendations**: Real-time ML-powered product suggestions
+- **Dynamic Pricing**: AI-driven pricing optimization based on user segments
+- **Content Personalization**: Personalized product descriptions and CTAs
+- **Search Enhancement**: Improved search results based on user behavior
 
-## Model Specifications
+### Performance & Monitoring
+- **Edge Caching**: Reduce API calls with intelligent cache invalidation
+- **Circuit Breaker**: Automatic failover to cached responses
+- **Performance Metrics**: Real-time monitoring of cache hit rates, response times
+- **Statistics Collection**: Detailed analytics for continuous improvement
 
-**MobileNet v2 (Recommended)**
-- Input Size: 224x224x3
-- Model Size: ~14MB (α=1.0)
-- Accuracy: 71.8% top-1 on ImageNet
-- Inference Speed: 20-50ms (browser dependent)
-- Optimization Options:
-  - α=0.25: ~1.9MB, 50.6% accuracy, <10ms inference
-  - α=0.50: ~3.4MB, 65.4% accuracy, ~15ms inference
-  - α=0.75: ~6.9MB, 69.8% accuracy, ~25ms inference
-  - α=1.00: ~14MB, 71.8% accuracy, ~40ms inference
+## Configuration
+
+### Multi-Tenant Setup
+
+Configure tenants in `config/tenants.json`:
+
+```json
+{
+  "tenants": [
+    {
+      "id": "demo-store",
+      "name": "Demo E-commerce Store",
+      "baseUrl": "https://api.demo-store.com",
+      "apiKey": "your-api-key",
+      "endpoints": [
+        {
+          "name": "product-listing",
+          "pattern": "^products(/.*)?$",
+          "cacheable": true,
+          "cacheTTL": 300,
+          "personalization": {
+            "enabled": true,
+            "type": "product-listing"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Environment Configuration
+
+Copy `.env.example` to `.env` and configure:
+
+```bash
+# Server Configuration
+PORT=3000
+NODE_ENV=production
+
+# Cache Configuration
+CACHE_MAX_SIZE=2GB
+CACHE_DEFAULT_TTL=300
+CACHE_PERSONALIZATION_TTL=60
+
+# AI Model Configuration
+MODEL_CACHE_PATH=./models
+INFERENCE_TIMEOUT=100
+FALLBACK_TO_CACHE=true
+
+# Rate Limiting
+RATE_LIMIT_PER_SECOND=100
+RATE_LIMIT_PER_MINUTE=1000
+RATE_LIMIT_PER_HOUR=10000
+```
 
 ## Setup Instructions
 
 ### Prerequisites
 - Node.js 16+ and npm
-- Modern browser with WebGL support
-- 4GB+ RAM recommended
+- 4GB+ RAM recommended for AI models
+- Redis (optional, for distributed caching)
 
 ### Installation
 
@@ -89,7 +142,7 @@ npm install
 # Build client bundle
 npm run build
 
-# Start the server
+# Start the proxy service
 npm start
 ```
 
@@ -99,172 +152,94 @@ npm start
 # Terminal 1: Start server with auto-reload
 npm run dev
 
-# Terminal 2: Start webpack dev server
+# Terminal 2: Start webpack dev server for client demo
 npm run watch
 ```
 
-Access the application at `http://localhost:3000`
+### Usage
 
-## Statistics Collection
-
-### Inference Statistics Collected
+Once running, configure your e-commerce frontend to use the proxy:
 
 ```javascript
-{
-  // Model Information
-  modelVersion: "2.0",
-  modelAlpha: 1.0,
-  
-  // Predictions
-  predictions: [
-    { className: "dog", probability: 0.92, rank: 1 },
-    { className: "cat", probability: 0.05, rank: 2 }
-  ],
-  
-  // Performance Metrics
-  inferenceTime: 35.2,        // ms
-  preprocessingTime: 5.1,      // ms
-  totalTime: 40.3,            // ms
-  
-  // Memory Usage
-  memoryUsage: {
-    numTensors: 42,
-    numBytes: 15728640,       // ~15MB
-    numDataBuffers: 42
-  },
-  
-  // User Feedback (if provided)
-  userFeedback: {
-    isCorrect: false,
-    correctedLabel: "wolf",
-    confidence: 1.0
-  },
-  
-  // Device Information
-  deviceInfo: {
-    gpu: { vendor: "Intel", renderer: "Iris Pro" },
-    webglVersion: "webgl2",
-    deviceMemory: 8,
-    hardwareConcurrency: 8
+// Instead of direct API calls to your e-commerce platform
+const response = await fetch('https://your-store.myshopify.com/api/products');
+
+// Route through the Edge AI Proxy
+const response = await fetch('http://localhost:3000/api/proxy/demo-store/products', {
+  headers: {
+    'X-Tenant-ID': 'demo-store'
   }
-}
+});
 ```
-
-### Data Flow for Retraining
-
-1. **Collection Phase**
-   - Browser collects inference statistics
-   - Batches data (default: 25 predictions)
-   - Sends to server every 20 seconds or on batch full
-
-2. **Storage Phase**
-   - Server validates and stores in SQLite
-   - Calculates performance metrics
-   - Monitors for accuracy degradation
-
-3. **Export Phase**
-   - Export endpoint provides training data
-   - Filters by confidence threshold
-   - Includes user corrections
-
-4. **Retraining Phase**
-   - Triggered by:
-     - Accuracy drop >10%
-     - 1000+ new data points
-     - 7 days since last training
-   - Exports data in TensorFlow-compatible format
-   - Supports fine-tuning or full retraining
 
 ## API Endpoints
 
-### Statistics Collection
+### Proxy Endpoints
 ```http
-POST /api/statistics
-Content-Type: application/json
-
-{
-  "sessionId": "abc123",
-  "deviceInfo": {...},
-  "statistics": [...]
-}
+GET /api/proxy/{tenant-id}/{endpoint}
 ```
 
-### Export Training Data
+### Statistics & Monitoring
 ```http
-GET /api/export/training-data?format=json&includeUserFeedback=true&minConfidence=0.7
+GET /api/stats/performance
+GET /api/stats/cache
+GET /api/stats/personalization
 ```
 
-### Performance Metrics
+### Configuration Management
 ```http
-GET /api/metrics/performance
+GET /api/config/tenants
+POST /api/config/tenant/{tenant-id}/endpoints
 ```
 
-### Trigger Retraining
-```http
-POST /api/retrain/trigger
-{
-  "minDataPoints": 1000,
-  "confidenceThreshold": 0.8
-}
-```
+## Personalization Features
 
-## Performance Optimization
+### Product Recommendations
+- Collaborative filtering based on user behavior
+- Content-based filtering using product attributes
+- Hybrid approach combining multiple signals
 
-### Client-Side Optimizations
-1. **Model Warmup**: First inference primes GPU pipeline
-2. **WebGL Flags**: Optimized texture packing and F16 precision
-3. **Tensor Disposal**: Automatic memory management
-4. **Image Preprocessing**: Efficient resizing and normalization
+### Dynamic Pricing
+- Segment-based pricing optimization
+- A/B testing for price sensitivity
+- Real-time demand-based adjustments
 
-### Server-Side Optimizations
-1. **Database Indexing**: Fast queries on session_id, timestamp
-2. **Batch Processing**: Efficient bulk inserts
-3. **Data Compression**: Gzip compression for responses
-4. **Connection Pooling**: Reused database connections
+### Content Personalization
+- Dynamic product descriptions
+- Personalized call-to-action buttons
+- Localized content and currency
 
 ## Deployment Considerations
 
-### Edge Deployment
-- **CDN**: Serve model files from CDN for faster loading
-- **Service Worker**: Cache model for offline use
-- **Progressive Loading**: Load model in background
-- **Model Quantization**: Use INT8 quantization for 4x size reduction
+### Production Deployment
+- **Load Balancing**: Stateless design supports horizontal scaling
+- **Caching**: Add Redis for distributed caching across instances
+- **Security**: Configure HTTPS, API key validation, rate limiting
+- **Monitoring**: Set up health checks and alerting
 
-### Server Deployment
-- **Horizontal Scaling**: Stateless design supports multiple instances
-- **Database Replication**: Read replicas for analytics
-- **Queue System**: Add Redis/RabbitMQ for high volume
-- **Model Versioning**: A/B testing with multiple model versions
+### Performance Optimization
+- **CDN Integration**: Cache static assets and model files
+- **Database Optimization**: Use connection pooling and read replicas
+- **Model Optimization**: Use quantized models for faster inference
 
-## Security Considerations
+## Security
 
-1. **Data Privacy**: All inference happens client-side
-2. **HTTPS Only**: Encrypted data transmission
-3. **Input Validation**: Server validates all incoming data
-4. **Rate Limiting**: Prevent abuse of API endpoints
-5. **Data Retention**: Automatic cleanup of old statistics
+- **API Key Management**: Secure tenant API key storage and rotation
+- **Rate Limiting**: Prevent abuse with per-tenant limits
+- **Input Validation**: Sanitize all proxy requests and responses
+- **HTTPS Only**: Encrypted communication between all components
+- **Audit Logging**: Track all proxy requests for security monitoring
 
-## Monitoring & Debugging
+## Monitoring & Analytics
 
-### Client Metrics
-- Inference time percentiles (P50, P95, P99)
-- Memory usage trends
-- Error rates and types
-- Device capability distribution
+### Key Metrics
+- **Cache Performance**: Hit rates, miss rates, eviction rates
+- **API Performance**: Response times, error rates, throughput
+- **Personalization Effectiveness**: Click-through rates, conversion rates
+- **System Health**: Memory usage, CPU utilization, error logs
 
-### Server Metrics
-- Request volume and latency
-- Database performance
-- Storage utilization
-- Retraining trigger frequency
-
-## Future Enhancements
-
-1. **Federated Learning**: On-device training without data transmission
-2. **Model Compression**: Automatic pruning and quantization
-3. **Multi-Model Support**: A/B testing different architectures
-4. **Edge Caching**: Intelligent caching of common predictions
-5. **WebAssembly Backend**: WASM SIMD for faster CPU inference
+### Dashboard Access
+Access monitoring dashboard at `http://localhost:3000/dashboard` (when running locally)
 
 ## License
 

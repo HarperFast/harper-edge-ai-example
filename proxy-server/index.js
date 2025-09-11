@@ -18,6 +18,51 @@ const CircuitBreaker = require('./utils/CircuitBreaker');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Load mock responses for demo mode
+const fs = require('fs');
+const path = require('path');
+let mockResponses = {};
+try {
+  const mockData = fs.readFileSync(path.join(__dirname, '../data/mock-responses.json'), 'utf8');
+  mockResponses = JSON.parse(mockData);
+} catch (error) {
+  console.log('Mock responses not found, using real API endpoints');
+}
+
+// Helper function to get mock responses
+function getMockResponse(tenantId, path, query) {
+  const tenantMocks = mockResponses[tenantId];
+  if (!tenantMocks) return null;
+  
+  // Map common API endpoints to mock data
+  const endpointMapping = {
+    'amazon': {
+      'searchitems': tenantMocks.searchitems,
+      'getitems': tenantMocks.getitems
+    },
+    'rakuten': {
+      'IchibaItem/Search/20170706': tenantMocks['IchibaItem/Search/20170706']
+    },
+    'zalando': {
+      'articles': tenantMocks.articles,
+      'categories': tenantMocks.categories,
+      'brands': tenantMocks.brands
+    }
+  };
+  
+  const mapping = endpointMapping[tenantId];
+  if (!mapping) return null;
+  
+  // Find matching endpoint
+  for (const [pattern, mockData] of Object.entries(mapping)) {
+    if (path.includes(pattern) || new RegExp(pattern.replace(/\//g, '\\/')).test(path)) {
+      return mockData;
+    }
+  }
+  
+  return null;
+}
+
 // Initialize core components
 const cacheManager = new CacheManager({
   maxSize: process.env.CACHE_MAX_SIZE || '1GB',
@@ -110,6 +155,22 @@ app.all('/api/*', async (req, res) => {
   }
   
   try {
+    // Demo mode: check for mock responses first
+    if (mockResponses[req.tenantId]) {
+      const mockData = getMockResponse(req.tenantId, path, req.query);
+      if (mockData) {
+        console.log(`🎭 Mock response for ${req.tenantId}:${path}`);
+        
+        // Add proxy metadata headers for mock responses
+        res.setHeader('X-Proxy-Cache', 'MOCK');
+        res.setHeader('X-Proxy-Enhanced', 'true');
+        res.setHeader('X-Proxy-Request-Id', req.requestId);
+        res.setHeader('X-Proxy-Response-Time', Math.random() * 100 + 20); // Simulate 20-120ms
+        
+        return res.status(200).json(mockData);
+      }
+    }
+    
     // Check if this endpoint supports personalization
     const endpoint = tenant.endpoints.find(e => 
       new RegExp(e.pattern).test(path)

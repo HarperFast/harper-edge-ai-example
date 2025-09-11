@@ -2,27 +2,106 @@
   "version": "1.0.0",
   "tenants": [
     {
-      "id": "demo-store",
-      "name": "Demo E-commerce Store",
-      "baseUrl": "https://api.demo-store.com",
-      "apiKey": "",
-      "apiKeyHeader": "X-API-Key",
-      "responseFormat": "standard",
-      "recommendationLimit": 10,
-      "personalizationBoost": 1.5,
-      "maxDiscount": 0.2,
-      "pricingStrategy": "optimize-conversion",
+      "id": "amazon",
+      "name": "Amazon Marketplace",
+      "baseUrl": "https://webservices.amazon.com/paapi5",
+      "apiKey": "demo-mode-no-key-required",
+      "apiKeyHeader": "X-Amz-Access-Token",
+      "responseFormat": "nested",
+      "recommendationLimit": 12,
+      "personalizationBoost": 1.8,
+      "maxDiscount": 0.15,
+      "pricingStrategy": "optimize-margin",
       "categoryWeights": {
-        "electronics": 1.2,
-        "clothing": 1,
-        "home": 0.9,
-        "sports": 1.1,
-        "books": 0.8
+        "electronics": 1.5,
+        "books": 1.3,
+        "home": 1.2,
+        "clothing": 1.1,
+        "sports": 1.0
       },
       "endpoints": [
         {
-          "name": "product-listing",
-          "pattern": "^products(/.*)?$",
+          "name": "product-search",
+          "pattern": "^searchitems$",
+          "cacheable": true,
+          "cacheTTL": 600,
+          "personalization": {
+            "enabled": true,
+            "type": "product-listing"
+          }
+        },
+        {
+          "name": "product-details",
+          "pattern": "^getitems$",
+          "cacheable": true,
+          "cacheTTL": 1800,
+          "personalization": {
+            "enabled": true,
+            "type": "product-recommendations"
+          }
+        },
+        {
+          "name": "browse-nodes",
+          "pattern": "^getbrowsenodes$",
+          "cacheable": true,
+          "cacheTTL": 3600,
+          "personalization": {
+            "enabled": false,
+            "type": "none"
+          }
+        }
+      ],
+      "segmentationRules": {
+        "purchaseThreshold": 10,
+        "valueThreshold": 1000,
+        "frequencyThreshold": 0.3
+      },
+      "contentRules": {
+        "purchaseIntent": {
+          "callToAction": "Buy Now",
+          "urgency": "Limited time offer!"
+        },
+        "mobile": {
+          "layout": "list",
+          "imageSize": "large"
+        },
+        "darkTheme": {
+          "enabled": true
+        }
+      },
+      "rateLimits": {
+        "requestsPerSecond": 10,
+        "requestsPerMinute": 300,
+        "requestsPerHour": 8640
+      },
+      "headers": {
+        "X-Forwarded-By": "edge-ai-proxy",
+        "X-Proxy-Version": "2.0.0",
+        "User-Agent": "EdgeAIProxy/2.0"
+      }
+    },
+    {
+      "id": "rakuten",
+      "name": "Rakuten Marketplace",
+      "baseUrl": "https://app.rakuten.co.jp/services/api",
+      "apiKey": "demo-mode-no-key-required",
+      "apiKeyHeader": "applicationId",
+      "responseFormat": "nested",
+      "recommendationLimit": 15,
+      "personalizationBoost": 1.6,
+      "maxDiscount": 0.25,
+      "pricingStrategy": "optimize-conversion",
+      "categoryWeights": {
+        "electronics": 1.4,
+        "fashion": 1.3,
+        "beauty": 1.2,
+        "home": 1.1,
+        "sports": 1.0
+      },
+      "endpoints": [
+        {
+          "name": "product-search",
+          "pattern": "^IchibaItem/Search/20170706$",
           "cacheable": true,
           "cacheTTL": 300,
           "personalization": {
@@ -31,47 +110,28 @@
           }
         },
         {
-          "name": "product-detail",
-          "pattern": "^product/[^/]+$",
+          "name": "product-ranking",
+          "pattern": "^IchibaItem/Ranking/20170628$",
           "cacheable": true,
-          "cacheTTL": 600,
+          "cacheTTL": 900,
           "personalization": {
             "enabled": true,
             "type": "product-recommendations"
           }
         },
         {
-          "name": "search",
-          "pattern": "^search\\?",
+          "name": "genre-search",
+          "pattern": "^IchibaGenre/Search/20140222$",
           "cacheable": true,
-          "cacheTTL": 180,
+          "cacheTTL": 1800,
           "personalization": {
             "enabled": true,
-            "type": "search-results"
+            "type": "category-personalization"
           }
         },
         {
-          "name": "recommendations",
-          "pattern": "^recommendations(/.*)?$",
-          "cacheable": true,
-          "cacheTTL": 60,
-          "personalization": {
-            "enabled": true,
-            "type": "product-recommendations"
-          }
-        },
-        {
-          "name": "pricing",
-          "pattern": "^pricing(/.*)?$",
-          "cacheable": false,
-          "personalization": {
-            "enabled": true,
-            "type": "dynamic-pricing"
-          }
-        },
-        {
-          "name": "content",
-          "pattern": "^content(/.*)?$",
+          "name": "recipe-search",
+          "pattern": "^Recipe/CategoryList/20170426$",
           "cacheable": true,
           "cacheTTL": 3600,
           "personalization": {
@@ -81,27 +141,27 @@
         }
       ],
       "segmentationRules": {
-        "purchaseThreshold": 5,
-        "valueThreshold": 500,
-        "frequencyThreshold": 0.5
+        "purchaseThreshold": 8,
+        "valueThreshold": 50000,
+        "frequencyThreshold": 0.4
       },
       "contentRules": {
         "purchaseIntent": {
-          "callToAction": "Complete Your Purchase",
-          "urgency": "Only a few left in stock!"
+          "callToAction": "今すぐ購入",
+          "urgency": "期間限定セール中！"
         },
         "mobile": {
-          "layout": "card",
+          "layout": "grid",
           "imageSize": "medium"
         },
         "darkTheme": {
-          "enabled": true
+          "enabled": false
         }
       },
       "rateLimits": {
-        "requestsPerSecond": 100,
+        "requestsPerSecond": 20,
         "requestsPerMinute": 1000,
-        "requestsPerHour": 10000
+        "requestsPerHour": 20000
       },
       "headers": {
         "X-Forwarded-By": "edge-ai-proxy",
@@ -109,56 +169,103 @@
       }
     },
     {
-      "id": "shopify-store",
-      "name": "Shopify Store Integration",
-      "baseUrl": "https://your-store.myshopify.com/api/2024-01",
-      "apiKey": "",
-      "apiKeyHeader": "X-Shopify-Access-Token",
-      "responseFormat": "nested",
-      "recommendationLimit": 8,
-      "personalizationBoost": 1.3,
+      "id": "zalando",
+      "name": "Zalando Fashion Marketplace",
+      "baseUrl": "https://api.zalando.com/v1",
+      "apiKey": "demo-mode-no-key-required",
+      "apiKeyHeader": "Authorization",
+      "responseFormat": "standard",
+      "recommendationLimit": 20,
+      "personalizationBoost": 2.0,
+      "maxDiscount": 0.35,
+      "pricingStrategy": "optimize-conversion",
+      "categoryWeights": {
+        "clothing": 1.8,
+        "shoes": 1.6,
+        "accessories": 1.4,
+        "beauty": 1.3,
+        "sport": 1.2
+      },
       "endpoints": [
         {
-          "name": "products",
-          "pattern": "^products\\.json",
+          "name": "product-search",
+          "pattern": "^articles$",
           "cacheable": true,
-          "cacheTTL": 300,
+          "cacheTTL": 180,
           "personalization": {
             "enabled": true,
-            "type": "product-listing"
+            "type": "fashion-recommendations"
           }
         },
         {
-          "name": "collections",
-          "pattern": "^collections/[^/]+/products\\.json",
+          "name": "product-details",
+          "pattern": "^articles/[^/]+$",
           "cacheable": true,
-          "cacheTTL": 300,
+          "cacheTTL": 600,
           "personalization": {
             "enabled": true,
-            "type": "product-listing"
+            "type": "product-recommendations"
           }
-        }
-      ]
-    },
-    {
-      "id": "woocommerce",
-      "name": "WooCommerce Store",
-      "baseUrl": "https://your-store.com/wp-json/wc/v3",
-      "apiKey": "",
-      "apiKeyHeader": "Authorization",
-      "responseFormat": "standard",
-      "endpoints": [
+        },
         {
-          "name": "products",
-          "pattern": "^products(/.*)?$",
+          "name": "categories",
+          "pattern": "^categories$",
           "cacheable": true,
-          "cacheTTL": 300,
+          "cacheTTL": 1800,
           "personalization": {
             "enabled": true,
-            "type": "product-listing"
+            "type": "category-personalization"
+          }
+        },
+        {
+          "name": "brands",
+          "pattern": "^brands$",
+          "cacheable": true,
+          "cacheTTL": 3600,
+          "personalization": {
+            "enabled": true,
+            "type": "brand-personalization"
+          }
+        },
+        {
+          "name": "size-advice",
+          "pattern": "^size-advice/[^/]+$",
+          "cacheable": true,
+          "cacheTTL": 7200,
+          "personalization": {
+            "enabled": true,
+            "type": "size-personalization"
           }
         }
-      ]
+      ],
+      "segmentationRules": {
+        "purchaseThreshold": 6,
+        "valueThreshold": 300,
+        "frequencyThreshold": 0.6
+      },
+      "contentRules": {
+        "purchaseIntent": {
+          "callToAction": "In den Warenkorb",
+          "urgency": "Nur noch wenige auf Lager!"
+        },
+        "mobile": {
+          "layout": "masonry",
+          "imageSize": "large"
+        },
+        "darkTheme": {
+          "enabled": true
+        }
+      },
+      "rateLimits": {
+        "requestsPerSecond": 50,
+        "requestsPerMinute": 2000,
+        "requestsPerHour": 50000
+      },
+      "headers": {
+        "X-Forwarded-By": "edge-ai-proxy",
+        "X-Proxy-Version": "2.0.0",
+        "Accept-Language": "en-US,de-DE,fr-FR"
+      }
     }
   ]
 }
