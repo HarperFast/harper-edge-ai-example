@@ -1,0 +1,50 @@
+{
+  "name": "edge-ai-proxy-harper",
+  "version": "1.0.0",
+  "description": "Harper Edge AI Proxy Component for Outdoor Equipment Personalization",
+  "main": "resources.js",
+  "type": "module",
+  "harper": {
+    "component": true,
+    "type": "application",
+    "version": "1.0.0"
+  },
+  "keywords": [
+    "harperdb",
+    "edge-ai",
+    "personalization",
+    "outdoor-gear",
+    "proxy",
+    "tensorflow",
+    "multi-tenant"
+  ],
+  "dependencies": {
+    "harperdb": "^4.0.0",
+    "@tensorflow/tfjs": "^4.15.0",
+    "@tensorflow/tfjs-node": "^4.15.0",
+    "axios": "^1.11.0",
+    "lru-cache": "^10.4.3",
+    "uuid": "^9.0.1"
+  },
+  "scripts": {
+    "start": "harperdb start",
+    "dev": "harperdb dev --watch",
+    "test": "harperdb test",
+    "deploy": "harperdb deploy",
+    "build": "harperdb build",
+    "migrate": "harperdb migrate",
+    "seed": "harperdb run seedData"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Harper/harper-edge-ai-personalization-example.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Harper/harper-edge-ai-personalization-example/issues"
+  },
+  "homepage": "https://github.com/Harper/harper-edge-ai-personalization-example",
+  "license": "Apache-2.0"
+}

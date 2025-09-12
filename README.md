@@ -1,250 +1,227 @@
-# Edge AI Proxy Service
+# Alpine Gear Co - Harper Edge AI Proxy
 
-A production-ready edge AI proxy service that provides transparent caching and personalization layer for e-commerce APIs with real-time ML-powered recommendations and dynamic pricing.
+A Harper native Edge AI Proxy Service for outdoor gear personalization with intelligent caching, ML-powered recommendations, and dynamic pricing.
 
-## Architecture Overview
+## 🏔️ Overview
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    E-commerce Frontend                      │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
-│  │  Product     │  │   Search     │  │   Cart &     │       │
-│  │  Listings    │  │   Results    │  │  Checkout    │       │
-│  └──────┬───────┘  └─────┬────────┘  └──────┬───────┘       │
-│         │                │                  │               │
-│         └────────────────┼──────────────────┘               │
-│                          │ API Calls                        │
-└──────────────────────────┼──────────────────────────────────┘
-                           │ HTTPS
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                 Edge AI Proxy Service                       │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌──────────────┐     ┌──────────────┐  ┌──────────────┐    │
-│  │   Proxy      │     │   Cache      │  │  AI Models   │    │
-│  │  Manager     │     │  Manager     │  │  (TF.js)     │    │
-│  └──────┬───────┘     └─────┬────────┘  └──────┬───────┘    │
-│         │                   │                  │            │
-│         └───────────────────┼──────────────────┘            │
-│                             │                               │
-│                    ┌────────▼───────┐                       │
-│                    │ Personalization│                       │
-│                    │   Engine       │                       │
-│                    └──────┬─────────┘                       │
-│                           │                                 │
-└───────────────────────────┼─────────────────────────────────┘
-                            │ Proxied API Calls
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│            E-commerce APIs (Shopify, WooCommerce, etc.)     │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
-│  │   Products   │  │   Orders     │  │   Content    │       │
-│  │   Catalog    │  │   History    │  │   Management │       │
-│  └──────────────┘  └──────────────┘  └──────────────┘       │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+This service provides an intelligent proxy layer for outdoor gear APIs, featuring:
 
-## Key Features
+- **Harper-native architecture** - Fully integrated with Harper data layer
+- **Edge AI personalization** - TensorFlow.js models for gear recommendations
+- **Multi-layer caching** - Hot/warm/cold storage with Harper cold storage
+- **Multi-tenant support** - Dynamic tenant configuration in Harper
+- **Activity-based matching** - Hiking, climbing, camping, mountaineering
+- **Real-time analytics** - Performance metrics and user behavior tracking
 
-### Proxy Layer
-- **Multi-tenant Support**: Configure multiple e-commerce platforms (Shopify, WooCommerce, custom APIs)
-- **Intelligent Caching**: LRU cache with configurable TTL per endpoint type
-- **Rate Limiting**: Per-tenant rate limiting with circuit breaker pattern
-- **Request/Response Transformation**: Normalize different API formats
-
-### AI-Powered Personalization
-- **Product Recommendations**: Real-time ML-powered product suggestions
-- **Dynamic Pricing**: AI-driven pricing optimization based on user segments
-- **Content Personalization**: Personalized product descriptions and CTAs
-- **Search Enhancement**: Improved search results based on user behavior
-
-### Performance & Monitoring
-- **Edge Caching**: Reduce API calls with intelligent cache invalidation
-- **Circuit Breaker**: Automatic failover to cached responses
-- **Performance Metrics**: Real-time monitoring of cache hit rates, response times
-- **Statistics Collection**: Detailed analytics for continuous improvement
-
-## Configuration
-
-### Multi-Tenant Setup
-
-Configure tenants in `config/tenants.json`:
-
-```json
-{
-  "tenants": [
-    {
-      "id": "demo-store",
-      "name": "Demo E-commerce Store",
-      "baseUrl": "https://api.demo-store.com",
-      "apiKey": "your-api-key",
-      "endpoints": [
-        {
-          "name": "product-listing",
-          "pattern": "^products(/.*)?$",
-          "cacheable": true,
-          "cacheTTL": 300,
-          "personalization": {
-            "enabled": true,
-            "type": "product-listing"
-          }
-        }
-      ]
-    }
-  ]
-}
-```
-
-### Environment Configuration
-
-Copy `.env.example` to `.env` and configure:
-
-```bash
-# Server Configuration
-PORT=3000
-NODE_ENV=production
-
-# Cache Configuration
-CACHE_MAX_SIZE=2GB
-CACHE_DEFAULT_TTL=300
-CACHE_PERSONALIZATION_TTL=60
-
-# AI Model Configuration
-MODEL_CACHE_PATH=./models
-INFERENCE_TIMEOUT=100
-FALLBACK_TO_CACHE=true
-
-# Rate Limiting
-RATE_LIMIT_PER_SECOND=100
-RATE_LIMIT_PER_MINUTE=1000
-RATE_LIMIT_PER_HOUR=10000
-```
-
-## Setup Instructions
+## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 16+ and npm
-- 4GB+ RAM recommended for AI models
-- Redis (optional, for distributed caching)
+- Harper Cloud account or local Harper installation
+- Node.js 18+
+- Git
 
-### Installation
+### Deployment
 
+#### Option 1: Harper Cloud
+```bash
+# Deploy to Harper Cloud
+harperdb deploy
+```
+
+#### Option 2: Local Harper
+```bash
+# Start local Harper development server
+harperdb dev .
+
+# The service will be available at http://localhost:9925
+```
+
+### Development
 ```bash
 # Install dependencies
 npm install
 
-# Build client bundle
-npm run build
-
-# Start the proxy service
+# Start proxy server (for testing)
 npm start
-```
 
-### Development Mode
-
-```bash
-# Terminal 1: Start server with auto-reload
+# Run Harper development mode
 npm run dev
-
-# Terminal 2: Start webpack dev server for client demo
-npm run watch
 ```
 
-### Usage
+## 🏗️ Architecture
 
-Once running, configure your e-commerce frontend to use the proxy:
+### Harper-Native Components
+```
+┌─────────────────────────────────────────┐
+│           Harper                        │
+├─────────────────────────────────────────┤
+│  ┌─────────────┐ ┌─────────────────┐    │
+│  │ Resources   │ │ Data Schemas    │    │
+│  │ & Routes    │ │ (Tenants, etc.) │    │
+│  └─────────────┘ └─────────────────┘    │
+├─────────────────────────────────────────┤
+│  ┌─────────────┐ ┌─────────────────┐    │
+│  │ AI Engine   │ │ Cache Extension │    │
+│  │ (TF.js)     │ │ (Multi-layer)   │    │
+│  └─────────────┘ └─────────────────┘    │
+├─────────────────────────────────────────┤
+│         Harper Cold Storage             │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐   │
+│  │Tenants  │ │Sessions │ │Analytics│   │
+│  └─────────┘ └─────────┘ └─────────┘   │
+└─────────────────────────────────────────┘
+```
+
+### Data Flow
+1. **Request** → Harper Resource Handler
+2. **Tenant lookup** → Harper cold storage (cached)  
+3. **AI processing** → TensorFlow.js personalization
+4. **Cache check** → Multi-layer cache system
+5. **API proxy** → Upstream gear APIs
+6. **Response enhancement** → AI-powered personalization
+7. **Analytics** → Harper data layer storage
+
+## 📊 Key Features
+
+### Intelligent Caching
+- **Hot Cache**: 30-second TTL for frequent requests
+- **Warm Cache**: 5-minute TTL for moderate requests  
+- **Cold Cache**: Harper native cold storage
+- **Cache stampede prevention**
+
+### AI Personalization
+- **Activity-based recommendations** (hiking, climbing, etc.)
+- **Experience level matching** (beginner, intermediate, expert)
+- **Seasonal gear optimization**
+- **Real-time model inference** with TensorFlow.js
+
+### Analytics & Monitoring
+- **Real-time metrics** stored in Harper
+- **Performance tracking** with statistical analysis
+- **User behavior analytics** for model improvement
+- **Automated model retraining** triggers
+
+## 🛠️ Configuration
+
+### Tenant Management
+Tenants are stored in Harper cold storage and auto-seeded from JSON:
 
 ```javascript
-// Instead of direct API calls to your e-commerce platform
-const response = await fetch('https://your-store.myshopify.com/api/products');
-
-// Route through the Edge AI Proxy
-const response = await fetch('http://localhost:3000/api/proxy/demo-store/products', {
-  headers: {
-    'X-Tenant-ID': 'demo-store'
-  }
-});
+// Managed dynamically via Harper APIs
+GET    /proxy/tenants         // List all tenants
+GET    /proxy/tenants/{id}    // Get specific tenant
+POST   /proxy/tenants         // Create new tenant
+PUT    /proxy/tenants/{id}    // Update tenant
+DELETE /proxy/tenants/{id}    // Deactivate tenant
 ```
 
-## API Endpoints
+### Environment Variables
+```bash
+# Harper Configuration (if needed)
+HARPERDB_URL=your-harper-instance
+HARPERDB_USERNAME=your-username  
+HARPERDB_PASSWORD=your-password
 
-### Proxy Endpoints
-```http
-GET /api/proxy/{tenant-id}/{endpoint}
+# AI Model Configuration  
+AI_MODEL_PATH=./models
+AI_CACHE_SIZE=1GB
+AI_INFERENCE_TIMEOUT=5000
 ```
 
-### Statistics & Monitoring
-```http
-GET /api/stats/performance
-GET /api/stats/cache
-GET /api/stats/personalization
+## 🔌 API Usage
+
+### Basic Proxy Request
+```bash
+# Route: /api/{tenant}/{proxy+}
+curl -X GET "https://your-harper-instance/api/alpine-gear-co/products/search?q=hiking+boots" \
+  -H "X-User-ID: user123" \
+  -H "X-Session-ID: session456"
 ```
 
-### Configuration Management
-```http
-GET /api/config/tenants
-POST /api/config/tenant/{tenant-id}/endpoints
+### Health & Metrics
+```bash
+# Health check
+curl https://your-harper-instance/proxy/health
+
+# Performance metrics  
+curl https://your-harper-instance/proxy/metrics
 ```
 
-## Personalization Features
+## 📈 Performance
 
-### Product Recommendations
-- Collaborative filtering based on user behavior
-- Content-based filtering using product attributes
-- Hybrid approach combining multiple signals
+### Benchmarks
+- **Sub-10ms** response time for cached requests
+- **<100ms** AI inference time for personalization
+- **1GB** default cache capacity with intelligent eviction
+- **Multi-tenant** isolation with per-tenant rate limiting
 
-### Dynamic Pricing
-- Segment-based pricing optimization
-- A/B testing for price sensitivity
-- Real-time demand-based adjustments
+### Scaling
+- **Horizontal**: Deploy multiple Harper instances
+- **Vertical**: Increase Harper instance resources
+- **Edge**: Distribute Harper instances globally
 
-### Content Personalization
-- Dynamic product descriptions
-- Personalized call-to-action buttons
-- Localized content and currency
+## 🗂️ Project Structure
 
-## Deployment Considerations
+```
+├── harper-components/          # Harper native components
+│   ├── resources.js           # Main proxy and tenant resources
+│   ├── schemas/               # Harper data schemas
+│   │   ├── tenants.schema.js  # Tenant configurations
+│   │   ├── sessions.schema.js # User sessions
+│   │   └── statistics.schema.js # Analytics data
+│   ├── ai/                    # AI/ML components
+│   │   ├── PersonalizationEngine.js
+│   │   └── HarperModelRetrainer.js
+│   ├── utils/                 # Utilities and services
+│   │   ├── HarperDataService.js
+│   │   ├── HarperTenantService.js
+│   │   └── HarperStatsProcessor.js
+│   ├── extensions/            # Harper extensions
+│   │   └── CacheExtension.js  # Multi-layer caching
+│   └── data/                  # Seed data and configurations
+│       └── seed-tenants.json  # Initial tenant configurations
+├── proxy-server/              # Legacy Express.js server (for development)
+├── models/                    # TensorFlow.js AI models  
+└── docs/                      # Documentation
+```
 
-### Production Deployment
-- **Load Balancing**: Stateless design supports horizontal scaling
-- **Caching**: Add Redis for distributed caching across instances
-- **Security**: Configure HTTPS, API key validation, rate limiting
-- **Monitoring**: Set up health checks and alerting
+## 🧪 Testing
 
-### Performance Optimization
-- **CDN Integration**: Cache static assets and model files
-- **Database Optimization**: Use connection pooling and read replicas
-- **Model Optimization**: Use quantized models for faster inference
+```bash
+# Run proxy server tests
+npm test
 
-## Security
+# Test Harper components
+harperdb test
 
-- **API Key Management**: Secure tenant API key storage and rotation
-- **Rate Limiting**: Prevent abuse with per-tenant limits
-- **Input Validation**: Sanitize all proxy requests and responses
-- **HTTPS Only**: Encrypted communication between all components
-- **Audit Logging**: Track all proxy requests for security monitoring
+# Load testing
+npm run load-test
+```
 
-## Monitoring & Analytics
+## 📚 Documentation
 
-### Key Metrics
-- **Cache Performance**: Hit rates, miss rates, eviction rates
-- **API Performance**: Response times, error rates, throughput
-- **Personalization Effectiveness**: Click-through rates, conversion rates
-- **System Health**: Memory usage, CPU utilization, error logs
+- [API Reference](./docs/API.md)
+- [Deployment Guide](./docs/DEPLOYMENT.md)  
+- [AI Model Guide](./docs/AI_MODELS.md)
+- [Caching Strategy](./docs/CACHING.md)
 
-### Dashboard Access
-Access monitoring dashboard at `http://localhost:3000/dashboard` (when running locally)
+## 🤝 Contributing
 
-## License
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-MIT License - See LICENSE file for details
+For support, please visit:
+- [Harper Documentation](https://docs.harperdb.io)
+- [Harper Community Discord](https://discord.gg/harperdb)
+- [GitHub Issues](https://github.com/Harper/harper-edge-ai-personalization-example/issues)
 
-## Support
+## 📄 License
 
-For issues and questions, please open a GitHub issue or contact the development team.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+## 🏷️ Tags
+
+`harperdb` `edge-ai` `personalization` `outdoor-gear` `proxy` `tensorflow` `caching` `multi-tenant`

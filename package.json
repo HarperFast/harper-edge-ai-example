@@ -6,7 +6,6 @@
   "scripts": {
     "start": "node proxy-server/index.js",
     "start:proxy": "node proxy-server/index.js",
-    "start:demo": "node server/index.js",
     "dev": "nodemon proxy-server/index.js",
     "build": "webpack --config webpack.config.js",
     "watch": "webpack --config webpack.config.js --watch",
@@ -18,7 +17,6 @@
     "express": "^4.18.2",
     "cors": "^2.8.5",
     "body-parser": "^1.20.2",
-    "sqlite3": "^5.1.6",
     "dotenv": "^16.3.1",
     "compression": "^1.7.4",
     "helmet": "^7.1.0",

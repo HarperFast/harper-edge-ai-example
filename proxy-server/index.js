@@ -334,8 +334,19 @@ app.get('/proxy/ready', (req, res) => {
 
 // Helper functions
 function authenticate(req, res, next) {
+  // Allow demo access when PROXY_API_KEY is set to demo values
+  const demoKeys = ['your-secure-api-key-here', 'demo-alpine-key-2024'];
+  
   const apiKey = req.headers['x-api-key'];
-  if (!apiKey || apiKey !== process.env.PROXY_API_KEY) {
+  const configuredKey = process.env.PROXY_API_KEY;
+  
+  // If no API key configured or it's a demo key, allow access
+  if (!configuredKey || demoKeys.includes(configuredKey)) {
+    return next();
+  }
+  
+  // Otherwise require proper authentication
+  if (!apiKey || apiKey !== configuredKey) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   next();
