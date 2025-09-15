@@ -1,13 +1,13 @@
 # Edge AI Personalization with Harper: A Practical Example
 
-> **How to build intelligent, real-time personalization at the edge using Harper's native AI capabilities**
+> **How to build intelligent, real-time personalization at the edge with Harper.**
 
-This repository demonstrates edge AI implementation using Harper as your data layer and compute platform. Instead of sending user data to distant AI services, we run TensorFlow.js models directly within Harper, achieving sub-100ms AI inference while keeping user data local.
+This repository demonstrates edge AI implementation using Harper as your data layer and compute platform. Instead of sending user data to distant AI services, we run TensorFlow.js models directly within Harper at the edge, achieving sub-100ms AI inference while keeping user data local.
 
 ## 🎯 What You'll Learn
 
 **Edge AI Concepts:**
-- Running TensorFlow.js models server-side within Harper 
+- Running TensorFlow.js models at the edge within Harper 
 - Real-time inference without external API calls
 - Intelligent caching with Harper's multi-layer storage
 - Statistical A/B testing for AI model optimization
