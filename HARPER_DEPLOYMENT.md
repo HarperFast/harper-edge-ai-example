@@ -299,10 +299,13 @@ harper-fabric db migrate
 
 ### Load Initial Data
 ```bash
-# Load tenant configurations
-harper-fabric db seed --file data/seed-tenants.json
+# Load tenant configurations using GraphQL
+harper-fabric graphql --file data/seed-tenants.graphql
 
-# Load demo data
+# Load comprehensive sample data
+harper-fabric graphql --file data/seed-data.graphql
+
+# Load demo API responses (if needed)
 harper-fabric db seed --file data/alpine-gear-mock-responses.json
 ```
 
