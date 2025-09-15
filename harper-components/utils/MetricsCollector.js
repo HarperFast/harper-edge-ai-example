@@ -206,17 +206,20 @@ export class MetricsCollector {
       const periodMs = this.parsePeriod(period);
       const startTime = Date.now() - periodMs;
 
-      let query = 'SELECT * FROM metrics WHERE timestamp > ?';
-      const params = [startTime];
+      // Build search conditions
+      let conditions = [
+        { search_attribute: 'timestamp', search_type: 'greater_than', search_value: startTime }
+      ];
 
       if (tenantId) {
-        query += ' AND tenant_id = ?';
-        params.push(tenantId);
+        conditions.push({ search_attribute: 'tenant_id', search_value: tenantId });
       }
 
-      query += ' ORDER BY timestamp DESC';
-
-      const metrics = await this.harperdb.query(query, params);
+      // Get metrics using Harper-native search
+      const metrics = await this.harperdb.searchByConditions('metrics', conditions);
+      
+      // Sort by timestamp descending
+      metrics.sort((a, b) => b.timestamp - a.timestamp);
       
       return {
         metrics,
@@ -244,22 +247,24 @@ export class MetricsCollector {
       const periodMs = this.parsePeriod(period);
       const startTime = Date.now() - periodMs;
 
-      let query = 'SELECT * FROM ai_model_metrics WHERE timestamp > ?';
-      const params = [startTime];
+      // Build search conditions
+      let conditions = [
+        { search_attribute: 'timestamp', search_type: 'greater_than', search_value: startTime }
+      ];
 
       if (modelName) {
-        query += ' AND model_name = ?';
-        params.push(modelName);
+        conditions.push({ search_attribute: 'model_name', search_value: modelName });
       }
 
       if (tenantId) {
-        query += ' AND tenant_id = ?';
-        params.push(tenantId);
+        conditions.push({ search_attribute: 'tenant_id', search_value: tenantId });
       }
 
-      query += ' ORDER BY timestamp DESC';
-
-      const metrics = await this.harperdb.query(query, params);
+      // Get AI model metrics using Harper-native search
+      const metrics = await this.harperdb.searchByConditions('ai_model_metrics', conditions);
+      
+      // Sort by timestamp descending
+      metrics.sort((a, b) => b.timestamp - a.timestamp);
       
       return {
         metrics,

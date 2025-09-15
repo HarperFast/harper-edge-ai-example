@@ -33,12 +33,21 @@ export class HarperModelRetrainer {
     };
 
     try {
-      // Check data volume for outdoor gear predictions
-      const dataVolume = await this.dataService.harper.sql(`
-        SELECT COUNT(*) as count 
-        FROM statistics 
-        WHERE created_at >= NOW() - INTERVAL 7 DAY
-      `);
+      // Check data volume for outdoor gear predictions using Harper-native search
+      const sevenDaysAgo = new Date(Date.now() - (7 * 24 * 60 * 60 * 1000));
+      const recentStatistics = await this.dataService.harper.searchByConditions('statistics', {
+        operation: 'search_by_conditions',
+        database: 'data',
+        table: 'statistics',
+        conditions: [{
+          search_attribute: 'created_at',
+          search_type: 'greater_than_or_equal',
+          search_value: sevenDaysAgo.toISOString()
+        }],
+        get_attributes: ['id']
+      });
+      
+      const dataVolume = [{ count: recentStatistics.length }];
 
       triggers.metrics.dataVolume = dataVolume[0]?.count || 0;
 
@@ -55,12 +64,20 @@ export class HarperModelRetrainer {
         triggers.reasons.push(`Outdoor gear accuracy degradation: ${accuracyMetrics.currentAccuracy.toFixed(2)}`);
       }
 
-      // Check feedback volume from outdoor enthusiasts
-      const feedbackCount = await this.dataService.harper.sql(`
-        SELECT COUNT(*) as count 
-        FROM user_feedback 
-        WHERE created_at >= NOW() - INTERVAL 7 DAY
-      `);
+      // Check feedback volume from outdoor enthusiasts using Harper-native search
+      const recentFeedback = await this.dataService.harper.searchByConditions('user_feedback', {
+        operation: 'search_by_conditions',
+        database: 'data',
+        table: 'user_feedback',
+        conditions: [{
+          search_attribute: 'created_at',
+          search_type: 'greater_than_or_equal',
+          search_value: sevenDaysAgo.toISOString()
+        }],
+        get_attributes: ['id']
+      });
+      
+      const feedbackCount = [{ count: recentFeedback.length }];
 
       triggers.metrics.feedbackCount = feedbackCount[0]?.count || 0;
 
@@ -68,12 +85,18 @@ export class HarperModelRetrainer {
         triggers.reasons.push(`Sufficient outdoor gear user feedback: ${feedbackCount[0].count}`);
       }
 
-      // Check time since last retrain
-      const lastRetrain = await this.dataService.harper.sql(`
-        SELECT MAX(triggered_at) as last_time 
-        FROM retraining_jobs 
-        WHERE status = 'completed'
-      `);
+      // Check time since last retrain using Harper-native search
+      const completedJobs = await this.dataService.harper.searchByValue('retraining_jobs', 'status', 'completed', ['triggered_at']);
+      
+      let lastRetrainTime = null;
+      if (completedJobs.length > 0) {
+        // Find the most recent triggered_at time
+        lastRetrainTime = completedJobs
+          .map(job => new Date(job.triggered_at).getTime())
+          .reduce((max, current) => Math.max(max, current), 0);
+      }
+      
+      const lastRetrain = [{ last_time: lastRetrainTime ? new Date(lastRetrainTime).toISOString() : null }];
 
       if (lastRetrain[0]?.last_time) {
         const timeSinceLastRetrain = Date.now() - new Date(lastRetrain[0].last_time).getTime();
@@ -126,24 +149,60 @@ export class HarperModelRetrainer {
    */
   async checkOutdoorGearAccuracy() {
     try {
-      // Get recent accuracy from user feedback
-      const recentAccuracy = await this.dataService.harper.sql(`
-        SELECT 
-          AVG(CASE WHEN is_correct = true THEN 1.0 ELSE 0.0 END) as accuracy
-        FROM user_feedback f
-        JOIN statistics s ON f.stat_id = s.id
-        WHERE f.created_at >= NOW() - INTERVAL 3 DAY
-      `);
+      // Get recent accuracy from user feedback using Harper-native operations
+      const threeDaysAgo = new Date(Date.now() - (3 * 24 * 60 * 60 * 1000));
+      const recentFeedback = await this.dataService.harper.searchByConditions('user_feedback', {
+        operation: 'search_by_conditions',
+        database: 'data',
+        table: 'user_feedback',
+        conditions: [{
+          search_attribute: 'created_at',
+          search_type: 'greater_than_or_equal',
+          search_value: threeDaysAgo.toISOString()
+        }],
+        get_attributes: ['*']
+      });
+
+      // Calculate recent accuracy - client-side processing
+      let recentCorrect = 0;
+      let recentTotal = recentFeedback.length;
+      recentFeedback.forEach(feedback => {
+        if (feedback.is_correct === true) {
+          recentCorrect++;
+        }
+      });
+      const recentAccuracy = [{ accuracy: recentTotal > 0 ? recentCorrect / recentTotal : 1.0 }];
 
       // Get baseline accuracy (last 30 days before recent period)
-      const baselineAccuracy = await this.dataService.harper.sql(`
-        SELECT 
-          AVG(CASE WHEN is_correct = true THEN 1.0 ELSE 0.0 END) as accuracy
-        FROM user_feedback f
-        JOIN statistics s ON f.stat_id = s.id
-        WHERE f.created_at >= NOW() - INTERVAL 33 DAY
-        AND f.created_at < NOW() - INTERVAL 3 DAY
-      `);
+      const thirtyThreeDaysAgo = new Date(Date.now() - (33 * 24 * 60 * 60 * 1000));
+      const baselineFeedback = await this.dataService.harper.searchByConditions('user_feedback', {
+        operation: 'search_by_conditions',
+        database: 'data',
+        table: 'user_feedback',
+        conditions: [
+          {
+            search_attribute: 'created_at',
+            search_type: 'greater_than_or_equal',
+            search_value: thirtyThreeDaysAgo.toISOString()
+          },
+          {
+            search_attribute: 'created_at',
+            search_type: 'less_than',
+            search_value: threeDaysAgo.toISOString()
+          }
+        ],
+        get_attributes: ['*']
+      });
+
+      // Calculate baseline accuracy - client-side processing
+      let baselineCorrect = 0;
+      let baselineTotal = baselineFeedback.length;
+      baselineFeedback.forEach(feedback => {
+        if (feedback.is_correct === true) {
+          baselineCorrect++;
+        }
+      });
+      const baselineAccuracy = [{ accuracy: baselineTotal > 0 ? baselineCorrect / baselineTotal : 1.0 }];
 
       const current = recentAccuracy[0]?.accuracy || 1.0;
       const baseline = baselineAccuracy[0]?.accuracy || 1.0;
@@ -171,30 +230,68 @@ export class HarperModelRetrainer {
       const lastYearSeason = new Date();
       lastYearSeason.setFullYear(lastYearSeason.getFullYear() - 1);
 
-      // Get current seasonal preferences
-      const currentSeasonalData = await this.dataService.harper.sql(`
-        SELECT 
-          input_metadata->>'$.activity' as activity,
-          COUNT(*) as count
-        FROM statistics
-        WHERE created_at >= NOW() - INTERVAL 30 DAY
-        AND JSON_VALID(input_metadata)
-        GROUP BY input_metadata->>'$.activity'
-        ORDER BY count DESC
-      `);
+      // Get current seasonal preferences using Harper-native operations
+      const thirtyDaysAgo = new Date(Date.now() - (30 * 24 * 60 * 60 * 1000));
+      const currentStats = await this.dataService.harper.searchByConditions('statistics', {
+        operation: 'search_by_conditions',
+        database: 'data',
+        table: 'statistics',
+        conditions: [{
+          search_attribute: 'created_at',
+          search_type: 'greater_than_or_equal',
+          search_value: thirtyDaysAgo.toISOString()
+        }],
+        get_attributes: ['*']
+      });
+
+      // Process current seasonal data - client-side processing
+      const currentActivityMap = new Map();
+      currentStats.forEach(stat => {
+        const activity = stat.input_metadata?.activity;
+        if (activity) {
+          currentActivityMap.set(activity, (currentActivityMap.get(activity) || 0) + 1);
+        }
+      });
+
+      const currentSeasonalData = Array.from(currentActivityMap.entries())
+        .map(([activity, count]) => ({ activity, count }))
+        .sort((a, b) => b.count - a.count);
 
       // Compare with historical seasonal data
-      const historicalSeasonalData = await this.dataService.harper.sql(`
-        SELECT 
-          input_metadata->>'$.activity' as activity,
-          COUNT(*) as count
-        FROM statistics
-        WHERE created_at >= '${lastYearSeason.toISOString().split('T')[0]}' - INTERVAL 30 DAY
-        AND created_at < '${lastYearSeason.toISOString().split('T')[0]}' + INTERVAL 30 DAY
-        AND JSON_VALID(input_metadata)
-        GROUP BY input_metadata->>'$.activity'
-        ORDER BY count DESC
-      `);
+      const historicalStart = new Date(lastYearSeason.getTime() - (30 * 24 * 60 * 60 * 1000));
+      const historicalEnd = new Date(lastYearSeason.getTime() + (30 * 24 * 60 * 60 * 1000));
+      
+      const historicalStats = await this.dataService.harper.searchByConditions('statistics', {
+        operation: 'search_by_conditions',
+        database: 'data',
+        table: 'statistics',
+        conditions: [
+          {
+            search_attribute: 'created_at',
+            search_type: 'greater_than_or_equal',
+            search_value: historicalStart.toISOString()
+          },
+          {
+            search_attribute: 'created_at',
+            search_type: 'less_than',
+            search_value: historicalEnd.toISOString()
+          }
+        ],
+        get_attributes: ['*']
+      });
+
+      // Process historical seasonal data - client-side processing
+      const historicalActivityMap = new Map();
+      historicalStats.forEach(stat => {
+        const activity = stat.input_metadata?.activity;
+        if (activity) {
+          historicalActivityMap.set(activity, (historicalActivityMap.get(activity) || 0) + 1);
+        }
+      });
+
+      const historicalSeasonalData = Array.from(historicalActivityMap.entries())
+        .map(([activity, count]) => ({ activity, count }))
+        .sort((a, b) => b.count - a.count);
 
       // Calculate drift score based on activity distribution changes
       const driftScore = this.calculateDistributionDrift(currentSeasonalData, historicalSeasonalData);
@@ -218,36 +315,96 @@ export class HarperModelRetrainer {
    */
   async checkActivityPredictionDrift() {
     try {
-      // Get recent prediction patterns by activity
-      const recentPatterns = await this.dataService.harper.sql(`
-        SELECT 
-          input_metadata->>'$.activity' as activity,
-          top_prediction->>'$.className' as prediction,
-          COUNT(*) as count,
-          AVG(CAST(top_prediction->>'$.probability' AS REAL)) as avg_confidence
-        FROM statistics
-        WHERE created_at >= NOW() - INTERVAL 7 DAY
-        AND JSON_VALID(input_metadata)
-        AND JSON_VALID(top_prediction)
-        GROUP BY input_metadata->>'$.activity', top_prediction->>'$.className'
-        ORDER BY activity, count DESC
-      `);
+      // Get recent prediction patterns by activity using Harper-native operations
+      const sevenDaysAgo = new Date(Date.now() - (7 * 24 * 60 * 60 * 1000));
+      const recentStats = await this.dataService.harper.searchByConditions('statistics', {
+        operation: 'search_by_conditions',
+        database: 'data',
+        table: 'statistics',
+        conditions: [{
+          search_attribute: 'created_at',
+          search_type: 'greater_than_or_equal',
+          search_value: sevenDaysAgo.toISOString()
+        }],
+        get_attributes: ['*']
+      });
+
+      // Process recent patterns - client-side processing
+      const recentPatternMap = new Map();
+      recentStats.forEach(stat => {
+        const activity = stat.input_metadata?.activity;
+        const prediction = stat.top_prediction?.className;
+        const confidence = stat.top_prediction?.probability ? parseFloat(stat.top_prediction.probability) : 0;
+        
+        if (activity && prediction) {
+          const key = `${activity}|${prediction}`;
+          if (!recentPatternMap.has(key)) {
+            recentPatternMap.set(key, { activity, prediction, count: 0, totalConfidence: 0 });
+          }
+          const pattern = recentPatternMap.get(key);
+          pattern.count++;
+          pattern.totalConfidence += confidence;
+        }
+      });
+
+      const recentPatterns = Array.from(recentPatternMap.values())
+        .map(pattern => ({
+          activity: pattern.activity,
+          prediction: pattern.prediction,
+          count: pattern.count,
+          avg_confidence: pattern.count > 0 ? pattern.totalConfidence / pattern.count : 0
+        }))
+        .sort((a, b) => a.activity.localeCompare(b.activity) || b.count - a.count);
 
       // Get baseline patterns from 2-4 weeks ago
-      const baselinePatterns = await this.dataService.harper.sql(`
-        SELECT 
-          input_metadata->>'$.activity' as activity,
-          top_prediction->>'$.className' as prediction,
-          COUNT(*) as count,
-          AVG(CAST(top_prediction->>'$.probability' AS REAL)) as avg_confidence
-        FROM statistics
-        WHERE created_at >= NOW() - INTERVAL 28 DAY
-        AND created_at < NOW() - INTERVAL 14 DAY
-        AND JSON_VALID(input_metadata)
-        AND JSON_VALID(top_prediction)
-        GROUP BY input_metadata->>'$.activity', top_prediction->>'$.className'
-        ORDER BY activity, count DESC
-      `);
+      const twentyEightDaysAgo = new Date(Date.now() - (28 * 24 * 60 * 60 * 1000));
+      const fourteenDaysAgo = new Date(Date.now() - (14 * 24 * 60 * 60 * 1000));
+      
+      const baselineStats = await this.dataService.harper.searchByConditions('statistics', {
+        operation: 'search_by_conditions',
+        database: 'data',
+        table: 'statistics',
+        conditions: [
+          {
+            search_attribute: 'created_at',
+            search_type: 'greater_than_or_equal',
+            search_value: twentyEightDaysAgo.toISOString()
+          },
+          {
+            search_attribute: 'created_at',
+            search_type: 'less_than',
+            search_value: fourteenDaysAgo.toISOString()
+          }
+        ],
+        get_attributes: ['*']
+      });
+
+      // Process baseline patterns - client-side processing
+      const baselinePatternMap = new Map();
+      baselineStats.forEach(stat => {
+        const activity = stat.input_metadata?.activity;
+        const prediction = stat.top_prediction?.className;
+        const confidence = stat.top_prediction?.probability ? parseFloat(stat.top_prediction.probability) : 0;
+        
+        if (activity && prediction) {
+          const key = `${activity}|${prediction}`;
+          if (!baselinePatternMap.has(key)) {
+            baselinePatternMap.set(key, { activity, prediction, count: 0, totalConfidence: 0 });
+          }
+          const pattern = baselinePatternMap.get(key);
+          pattern.count++;
+          pattern.totalConfidence += confidence;
+        }
+      });
+
+      const baselinePatterns = Array.from(baselinePatternMap.values())
+        .map(pattern => ({
+          activity: pattern.activity,
+          prediction: pattern.prediction,
+          count: pattern.count,
+          avg_confidence: pattern.count > 0 ? pattern.totalConfidence / pattern.count : 0
+        }))
+        .sort((a, b) => a.activity.localeCompare(b.activity) || b.count - a.count);
 
       const driftScore = this.calculatePatternDrift(recentPatterns, baselinePatterns);
 

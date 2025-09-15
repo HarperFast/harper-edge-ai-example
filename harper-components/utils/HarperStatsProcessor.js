@@ -202,66 +202,133 @@ export class HarperStatsProcessor {
   }
 
   /**
-   * Get outdoor gear specific analytics
+   * Get outdoor gear specific analytics using Harper-native operations
    */
   async getOutdoorGearAnalytics(startDate, endDate) {
     try {
-      // Activity breakdown
-      const activityBreakdown = await this.dataService.harper.sql(`
-        SELECT 
-          input_metadata->>'$.activity' as activity,
-          COUNT(*) as count,
-          AVG(CAST(top_prediction->>'$.probability' AS REAL)) as avg_confidence,
-          AVG(inference_time) as avg_inference_time
-        FROM statistics
-        WHERE created_at >= '${startDate.toISOString()}'
-        AND created_at <= '${endDate.toISOString()}'
-        AND JSON_VALID(input_metadata)
-        GROUP BY input_metadata->>'$.activity'
-        ORDER BY count DESC
-      `);
+      // Get all statistics for the date range using Harper-native search
+      const dateRangeStats = await this.dataService.harper.searchByConditions('statistics', {
+        operation: 'search_by_conditions',
+        database: 'data',
+        table: 'statistics',
+        conditions: [
+          {
+            search_attribute: 'created_at',
+            search_type: 'greater_than_or_equal',
+            search_value: startDate.toISOString()
+          },
+          {
+            search_attribute: 'created_at',
+            search_type: 'less_than_or_equal',
+            search_value: endDate.toISOString()
+          }
+        ],
+        get_attributes: ['*']
+      });
 
-      // Gear category performance
-      const gearCategoryPerformance = await this.dataService.harper.sql(`
-        SELECT 
-          top_prediction->>'$.category' as category,
-          COUNT(*) as recommendations,
-          AVG(CAST(top_prediction->>'$.probability' AS REAL)) as avg_confidence,
-          COUNT(CASE WHEN CAST(top_prediction->>'$.probability' AS REAL) > 0.8 THEN 1 END) as high_confidence_count
-        FROM statistics
-        WHERE created_at >= '${startDate.toISOString()}'
-        AND created_at <= '${endDate.toISOString()}'
-        AND JSON_VALID(top_prediction)
-        GROUP BY top_prediction->>'$.category'
-        ORDER BY recommendations DESC
-      `);
+      // Activity breakdown - client-side processing
+      const activityMap = new Map();
+      dateRangeStats.forEach(stat => {
+        const activity = stat.input_metadata?.activity;
+        const confidence = stat.top_prediction?.probability ? parseFloat(stat.top_prediction.probability) : 0;
+        const inferenceTime = stat.inference_time || 0;
+        
+        if (activity) {
+          if (!activityMap.has(activity)) {
+            activityMap.set(activity, { count: 0, totalConfidence: 0, totalInferenceTime: 0 });
+          }
+          const data = activityMap.get(activity);
+          data.count++;
+          data.totalConfidence += confidence;
+          data.totalInferenceTime += inferenceTime;
+        }
+      });
 
-      // Seasonal trends
-      const seasonalTrends = await this.dataService.harper.sql(`
-        SELECT 
-          input_metadata->>'$.season' as season,
-          COUNT(*) as count,
-          AVG(CAST(top_prediction->>'$.probability' AS REAL)) as avg_confidence
-        FROM statistics
-        WHERE created_at >= '${startDate.toISOString()}'
-        AND created_at <= '${endDate.toISOString()}'
-        AND JSON_VALID(input_metadata)
-        GROUP BY input_metadata->>'$.season'
-      `);
+      const activityBreakdown = Array.from(activityMap.entries())
+        .map(([activity, data]) => ({
+          activity,
+          count: data.count,
+          avg_confidence: data.count > 0 ? data.totalConfidence / data.count : 0,
+          avg_inference_time: data.count > 0 ? data.totalInferenceTime / data.count : 0
+        }))
+        .sort((a, b) => b.count - a.count);
 
-      // Experience level analysis
-      const experienceLevelAnalysis = await this.dataService.harper.sql(`
-        SELECT 
-          input_metadata->>'$.experience' as experience_level,
-          COUNT(*) as count,
-          AVG(CAST(top_prediction->>'$.probability' AS REAL)) as avg_confidence,
-          AVG(inference_time) as avg_processing_time
-        FROM statistics
-        WHERE created_at >= '${startDate.toISOString()}'
-        AND created_at <= '${endDate.toISOString()}'
-        AND JSON_VALID(input_metadata)
-        GROUP BY input_metadata->>'$.experience'
-      `);
+      // Gear category performance - client-side processing  
+      const categoryMap = new Map();
+      dateRangeStats.forEach(stat => {
+        const category = stat.top_prediction?.category;
+        const confidence = stat.top_prediction?.probability ? parseFloat(stat.top_prediction.probability) : 0;
+        
+        if (category) {
+          if (!categoryMap.has(category)) {
+            categoryMap.set(category, { recommendations: 0, totalConfidence: 0, highConfidenceCount: 0 });
+          }
+          const data = categoryMap.get(category);
+          data.recommendations++;
+          data.totalConfidence += confidence;
+          if (confidence > 0.8) data.highConfidenceCount++;
+        }
+      });
+
+      const gearCategoryPerformance = Array.from(categoryMap.entries())
+        .map(([category, data]) => ({
+          category,
+          recommendations: data.recommendations,
+          avg_confidence: data.recommendations > 0 ? data.totalConfidence / data.recommendations : 0,
+          high_confidence_count: data.highConfidenceCount
+        }))
+        .sort((a, b) => b.recommendations - a.recommendations);
+
+      // Seasonal trends - client-side processing
+      const seasonMap = new Map();
+      dateRangeStats.forEach(stat => {
+        const season = stat.input_metadata?.season;
+        const confidence = stat.top_prediction?.probability ? parseFloat(stat.top_prediction.probability) : 0;
+        
+        if (season) {
+          if (!seasonMap.has(season)) {
+            seasonMap.set(season, { count: 0, totalConfidence: 0 });
+          }
+          const data = seasonMap.get(season);
+          data.count++;
+          data.totalConfidence += confidence;
+        }
+      });
+
+      const seasonalTrends = Array.from(seasonMap.entries())
+        .map(([season, data]) => ({
+          season,
+          count: data.count,
+          avg_confidence: data.count > 0 ? data.totalConfidence / data.count : 0
+        }))
+        .sort((a, b) => b.count - a.count);
+
+      // Experience level analysis - client-side processing
+      const experienceMap = new Map();
+      dateRangeStats.forEach(stat => {
+        const experience = stat.input_metadata?.experience;
+        const confidence = stat.top_prediction?.probability ? parseFloat(stat.top_prediction.probability) : 0;
+        const inferenceTime = stat.inference_time || 0;
+        
+        if (experience) {
+          if (!experienceMap.has(experience)) {
+            experienceMap.set(experience, { count: 0, totalConfidence: 0, totalProcessingTime: 0 });
+          }
+          const data = experienceMap.get(experience);
+          data.count++;
+          data.totalConfidence += confidence;
+          data.totalProcessingTime += inferenceTime;
+        }
+      });
+
+      const experienceLevelAnalysis = Array.from(experienceMap.entries())
+        .map(([experience_level, data]) => ({
+          experience_level,
+          count: data.count,
+          avg_confidence: data.count > 0 ? data.totalConfidence / data.count : 0,
+          avg_processing_time: data.count > 0 ? data.totalProcessingTime / data.count : 0
+        }))
+        .sort((a, b) => b.count - a.count);
 
       return {
         activityBreakdown,
@@ -281,20 +348,61 @@ export class HarperStatsProcessor {
    */
   async getPerformanceTrends(startDate, endDate) {
     try {
-      const dailyPerformance = await this.dataService.harper.sql(`
-        SELECT 
-          DATE(created_at) as date,
-          COUNT(*) as inference_count,
-          AVG(inference_time) as avg_inference_time,
-          AVG(CAST(top_prediction->>'$.probability' AS REAL)) as avg_confidence,
-          COUNT(CASE WHEN inference_time > 100 THEN 1 END) as slow_inferences
-        FROM statistics
-        WHERE created_at >= '${startDate.toISOString()}'
-        AND created_at <= '${endDate.toISOString()}'
-        AND JSON_VALID(top_prediction)
-        GROUP BY DATE(created_at)
-        ORDER BY date
-      `);
+      // Get statistics for the date range using Harper-native search
+      const dateRangeStats = await this.dataService.harper.searchByConditions('statistics', {
+        operation: 'search_by_conditions',
+        database: 'data',
+        table: 'statistics',
+        conditions: [
+          {
+            search_attribute: 'created_at',
+            search_type: 'greater_than_or_equal',
+            search_value: startDate.toISOString()
+          },
+          {
+            search_attribute: 'created_at',
+            search_type: 'less_than_or_equal',
+            search_value: endDate.toISOString()
+          }
+        ],
+        get_attributes: ['*']
+      });
+
+      // Group by date and calculate daily performance metrics - client-side processing
+      const dailyMap = new Map();
+      dateRangeStats.forEach(stat => {
+        // Extract date part from timestamp
+        const date = new Date(stat.created_at).toISOString().split('T')[0];
+        const confidence = stat.top_prediction?.probability ? parseFloat(stat.top_prediction.probability) : 0;
+        const inferenceTime = stat.inference_time || 0;
+        
+        if (!dailyMap.has(date)) {
+          dailyMap.set(date, {
+            inference_count: 0,
+            totalInferenceTime: 0,
+            totalConfidence: 0,
+            slow_inferences: 0
+          });
+        }
+        
+        const dayData = dailyMap.get(date);
+        dayData.inference_count++;
+        dayData.totalInferenceTime += inferenceTime;
+        dayData.totalConfidence += confidence;
+        if (inferenceTime > 100) {
+          dayData.slow_inferences++;
+        }
+      });
+
+      const dailyPerformance = Array.from(dailyMap.entries())
+        .map(([date, data]) => ({
+          date,
+          inference_count: data.inference_count,
+          avg_inference_time: data.inference_count > 0 ? data.totalInferenceTime / data.inference_count : 0,
+          avg_confidence: data.inference_count > 0 ? data.totalConfidence / data.inference_count : 0,
+          slow_inferences: data.slow_inferences
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date));
 
       return { dailyPerformance };
 
@@ -309,21 +417,97 @@ export class HarperStatsProcessor {
    */
   async getUserEngagementMetrics(startDate, endDate) {
     try {
-      const engagementData = await this.dataService.harper.sql(`
-        SELECT 
-          COUNT(DISTINCT s.session_id) as unique_sessions,
-          COUNT(*) as total_interactions,
-          AVG(sess.total_inferences) as avg_inferences_per_session,
-          COUNT(CASE WHEN f.is_correct = true THEN 1 END) as positive_feedback,
-          COUNT(f.id) as total_feedback
-        FROM statistics s
-        LEFT JOIN sessions sess ON s.session_id = sess.id
-        LEFT JOIN user_feedback f ON s.id = f.stat_id
-        WHERE s.created_at >= '${startDate.toISOString()}'
-        AND s.created_at <= '${endDate.toISOString()}'
-      `);
+      // Get statistics for the date range
+      const statistics = await this.dataService.harper.searchByConditions('statistics', {
+        operation: 'search_by_conditions',
+        database: 'data',
+        table: 'statistics',
+        conditions: [
+          {
+            search_attribute: 'created_at',
+            search_type: 'greater_than_or_equal',
+            search_value: startDate.toISOString()
+          },
+          {
+            search_attribute: 'created_at',
+            search_type: 'less_than_or_equal',
+            search_value: endDate.toISOString()
+          }
+        ],
+        get_attributes: ['*']
+      });
 
-      return engagementData[0] || {};
+      // Get sessions data
+      const sessions = await this.dataService.harper.searchByConditions('sessions', {
+        operation: 'search_by_conditions', 
+        database: 'data',
+        table: 'sessions',
+        conditions: [],
+        get_attributes: ['*']
+      });
+
+      // Get user feedback data
+      const userFeedback = await this.dataService.harper.searchByConditions('user_feedback', {
+        operation: 'search_by_conditions',
+        database: 'data', 
+        table: 'user_feedback',
+        conditions: [],
+        get_attributes: ['*']
+      });
+
+      // Create lookup maps for efficient joining - client-side processing
+      const sessionMap = new Map();
+      sessions.forEach(session => {
+        sessionMap.set(session.id, session);
+      });
+
+      const feedbackMap = new Map();
+      userFeedback.forEach(feedback => {
+        if (!feedbackMap.has(feedback.stat_id)) {
+          feedbackMap.set(feedback.stat_id, []);
+        }
+        feedbackMap.get(feedback.stat_id).push(feedback);
+      });
+
+      // Calculate engagement metrics
+      const uniqueSessions = new Set();
+      let totalSessionInferences = 0;
+      let sessionCount = 0;
+      let positiveFeedback = 0;
+      let totalFeedback = 0;
+
+      statistics.forEach(stat => {
+        // Count unique sessions
+        if (stat.session_id) {
+          uniqueSessions.add(stat.session_id);
+          
+          // Add session inference data for averaging
+          const session = sessionMap.get(stat.session_id);
+          if (session && session.total_inferences) {
+            totalSessionInferences += session.total_inferences;
+            sessionCount++;
+          }
+        }
+
+        // Count feedback
+        const feedback = feedbackMap.get(stat.id);
+        if (feedback) {
+          feedback.forEach(f => {
+            totalFeedback++;
+            if (f.is_correct === true) {
+              positiveFeedback++;
+            }
+          });
+        }
+      });
+
+      return {
+        unique_sessions: uniqueSessions.size,
+        total_interactions: statistics.length,
+        avg_inferences_per_session: sessionCount > 0 ? totalSessionInferences / sessionCount : 0,
+        positive_feedback: positiveFeedback,
+        total_feedback: totalFeedback
+      };
 
     } catch (error) {
       console.error('Error getting engagement metrics:', error);
@@ -394,18 +578,58 @@ export class HarperStatsProcessor {
 
   async getActivitiesWithFeedback() {
     try {
-      const results = await this.dataService.harper.sql(`
-        SELECT 
-          s.input_metadata->>'$.activity' as activity,
-          AVG(CASE WHEN f.is_correct = true THEN 1.0 ELSE 0.0 END) as accuracy
-        FROM statistics s
-        JOIN user_feedback f ON s.id = f.stat_id
-        WHERE JSON_VALID(s.input_metadata)
-        GROUP BY s.input_metadata->>'$.activity'
-        HAVING COUNT(*) >= 10
-      `);
+      // Get all statistics with user feedback using Harper-native operations
+      const statistics = await this.dataService.harper.searchByConditions('statistics', {
+        operation: 'search_by_conditions',
+        database: 'data',
+        table: 'statistics',
+        conditions: [],
+        get_attributes: ['*']
+      });
 
-      return results.map(r => [r.activity, r.accuracy]);
+      const userFeedback = await this.dataService.harper.searchByConditions('user_feedback', {
+        operation: 'search_by_conditions',
+        database: 'data',
+        table: 'user_feedback', 
+        conditions: [],
+        get_attributes: ['*']
+      });
+
+      // Create feedback lookup map
+      const feedbackMap = new Map();
+      userFeedback.forEach(feedback => {
+        if (!feedbackMap.has(feedback.stat_id)) {
+          feedbackMap.set(feedback.stat_id, []);
+        }
+        feedbackMap.get(feedback.stat_id).push(feedback);
+      });
+
+      // Process statistics with feedback - client-side processing
+      const activityMetrics = new Map();
+      
+      statistics.forEach(stat => {
+        const activity = stat.input_metadata?.activity;
+        const feedback = feedbackMap.get(stat.id);
+        
+        if (activity && feedback && feedback.length > 0) {
+          if (!activityMetrics.has(activity)) {
+            activityMetrics.set(activity, { correct: 0, total: 0 });
+          }
+          
+          const metrics = activityMetrics.get(activity);
+          feedback.forEach(f => {
+            metrics.total++;
+            if (f.is_correct === true) {
+              metrics.correct++;
+            }
+          });
+        }
+      });
+
+      // Filter activities with at least 10 feedback entries and calculate accuracy
+      return Array.from(activityMetrics.entries())
+        .filter(([activity, metrics]) => metrics.total >= 10)
+        .map(([activity, metrics]) => [activity, metrics.correct / metrics.total]);
     } catch (error) {
       console.error('Error getting activities with feedback:', error);
       return [];

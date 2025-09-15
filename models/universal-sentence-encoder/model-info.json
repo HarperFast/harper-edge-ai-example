@@ -1,0 +1,12 @@
+{
+  "name": "universal-sentence-encoder",
+  "type": "tensorflow-models-package",
+  "package": "@tensorflow-models/universal-sentence-encoder",
+  "description": "Text embeddings for product descriptions and user behavior analysis",
+  "size": "~25MB",
+  "usage": "Product similarity, user clustering, semantic search",
+  "license": "Apache 2.0",
+  "installation": "npm install @tensorflow-models/universal-sentence-encoder",
+  "loadExample": "\n// Load Universal Sentence Encoder\nimport * as use from '@tensorflow-models/universal-sentence-encoder';\n\nconst model = await use.load();\nconst embeddings = await model.embed(['hiking boots', 'waterproof jacket']);\nconst similarities = await embeddings.data();\n",
+  "created": "2025-09-15T16:24:54.450Z"
+}

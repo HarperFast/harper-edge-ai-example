@@ -1,0 +1,12 @@
+{
+  "name": "mobilenet",
+  "type": "tensorflow-models-package",
+  "package": "@tensorflow-models/mobilenet",
+  "description": "Image classification and embeddings for outdoor gear photos",
+  "size": "~16MB",
+  "usage": "Visual product similarity, image-based recommendations",
+  "license": "Apache 2.0",
+  "installation": "npm install @tensorflow-models/mobilenet",
+  "loadExample": "\n// Load MobileNet\nimport * as mobilenet from '@tensorflow-models/mobilenet';\n\nconst model = await mobilenet.load();\nconst predictions = await model.classify(imageElement);\nconst embeddings = await model.infer(imageElement, true);\n",
+  "created": "2025-09-15T16:24:54.763Z"
+}

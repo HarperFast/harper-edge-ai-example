@@ -242,12 +242,12 @@ export class ProxyResource extends Resource {
       }
       
       // Check database cache fallback
-      const dbCached = await this.harperdb.query(
-        'SELECT * FROM cache_metadata WHERE cache_key = ? AND expires_at > ?',
-        [cacheKey, new Date()]
-      );
+      const dbCached = await this.harperdb.searchByConditions('cache_metadata', [
+        { search_attribute: 'cache_key', search_value: cacheKey },
+        { search_attribute: 'expires_at', search_type: 'greater_than', search_value: new Date() }
+      ]);
       
-      if (dbCached[0]) {
+      if (dbCached && dbCached.length > 0) {
         return JSON.parse(dbCached[0].data);
       }
       
@@ -593,22 +593,26 @@ export class MetricsResource extends Resource {
     const { tenantId, period = '1h', endpoint } = request.query;
     
     try {
-      let query = 'SELECT * FROM metrics WHERE timestamp > ?';
-      const params = [Date.now() - this.parsePeriod(period)];
+      const minTimestamp = Date.now() - this.parsePeriod(period);
+      
+      // Build search conditions
+      let conditions = [
+        { search_attribute: 'timestamp', search_type: 'greater_than', search_value: minTimestamp }
+      ];
       
       if (tenantId) {
-        query += ' AND tenant_id = ?';
-        params.push(tenantId);
+        conditions.push({ search_attribute: 'tenant_id', search_value: tenantId });
       }
       
       if (endpoint) {
-        query += ' AND endpoint = ?';
-        params.push(endpoint);
+        conditions.push({ search_attribute: 'endpoint', search_value: endpoint });
       }
       
-      query += ' ORDER BY timestamp DESC';
+      // Get metrics using Harper-native search
+      const metrics = await this.harperdb.searchByConditions('metrics', conditions);
       
-      const metrics = await this.harperdb.query(query, params);
+      // Sort by timestamp descending (Harper doesn't guarantee order)
+      metrics.sort((a, b) => b.timestamp - a.timestamp);
       
       // Calculate aggregated statistics
       const stats = this.calculateMetricStats(metrics);
@@ -761,7 +765,8 @@ export class MetricsResource extends Resource {
 
   async checkDatabaseHealth() {
     try {
-      await this.harperdb.query('SELECT 1');
+      // Use Harper-native describe_all operation for health check
+      await this.harperdb.describeAll();
       return { status: 'healthy', responseTime: Date.now() };
     } catch (error) {
       return { status: 'unhealthy', error: error.message };

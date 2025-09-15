@@ -493,12 +493,12 @@ export class UserProfileManager {
   async getOrCreateProfile(userId, tenantId) {
     try {
       // Try to find existing profile
-      const existing = await this.harperdb.query(
-        'SELECT * FROM user_profiles WHERE user_id = ? AND tenant_id = ?',
-        [userId, tenantId]
-      );
+      const existing = await this.harperdb.searchByConditions('user_profiles', [
+        { search_attribute: 'user_id', search_value: userId },
+        { search_attribute: 'tenant_id', search_value: tenantId }
+      ]);
 
-      if (existing[0]) {
+      if (existing && existing.length > 0) {
         return existing[0];
       }
 
@@ -639,13 +639,17 @@ export class UserProfileManager {
 
   async getUsersBySegment(tenantId, segment, limit = 100) {
     try {
-      const users = await this.harperdb.query(
-        `SELECT * FROM user_profiles 
-         WHERE tenant_id = ? AND JSON_EXTRACT(segments, '$[*].segment') LIKE '%${segment}%'
-         ORDER BY last_active DESC 
-         LIMIT ?`,
-        [tenantId, limit]
-      );
+      // Get all users for tenant and filter by segment client-side
+      // Harper doesn't support complex JSON querying in searchByConditions
+      const allUsers = await this.harperdb.searchByValue('user_profiles', 'tenant_id', tenantId);
+      
+      const users = allUsers
+        .filter(user => {
+          if (!user.segments || !Array.isArray(user.segments)) return false;
+          return user.segments.some(seg => seg.segment === segment);
+        })
+        .sort((a, b) => new Date(b.last_active) - new Date(a.last_active))
+        .slice(0, limit);
 
       return users;
     } catch (error) {
@@ -658,10 +662,13 @@ export class UserProfileManager {
     try {
       const cutoffTime = new Date(Date.now() - (hoursBack * 60 * 60 * 1000));
       
-      const users = await this.harperdb.query(
-        'SELECT * FROM user_profiles WHERE tenant_id = ? AND last_active > ? ORDER BY last_active DESC',
-        [tenantId, cutoffTime]
-      );
+      const users = await this.harperdb.searchByConditions('user_profiles', [
+        { search_attribute: 'tenant_id', search_value: tenantId },
+        { search_attribute: 'last_active', search_type: 'greater_than', search_value: cutoffTime }
+      ]);
+      
+      // Sort by last_active descending
+      users.sort((a, b) => new Date(b.last_active) - new Date(a.last_active));
 
       return users;
     } catch (error) {
