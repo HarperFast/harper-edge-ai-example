@@ -17,7 +17,6 @@ build/
 
 # Cache directories
 .cache/
-data/
 
 # OS generated files
 .DS_Store

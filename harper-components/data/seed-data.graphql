@@ -1,0 +1,266 @@
+# Harper Edge AI Complete Seed Data
+# GraphQL mutations to populate all tables with sample data
+
+# Create Tenant
+mutation CreateTenant {
+  createTenant(
+    id: "alpine-gear-co"
+    name: "Alpine Gear Co - Premium Outdoor Equipment"
+    baseUrl: "https://api.alpinegear.co/v1"
+    apiKey: "demo-mode-no-key-required"
+    apiKeyHeader: "X-Alpine-API-Key"
+    responseFormat: "standard"
+    recommendationLimit: 15
+    personalizationBoost: 2.2
+    maxDiscount: 0.25
+    pricingStrategy: "optimize-conversion"
+    categoryWeights: {
+      "hiking-boots": 1.8,
+      "backpacks": 1.7,
+      "tents": 1.6,
+      "sleeping-bags": 1.5,
+      "climbing-gear": 1.5,
+      "jackets": 1.4,
+      "base-layers": 1.3,
+      "camping-equipment": 1.2,
+      "accessories": 1.0
+    }
+    endpoints: [
+      {
+        "name": "product-search",
+        "pattern": "^products/search$",
+        "cacheable": true,
+        "cacheTTL": 300,
+        "personalization": {
+          "enabled": true,
+          "type": "product-listing"
+        }
+      },
+      {
+        "name": "product-recommendations",
+        "pattern": "^products/[^/]+/recommendations$",
+        "cacheable": true,
+        "cacheTTL": 600,
+        "personalization": {
+          "enabled": true,
+          "type": "product-recommendations"
+        }
+      }
+    ]
+    segmentationRules: {
+      "purchaseThreshold": 3,
+      "valueThreshold": 500,
+      "frequencyThreshold": 0.4
+    }
+    contentRules: {
+      "purchaseIntent": {
+        "callToAction": "Add to Pack",
+        "urgency": "Limited stock - gear up now!"
+      },
+      "mobile": {
+        "layout": "grid",
+        "imageSize": "large"
+      },
+      "darkTheme": {
+        "enabled": true
+      }
+    }
+    rateLimits: {
+      "requestsPerSecond": 25,
+      "requestsPerMinute": 500,
+      "requestsPerHour": 12000
+    }
+    headers: {
+      "X-Forwarded-By": "edge-ai-proxy",
+      "X-Proxy-Version": "2.0.0",
+      "User-Agent": "AlpineGearProxy/2.0"
+    }
+    active: true
+    created_at: "2024-01-01T00:00:00Z"
+    updated_at: "2024-01-01T00:00:00Z"
+  ) {
+    id
+    name
+    active
+  }
+}
+
+# Create Sample User Profile
+mutation CreateUserProfile {
+  createUserProfile(
+    id: "user-outdoor-enthusiast"
+    tenantId: "alpine-gear-co"
+    userId: "user123"
+    preferences: {
+      "activities": ["hiking", "camping", "backpacking"],
+      "experience_level": "intermediate",
+      "budget_range": "medium",
+      "preferred_brands": ["patagonia", "arcteryx", "osprey"]
+    }
+    outdoorActivities: [
+      {
+        "activity": "hiking",
+        "frequency": "weekly",
+        "experience": "intermediate",
+        "preferred_season": ["spring", "summer", "fall"]
+      },
+      {
+        "activity": "camping",
+        "frequency": "monthly", 
+        "experience": "advanced",
+        "preferred_season": ["spring", "summer", "fall", "winter"]
+      }
+    ]
+    experienceLevel: "intermediate"
+    gearPreferences: {
+      "categories": ["hiking-boots", "backpacks", "tents"],
+      "features": ["lightweight", "durable", "waterproof"],
+      "price_sensitivity": 0.7
+    }
+    seasonalPreferences: {
+      "spring": ["hiking-boots", "jackets", "base-layers"],
+      "summer": ["hiking-boots", "backpacks", "camping-equipment"],
+      "fall": ["jackets", "base-layers", "sleeping-bags"],
+      "winter": ["jackets", "base-layers", "sleeping-bags", "accessories"]
+    }
+    priceRange: {
+      "min": 50,
+      "max": 500,
+      "preferred": 200
+    }
+    brandAffinities: [
+      {
+        "brand": "patagonia",
+        "score": 0.9,
+        "categories": ["jackets", "base-layers"]
+      },
+      {
+        "brand": "arcteryx",
+        "score": 0.8,
+        "categories": ["jackets", "backpacks"]
+      }
+    ]
+    purchaseHistory: [
+      {
+        "product_id": "hiking-boot-001",
+        "category": "hiking-boots",
+        "price": 180,
+        "purchase_date": "2024-03-15",
+        "satisfaction": 0.9
+      }
+    ]
+    behaviorMetrics: {
+      "avg_session_duration": 420,
+      "pages_per_session": 8,
+      "bounce_rate": 0.2,
+      "conversion_rate": 0.15
+    }
+    segmentTags: ["outdoor-enthusiast", "intermediate-hiker", "gear-conscious"]
+    lastActivity: "2024-09-15T12:00:00Z"
+    created_at: "2024-01-01T00:00:00Z"
+    updated_at: "2024-09-15T12:00:00Z"
+  ) {
+    id
+    userId
+    experienceLevel
+  }
+}
+
+# Create Sample Session
+mutation CreateSession {
+  createSession(
+    id: "session-001"
+    tenantId: "alpine-gear-co"
+    userId: "user123"
+    sessionStart: "2024-09-15T10:00:00Z"
+    sessionEnd: "2024-09-15T10:30:00Z"
+    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+    ipAddress: "192.168.1.100"
+    deviceType: "desktop"
+    referrer: "https://google.com"
+    totalInferences: 5
+    totalCacheHits: 2
+    avgResponseTime: 245.6
+    created_at: "2024-09-15T10:00:00Z"
+  ) {
+    id
+    tenantId
+    userId
+  }
+}
+
+# Create Sample Statistics
+mutation CreateStatistic {
+  createStatistic(
+    id: "stat-001"
+    sessionId: "session-001"
+    tenantId: "alpine-gear-co"
+    timestamp: "2024-09-15T10:05:00Z"
+    modelVersion: "v2.1.0"
+    modelAlpha: 0.8
+    inferenceTime: 156
+    preprocessingTime: 45
+    totalTime: 201
+    memoryUsage: {
+      "rss": 145234432,
+      "heapTotal": 89456640,
+      "heapUsed": 67234567,
+      "external": 2345678
+    }
+    topPrediction: {
+      "className": "hiking-boots",
+      "probability": 0.89,
+      "category": "footwear",
+      "activity": "hiking"
+    }
+    allPredictions: [
+      {
+        "className": "hiking-boots",
+        "probability": 0.89,
+        "category": "footwear"
+      },
+      {
+        "className": "trail-running-shoes", 
+        "probability": 0.67,
+        "category": "footwear"
+      }
+    ]
+    inputMetadata: {
+      "query": "waterproof hiking boots",
+      "activity": "hiking",
+      "experience": "intermediate",
+      "season": "fall"
+    }
+    pageUrl: "/products/search?q=hiking+boots"
+    created_at: "2024-09-15T10:05:00Z"
+  ) {
+    id
+    sessionId
+    modelVersion
+  }
+}
+
+# Create Sample User Feedback
+mutation CreateUserFeedback {
+  createUserFeedback(
+    id: "feedback-001"
+    statId: "stat-001"
+    sessionId: "session-001"
+    tenantId: "alpine-gear-co"
+    userId: "user123"
+    isCorrect: true
+    confidence: 0.9
+    feedbackType: "explicit"
+    context: {
+      "interaction_type": "click",
+      "position": 1,
+      "page": "search_results"
+    }
+    timestamp: "2024-09-15T10:06:00Z"
+    created_at: "2024-09-15T10:06:00Z"
+  ) {
+    id
+    isCorrect
+    feedbackType
+  }
+}
