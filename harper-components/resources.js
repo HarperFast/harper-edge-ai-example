@@ -4,7 +4,6 @@
  */
 
 import { Component, Resource } from 'harperdb';
-import { PersonalizationEngine } from './ai/PersonalizationEngine.js';
 import { ResponseEnhancer } from './utils/ResponseEnhancer.js';
 import { TenantValidator } from './utils/TenantValidator.js';
 import { MetricsCollector } from './utils/MetricsCollector.js';
@@ -13,6 +12,12 @@ import { initializeComponents } from './init.js';
 import { schema } from './schemas/index.js';
 import { v4 as uuidv4 } from 'uuid';
 
+// Extensions will be injected by Harper
+let proxyServiceExtension = null;
+let modelManagerExtension = null;
+let trainingManagerExtension = null;
+let cacheExtension = null;
+
 // Export the GraphQL schema for Harper to use
 export { schema };
 
@@ -20,6 +25,17 @@ export { schema };
  * Main Proxy Resource - Handles all API proxy requests with AI enhancement
  */
 export class ProxyResource extends Resource {
+  // Configuration from environment variables
+  static config = {
+    cacheDefaultTTL: parseInt(process.env.CACHE_DEFAULT_TTL) || 300,
+    cachePersonalizationTTL: parseInt(process.env.CACHE_PERSONALIZATION_TTL) || 60,
+    cacheMaxSize: process.env.CACHE_MAX_SIZE || '2GB',
+    inferenceTimeout: parseInt(process.env.INFERENCE_TIMEOUT) || 30000,
+    fallbackToCache: process.env.FALLBACK_TO_CACHE === 'true',
+    personalizeAnonymous: process.env.PERSONALIZE_ANONYMOUS === 'true',
+    proxyApiKey: process.env.PROXY_API_KEY || 'demo-alpine-key-2024'
+  };
+
   static routes = [
     // Main proxy endpoints
     { method: 'GET', path: '/api/{tenant}/{proxy+}', handler: 'handleProxyRequest' },
@@ -29,12 +45,14 @@ export class ProxyResource extends Resource {
     { method: 'PATCH', path: '/api/{tenant}/{proxy+}', handler: 'handleProxyRequest' },
     
     // Legacy support for header-based routing
-    { method: '*', path: '/api/{proxy+}', handler: 'handleLegacyProxyRequest' }
+    { method: '*', path: '/api/{proxy+}', handler: 'handleLegacyProxyRequest' },
+    
+    // Environment test endpoint
+    { method: 'GET', path: '/test/env', handler: 'testEnvironmentVariables' }
   ];
 
   constructor() {
     super();
-    this.personalizationEngine = new PersonalizationEngine();
     this.responseEnhancer = new ResponseEnhancer();
     this.metricsCollector = new MetricsCollector(this);
     this.tenantService = new HarperTenantService(this.harperdb);
@@ -43,6 +61,14 @@ export class ProxyResource extends Resource {
     
     // Initialize components (tenants, etc.) when first request comes in
     this.initPromise = null;
+  }
+
+  // Method to inject extensions (called by Harper)
+  static setExtensions(extensions) {
+    proxyServiceExtension = extensions.proxyService;
+    modelManagerExtension = extensions.modelManager;
+    trainingManagerExtension = extensions.trainingManager;
+    cacheExtension = extensions.cache;
   }
 
   async ensureInitialized() {
@@ -193,7 +219,7 @@ export class ProxyResource extends Resource {
         [tenant.apiKeyHeader || 'X-API-Key']: tenant.apiKey,
         'X-Request-ID': requestId
       },
-      timeout: 30000,
+      timeout: ProxyResource.config.inferenceTimeout,
       validateStatus: () => true
     };
 
@@ -211,16 +237,18 @@ export class ProxyResource extends Resource {
     // Apply AI enhancement if configured
     if (endpoint?.personalization?.enabled && 
         response.status === 200 && 
-        this.shouldPersonalize(userContext)) {
+        this.shouldPersonalize(userContext) &&
+        proxyServiceExtension) {
       
       try {
-        responseData = await this.responseEnhancer.enhance(
-          responseData,
-          endpoint.personalization.type,
+        const enhancedResponse = await proxyServiceExtension.enhanceResponse(
+          { data: responseData, status: response.status, headers: response.headers },
           userContext,
-          tenant
+          tenant,
+          endpoint
         );
-        enhanced = true;
+        responseData = enhancedResponse.data;
+        enhanced = enhancedResponse.enhanced;
       } catch (error) {
         console.error('Enhancement failed, using original response:', error);
       }
@@ -264,7 +292,7 @@ export class ProxyResource extends Resource {
 
   async cacheResponse(tenantId, path, query, userContext, response, endpoint) {
     const cacheKey = this.generateCacheKey(tenantId, path, query, userContext);
-    const ttl = endpoint?.cacheTTL || (response.enhanced ? 60 : 300);
+    const ttl = endpoint?.cacheTTL || (response.enhanced ? ProxyResource.config.cachePersonalizationTTL : ProxyResource.config.cacheDefaultTTL);
     const expiresAt = Date.now() + (ttl * 1000);
     
     const cacheData = {
@@ -436,6 +464,32 @@ export class ProxyResource extends Resource {
         'Content-Type': 'application/json',
         'X-Request-ID': requestId,
         ...headers
+      }
+    };
+  }
+
+  async testEnvironmentVariables(request) {
+    const envVars = {
+      PORT: process.env.PORT,
+      NODE_ENV: process.env.NODE_ENV,
+      PROXY_API_KEY: process.env.PROXY_API_KEY,
+      CACHE_MAX_SIZE: process.env.CACHE_MAX_SIZE,
+      CACHE_DEFAULT_TTL: process.env.CACHE_DEFAULT_TTL,
+      CACHE_PERSONALIZATION_TTL: process.env.CACHE_PERSONALIZATION_TTL,
+      INFERENCE_TIMEOUT: process.env.INFERENCE_TIMEOUT,
+      FALLBACK_TO_CACHE: process.env.FALLBACK_TO_CACHE,
+      PERSONALIZE_ANONYMOUS: process.env.PERSONALIZE_ANONYMOUS,
+      config: ProxyResource.config
+    };
+
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: {
+        message: 'Environment variables test',
+        environmentVariables: envVars,
+        loadedFromEnv: Object.keys(envVars).filter(key => envVars[key] !== undefined && key !== 'config'),
+        timestamp: new Date().toISOString()
       }
     };
   }
@@ -796,13 +850,20 @@ export class MetricsResource extends Resource {
 
   async checkAIModelsHealth() {
     try {
-      // Check if AI models are loaded and responsive
-      const personalizationEngine = new PersonalizationEngine();
-      const healthy = await personalizationEngine.healthCheck();
+      // Check AI extensions health
+      const extensionsHealth = {
+        proxyService: proxyServiceExtension ? await proxyServiceExtension.getHealth() : null,
+        modelManager: modelManagerExtension ? await modelManagerExtension.getHealth() : null,
+        trainingManager: trainingManagerExtension ? await trainingManagerExtension.getHealth() : null
+      };
+      
+      const allHealthy = Object.values(extensionsHealth).every(ext => 
+        ext === null || ext.initialized === true
+      );
       
       return {
-        status: healthy ? 'healthy' : 'degraded',
-        modelsLoaded: await personalizationEngine.getLoadedModels()
+        status: allHealthy ? 'healthy' : 'degraded',
+        extensions: extensionsHealth
       };
     } catch (error) {
       return { status: 'unhealthy', error: error.message };
@@ -820,8 +881,11 @@ export class MetricsResource extends Resource {
 
   async areModelsReady() {
     try {
-      const personalizationEngine = new PersonalizationEngine();
-      return await personalizationEngine.isReady();
+      // Check if AI extensions are ready
+      const proxyServiceReady = proxyServiceExtension ? proxyServiceExtension.isReady() : false;
+      const modelManagerReady = modelManagerExtension ? modelManagerExtension.isReady() : false;
+      
+      return proxyServiceReady && modelManagerReady;
     } catch {
       return false;
     }

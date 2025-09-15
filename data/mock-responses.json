@@ -1,0 +1,306 @@
+{
+  "amazon": {
+    "searchitems": {
+      "SearchResult": {
+        "TotalResultCount": 1000,
+        "SearchURL": "https://www.amazon.com/s?k=electronics",
+        "Items": [
+          {
+            "ASIN": "B08N5WRWNW",
+            "DetailPageURL": "https://www.amazon.com/dp/B08N5WRWNW",
+            "Images": {
+              "Primary": {
+                "Large": {
+                  "URL": "https://m.media-amazon.com/images/I/71Swqqe7XAL._AC_SX466_.jpg",
+                  "Height": 466,
+                  "Width": 466
+                }
+              }
+            },
+            "ItemInfo": {
+              "Title": {
+                "DisplayValue": "Echo Dot (4th Gen) | Smart speaker with Alexa | Charcoal"
+              },
+              "Features": [
+                "Meet Echo Dot - Our most popular smart speaker with a fabric design"
+              ]
+            },
+            "Offers": {
+              "Listings": [{
+                "Price": {
+                  "Amount": 4999,
+                  "Currency": "USD",
+                  "DisplayAmount": "$49.99"
+                }
+              }]
+            }
+          },
+          {
+            "ASIN": "B0979MGD3L",
+            "DetailPageURL": "https://www.amazon.com/dp/B0979MGD3L",
+            "Images": {
+              "Primary": {
+                "Large": {
+                  "URL": "https://m.media-amazon.com/images/I/61SUj2aKoEL._AC_SX522_.jpg",
+                  "Height": 522,
+                  "Width": 522
+                }
+              }
+            },
+            "ItemInfo": {
+              "Title": {
+                "DisplayValue": "Apple AirPods Pro (2nd Generation) Wireless Ear Buds"
+              },
+              "Features": [
+                "Active Noise Cancellation reduces unwanted background noise"
+              ]
+            },
+            "Offers": {
+              "Listings": [{
+                "Price": {
+                  "Amount": 24900,
+                  "Currency": "USD",
+                  "DisplayAmount": "$249.00"
+                }
+              }]
+            }
+          }
+        ]
+      }
+    },
+    "getitems": {
+      "ItemsResult": {
+        "Items": [{
+          "ASIN": "B08N5WRWNW",
+          "DetailPageURL": "https://www.amazon.com/dp/B08N5WRWNW",
+          "ItemInfo": {
+            "Title": {
+              "DisplayValue": "Echo Dot (4th Gen) | Smart speaker with Alexa | Charcoal"
+            },
+            "Features": [
+              "Meet Echo Dot - Our most popular smart speaker",
+              "Voice control your music - stream songs from Amazon Music, Apple Music, Spotify, Pandora, and others",
+              "Smart home hub built-in - Ask Alexa to control compatible lights, locks, and sensors"
+            ]
+          },
+          "Images": {
+            "Primary": {
+              "Large": {
+                "URL": "https://m.media-amazon.com/images/I/71Swqqe7XAL._AC_SX466_.jpg"
+              }
+            }
+          }
+        }]
+      }
+    }
+  },
+  "rakuten": {
+    "IchibaItem/Search/20170706": {
+      "Items": [
+        {
+          "Item": {
+            "itemName": "【公式】Nintendo Switch 有機ELモデル Joy-Con(L)/(R) ホワイト",
+            "catchcopy": "任天堂公式ストア限定商品",
+            "itemCode": "nintendo:10000001",
+            "itemPrice": 37980,
+            "itemCaption": "7インチ有機ELディスプレイでゲーム体験がさらに鮮明に",
+            "itemUrl": "https://item.rakuten.co.jp/nintendo/nintendo-switch-oled-white/",
+            "affiliateUrl": "",
+            "imageFlag": 1,
+            "smallImageUrls": [
+              "https://thumbnail.image.rakuten.co.jp/@0_mall/nintendo/cabinet/switch/switch-oled-white.jpg"
+            ],
+            "mediumImageUrls": [
+              "https://thumbnail.image.rakuten.co.jp/@0_mall/nintendo/cabinet/switch/switch-oled-white_1.jpg"
+            ],
+            "availability": 1,
+            "taxFlag": 0,
+            "postageFlag": 0,
+            "creditCardFlag": 1,
+            "shopOfTheYearFlag": 1,
+            "reviewCount": 1523,
+            "reviewAverage": 4.8,
+            "genreId": "559887"
+          }
+        },
+        {
+          "Item": {
+            "itemName": "Apple iPhone 15 Pro 128GB ナチュラルチタニウム",
+            "catchcopy": "最新A17 Proチップ搭載",
+            "itemCode": "apple-store:iphone15pro-128-titanium",
+            "itemPrice": 159800,
+            "itemCaption": "チタニウムデザインの革新的なiPhone",
+            "itemUrl": "https://item.rakuten.co.jp/apple-store/iphone15pro-128/",
+            "affiliateUrl": "",
+            "imageFlag": 1,
+            "smallImageUrls": [
+              "https://thumbnail.image.rakuten.co.jp/@0_mall/apple-store/cabinet/iphone15/iphone15pro-titanium.jpg"
+            ],
+            "availability": 1,
+            "taxFlag": 0,
+            "reviewCount": 892,
+            "reviewAverage": 4.7
+          }
+        }
+      ],
+      "pageCount": 100,
+      "ItemCount": 30,
+      "hasNextPage": 1
+    }
+  },
+  "zalando": {
+    "articles": {
+      "content": [
+        {
+          "id": "AD112B0F4-Q11",
+          "modelId": "AD112B0F4",
+          "name": "GAZELLE - Trainers - core black/white/gum",
+          "shopUrl": "https://www.zalando.com/adidas-originals-gazelle-trainers-ad112b0f4-q11.html",
+          "color": "core black",
+          "price": {
+            "amount": 90.00,
+            "currency": "EUR",
+            "formatted": "90,00 €"
+          },
+          "originalPrice": {
+            "amount": 90.00,
+            "currency": "EUR",
+            "formatted": "90,00 €"
+          },
+          "brand": {
+            "name": "adidas Originals"
+          },
+          "sizes": [
+            { "size": "36", "available": true },
+            { "size": "37", "available": true },
+            { "size": "38", "available": false },
+            { "size": "39", "available": true }
+          ],
+          "media": {
+            "images": [
+              {
+                "orderNumber": 1,
+                "type": "IMAGE",
+                "largeUrl": "https://img01.ztat.net/article/spp-media-p1/7324c9c8af394deb9fa9f5d767a2b7ed/7d27532f4e1a46a8b13a8f7b7c5c4ff4.jpg"
+              }
+            ]
+          },
+          "categories": [
+            {
+              "name": "Trainers"
+            }
+          ],
+          "silhouetteCode": "SN_11",
+          "season": "ALL_YEAR_ROUND"
+        },
+        {
+          "id": "ZA611E05J-Q11",
+          "modelId": "ZA611E05J",
+          "name": "ONLBLUSH - Jeans Skinny Fit - medium blue denim",
+          "shopUrl": "https://www.zalando.com/only-onlblush-jeans-skinny-fit-za611e05j-q11.html",
+          "color": "medium blue denim",
+          "price": {
+            "amount": 29.99,
+            "currency": "EUR",
+            "formatted": "29,99 €"
+          },
+          "originalPrice": {
+            "amount": 39.99,
+            "currency": "EUR",
+            "formatted": "39,99 €"
+          },
+          "brand": {
+            "name": "ONLY"
+          },
+          "sizes": [
+            { "size": "XS", "available": true },
+            { "size": "S", "available": true },
+            { "size": "M", "available": true },
+            { "size": "L", "available": false }
+          ],
+          "media": {
+            "images": [
+              {
+                "orderNumber": 1,
+                "type": "IMAGE",
+                "largeUrl": "https://img01.ztat.net/article/spp-media-p1/089c4c4e5e3e45ac9f8a6d7b4c2d1e3f/b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6.jpg"
+              }
+            ]
+          },
+          "categories": [
+            {
+              "name": "Jeans"
+            }
+          ],
+          "silhouetteCode": "SN_12",
+          "flags": [
+            {
+              "key": "discount",
+              "value": "25% OFF"
+            }
+          ]
+        }
+      ],
+      "totalElements": 15743,
+      "totalPages": 394,
+      "size": 40,
+      "page": 0
+    },
+    "categories": {
+      "content": [
+        {
+          "key": "clothing",
+          "name": "Clothing",
+          "childKeys": [
+            "dresses",
+            "tops-t-shirts", 
+            "jeans",
+            "knitwear",
+            "coats-jackets"
+          ]
+        },
+        {
+          "key": "shoes", 
+          "name": "Shoes",
+          "childKeys": [
+            "trainers",
+            "boots", 
+            "heels",
+            "flats",
+            "sandals"
+          ]
+        },
+        {
+          "key": "accessories",
+          "name": "Accessories", 
+          "childKeys": [
+            "bags-handbags",
+            "jewelry-watches",
+            "sunglasses",
+            "belts",
+            "scarves-wraps"
+          ]
+        }
+      ]
+    },
+    "brands": {
+      "content": [
+        {
+          "key": "adidas-originals",
+          "name": "adidas Originals",
+          "logoUrl": "https://img01.ztat.net/brand/00c7b45e-c2d1-4f8e-9b2f-1234567890ab.jpg"
+        },
+        {
+          "key": "nike",
+          "name": "Nike", 
+          "logoUrl": "https://img01.ztat.net/brand/12345678-abcd-ef01-2345-6789abcdef01.jpg"
+        },
+        {
+          "key": "zara",
+          "name": "ZARA",
+          "logoUrl": "https://img01.ztat.net/brand/zara-logo-1234567890.jpg"
+        }
+      ]
+    }
+  }
+}

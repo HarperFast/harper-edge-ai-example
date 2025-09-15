@@ -1,0 +1,68 @@
+{
+  "version": "1.0.0",
+  "tenants": [
+    {
+      "id": "alpine-gear-co",
+      "name": "Alpine Gear Co - Premium Outdoor Equipment",
+      "baseUrl": "https://api.alpinegear.co/v1",
+      "apiKey": "demo-mode-no-key-required",
+      "apiKeyHeader": "X-Alpine-API-Key",
+      "responseFormat": "standard",
+      "recommendationLimit": 15,
+      "personalizationBoost": 2.2,
+      "maxDiscount": 0.25,
+      "pricingStrategy": "optimize-conversion",
+      "categoryWeights": {
+        "hiking-boots": 1.8,
+        "backpacks": 1.7,
+        "tents": 1.6,
+        "sleeping-bags": 1.5,
+        "climbing-gear": 1.5,
+        "jackets": 1.4,
+        "base-layers": 1.3,
+        "camping-equipment": 1.2,
+        "accessories": 1.0
+      },
+      "endpoints": [
+        {
+          "name": "product-search",
+          "pattern": "^products/search$",
+          "cacheable": true,
+          "cacheTTL": 300,
+          "personalization": {
+            "enabled": true,
+            "type": "product-listing"
+          }
+        }
+      ],
+      "segmentationRules": {
+        "purchaseThreshold": 3,
+        "valueThreshold": 500,
+        "frequencyThreshold": 0.4
+      },
+      "contentRules": {
+        "purchaseIntent": {
+          "callToAction": "Add to Pack",
+          "urgency": "Limited stock - gear up now!"
+        },
+        "mobile": {
+          "layout": "grid",
+          "imageSize": "large"
+        },
+        "darkTheme": {
+          "enabled": true
+        }
+      },
+      "rateLimits": {
+        "requestsPerSecond": 25,
+        "requestsPerMinute": 500,
+        "requestsPerHour": 12000
+      },
+      "headers": {
+        "X-Forwarded-By": "edge-ai-proxy",
+        "X-Proxy-Version": "2.0.0",
+        "User-Agent": "AlpineGearProxy/2.0"
+      }
+    }
+  ]
+}

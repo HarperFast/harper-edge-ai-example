@@ -1,0 +1,21 @@
+# Harper Component Configuration
+# LoadEnv must be first to ensure environment variables are loaded before other components
+
+loadEnv:
+  files: '../.env'
+  override: false
+
+extensions:
+  # Core AI Extensions
+  - module: './extensions/ProxyServiceExtension.js'
+  - module: './extensions/ModelManagerExtension.js'  
+  - module: './extensions/TrainingManagerExtension.js'
+  - module: './extensions/CacheExtension.js'
+  
+  # Component resources
+  - module: './resources.js'
+
+# Component metadata  
+name: 'EdgeAIProxy'
+version: '1.0.0'
+description: 'Edge AI Personalization Proxy for Harper'
