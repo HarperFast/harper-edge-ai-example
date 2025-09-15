@@ -95,28 +95,35 @@ async function runValidationTests() {
     });
   });
 
-  // Test 3: Verify all schemas are properly structured
-  test('Harper schemas are valid', () => {
-    const schemaFiles = [
-      'tenants.schema.js',
-      'sessions.schema.js', 
-      'statistics.schema.js',
-      'user-feedback.schema.js',
-      'performance-metrics.schema.js',
-      'retraining-jobs.schema.js'
-    ];
-
-    schemaFiles.forEach(file => {
-      const schemaPath = path.join(__dirname, '../schemas/', file);
-      try {
-        const content = readFileSync(schemaPath, 'utf8');
-        if (!content.includes('export') || !content.includes('Schema')) {
-          throw new Error(`Schema file ${file} not properly structured`);
-        }
-      } catch (err) {
-        throw new Error(`Schema validation failed for ${file}: ${err.message}`);
+  // Test 3: Verify GraphQL schema is properly structured
+  test('Harper GraphQL schema is valid', () => {
+    const schemaPath = path.join(__dirname, '../schemas/schema.graphql');
+    const indexPath = path.join(__dirname, '../schemas/index.js');
+    
+    try {
+      // Check GraphQL schema file exists and has proper structure
+      const schemaContent = readFileSync(schemaPath, 'utf8');
+      if (!schemaContent.includes('type') || !schemaContent.includes('@table')) {
+        throw new Error('GraphQL schema missing required table definitions');
       }
-    });
+      
+      // Check that schema includes key table types
+      const requiredTypes = ['Tenant', 'Session', 'Statistic', 'UserProfile', 'UserFeedback'];
+      requiredTypes.forEach(type => {
+        if (!schemaContent.includes(`type ${type}`)) {
+          throw new Error(`GraphQL schema missing required type: ${type}`);
+        }
+      });
+      
+      // Check index.js properly exports the schema
+      const indexContent = readFileSync(indexPath, 'utf8');
+      if (!indexContent.includes('export const schema') || !indexContent.includes('schema.graphql')) {
+        throw new Error('Schema index file not properly structured');
+      }
+      
+    } catch (err) {
+      throw new Error(`GraphQL schema validation failed: ${err.message}`);
+    }
   });
 
   // Test 4: Verify core utilities exist

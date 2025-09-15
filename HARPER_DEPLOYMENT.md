@@ -300,7 +300,7 @@ harper-fabric db migrate
 ### Load Initial Data
 ```bash
 # Load tenant configurations
-harper-fabric db seed --file schemas/tenants.seed.json
+harper-fabric db seed --file data/seed-tenants.json
 
 # Load demo data
 harper-fabric db seed --file data/alpine-gear-mock-responses.json

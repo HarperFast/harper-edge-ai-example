@@ -195,10 +195,9 @@ harper-components/
 │   ├── PersonalizationEngine.js
 │   └── ModelManager.js
 │
-├── schemas/                    # Database schemas
-│   ├── tenants.schema.js
-│   ├── user-profiles.schema.js  
-│   └── metrics.schema.js
+├── schemas/                    # GraphQL Database Schema  
+│   ├── schema.graphql         # Complete schema definitions
+│   └── index.js              # Schema export
 │
 ├── utils/                      # Utility classes
 │   ├── ResponseEnhancer.js
