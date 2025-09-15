@@ -19,14 +19,6 @@ Comprehensive sample data including:
 - **Statistic**: AI inference statistics and performance metrics  
 - **UserFeedback**: User feedback on AI recommendations
 
-## JSON Data Files
-
-### `seed-tenants.json`
-JSON format tenant data for alternative loading methods
-
-### `alpine-gear-mock-responses.json`
-Mock API responses from the Alpine Gear Co API for testing and development
-
 ## Usage
 
 Load the GraphQL seed data using Harper's CLI:
@@ -37,12 +29,6 @@ harper-fabric graphql --file data/seed-tenants.graphql
 
 # Load comprehensive sample data
 harper-fabric graphql --file data/seed-data.graphql
-```
-
-Or use the JSON files if needed:
-```bash
-# Alternative JSON format
-harper-fabric db seed --file data/seed-tenants.json
 ```
 
 ## Data Structure
