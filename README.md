@@ -19,6 +19,8 @@ This repository demonstrates edge AI implementation using Harper as your data la
 - Multi-tenant isolation with per-tenant AI configurations
 - Cold storage integration for analytics and retraining
 
+**About Alpine Gear Co**: Alpine Gear Co is a fictional premium outdoor equipment retailer specializing in high-performance gear for hiking, mountaineering, rock climbing, and backcountry adventures. Founded in Boulder, Colorado in 2019, Alpine Gear Co has grown from a local gear shop to a multi-million dollar e-commerce platform serving outdoor enthusiasts across North America and Europe. The company curates products from top brands like Patagonia, Arc'teryx, and Black Diamond while developing their own line of technical gear tested by professional guides and athletes. Alpine Gear Co's customer base ranges from weekend hikers seeking reliable equipment to elite mountaineers requiring expedition-grade gear for extreme conditions. This fictional company serves as our consistent example throughout Harper documentation, curriculum, and developer resources, providing realistic e-commerce scenarios for demonstrating Harper's capabilities in personalization, inventory management, and customer analytics.
+
 ## 🏔️ The Use Case: Outdoor Gear Personalization
 
 We've built an intelligent proxy service for outdoor gear recommendations that showcases three key edge AI patterns:
