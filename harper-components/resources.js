@@ -10,7 +10,11 @@ import { TenantValidator } from './utils/TenantValidator.js';
 import { MetricsCollector } from './utils/MetricsCollector.js';
 import { HarperTenantService } from './utils/HarperTenantService.js';
 import { initializeComponents } from './init.js';
+import { schema } from './schemas/index.js';
 import { v4 as uuidv4 } from 'uuid';
+
+// Export the GraphQL schema for Harper to use
+export { schema };
 
 /**
  * Main Proxy Resource - Handles all API proxy requests with AI enhancement
