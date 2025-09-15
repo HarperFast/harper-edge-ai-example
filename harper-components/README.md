@@ -4,38 +4,30 @@ A production-ready Harper component that provides intelligent proxy services wit
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                   Alpine Gear Co Web Store                  │
-├─────────────────────────────────────────────────────────────┤
-│       Outdoor Gear API Requests with Tenant & User Context  │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│         Alpine Gear Co Harper Edge AI Proxy                 │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │ Outdoor Gear │  │  Harper DB   │  │ Outdoor AI   │     │
-│  │  Resources   │  │   Schemas    │  │ Models (TF.js)│     │
-│  │              │  │              │  │              │     │
-│  │ • ProxyRes   │  │ • tenants    │  │ • Activity   │     │
-│  │ • TenantRes  │  │ • hikers     │  │ • Seasonal   │     │
-│  │ • MetricsRes │  │ • gear       │  │ • Compatibility│    │
-│  └──────────────┘  └──────────────┘  └──────────────┘     │
-│                                                             │
-│  ┌────────────────────────────────────────────────────┐    │
-│  │      Seasonal Outdoor Gear Multi-Layer Cache       │    │
-│  │  Hot (30s) → Warm (5min) → Cold (1hr) → Persistent │    │
-│  └────────────────────────────────────────────────────┘    │
-│                                                             │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Outdoor Gear APIs (Alpine Gear Co, Mountain Sports, etc.) │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    A[Alpine Gear Co Web Store<br/>Outdoor Gear API Requests with Tenant & User Context] --> B[Alpine Gear Co Harper Edge AI Proxy]
+    
+    subgraph Proxy["Harper Edge AI Proxy"]
+        B1[Outdoor Gear Resources<br/>• ProxyRes<br/>• TenantRes<br/>• MetricsRes]
+        B2[Harper DB Schemas<br/>• tenants<br/>• hikers<br/>• gear]
+        B3[Outdoor AI Models<br/>• Activity<br/>• Seasonal<br/>• Compatibility]
+        B4[Seasonal Outdoor Gear Multi-Layer Cache<br/>Hot &#40;30s&#41; → Warm &#40;5min&#41; → Cold &#40;1hr&#41; → Persistent]
+    end
+    
+    B --> B1
+    B --> B2
+    B --> B3
+    B --> B4
+    B --> C[Outdoor Gear APIs<br/>Alpine Gear Co, Mountain Sports, etc.]
+    
+    style A fill:#e1f5fe
+    style B fill:#f3e5f5
+    style B1 fill:#e8f5e8
+    style B2 fill:#fff3e0
+    style B3 fill:#fce4ec
+    style B4 fill:#f1f8e9
+    style C fill:#e0f2f1
 ```
 
 ## Key Features
@@ -186,35 +178,44 @@ eventSource.onmessage = (event) => {
 
 ## Component Structure
 
-```
-harper-components/
-├── config.yaml                 # Harper component configuration with LoadEnv
-├── resources.js                # Harper Resource classes (consume Extensions)
-├── package.json                # Harper component metadata
-│
-├── extensions/                 # Harper Extensions (core functionality)
-│   ├── ProxyServiceExtension.js    # AI personalization engine
-│   ├── ModelManagerExtension.js    # TensorFlow.js model management
-│   ├── TrainingManagerExtension.js # Retraining workflows & scheduling
-│   └── CacheExtension.js           # Multi-layer caching
-│
-├── ai/                         # AI/ML core classes
-│   ├── PersonalizationEngine.js
-│   ├── ModelManager.js
-│   └── HarperModelRetrainer.js
-│
-├── schemas/                    # GraphQL Database Schema  
-│   ├── schema.graphql         # Complete schema definitions
-│   └── index.js              # Schema export
-│
-├── utils/                      # Utility classes
-│   ├── ResponseEnhancer.js
-│   ├── TenantValidator.js
-│   ├── MetricsCollector.js
-│   └── HarperDataService.js
-│
-└── data/                       # Seed data
-    └── seed-tenants.json
+```mermaid
+graph TD
+    HC[harper-components/]
+    
+    HC --> CONFIG[config.yaml<br/>Harper component configuration with LoadEnv]
+    HC --> RESOURCES[resources.js<br/>Harper Resource classes &#40;consume Extensions&#41;]
+    HC --> PKG[package.json<br/>Harper component metadata]
+    
+    HC --> EXT[extensions/<br/>Harper Extensions &#40;core functionality&#41;]
+    EXT --> PSE[ProxyServiceExtension.js<br/>AI personalization engine]
+    EXT --> MME[ModelManagerExtension.js<br/>TensorFlow.js model management]
+    EXT --> TME[TrainingManagerExtension.js<br/>Retraining workflows & scheduling]
+    EXT --> CE[CacheExtension.js<br/>Multi-layer caching]
+    
+    HC --> AI[ai/<br/>AI/ML core classes]
+    AI --> PE[PersonalizationEngine.js]
+    AI --> MM[ModelManager.js]
+    AI --> HMR[HarperModelRetrainer.js]
+    
+    HC --> SCHEMAS[schemas/<br/>GraphQL Database Schema]
+    SCHEMAS --> GQL[schema.graphql<br/>Complete schema definitions]
+    SCHEMAS --> IDX[index.js<br/>Schema export]
+    
+    HC --> UTILS[utils/<br/>Utility classes]
+    UTILS --> RE[ResponseEnhancer.js]
+    UTILS --> TV[TenantValidator.js]
+    UTILS --> MC[MetricsCollector.js]
+    UTILS --> HDS[HarperDataService.js]
+    
+    HC --> DATA[data/<br/>Seed data]
+    DATA --> ST[seed-tenants.json]
+    
+    style HC fill:#f9f9f9
+    style EXT fill:#e8f5e8
+    style AI fill:#fff3e0
+    style SCHEMAS fill:#fce4ec
+    style UTILS fill:#f1f8e9
+    style DATA fill:#e0f2f1
 ```
 
 ## API Endpoints
