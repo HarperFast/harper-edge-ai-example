@@ -221,7 +221,7 @@ harper-components/
 
 ### Proxy Endpoints
 - `GET/POST/PUT/DELETE /api/{tenant}/{proxy+}` - Main proxy endpoint
-- `GET/POST/PUT/DELETE /api/{proxy+}` - Legacy header-based routing
+- `GET/POST/PUT/DELETE /api/{proxy+}` - Header-based routing
 
 ### Management Endpoints  
 - `GET /proxy/tenants` - List all tenants

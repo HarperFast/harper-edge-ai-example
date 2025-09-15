@@ -19,10 +19,10 @@ Comprehensive sample data including:
 - **Statistic**: AI inference statistics and performance metrics  
 - **UserFeedback**: User feedback on AI recommendations
 
-## Legacy JSON Files
+## JSON Data Files
 
 ### `seed-tenants.json`
-Legacy JSON format tenant data (maintained for backward compatibility)
+JSON format tenant data for alternative loading methods
 
 ### `alpine-gear-mock-responses.json`
 Mock API responses from the Alpine Gear Co API for testing and development
@@ -41,7 +41,7 @@ harper-fabric graphql --file data/seed-data.graphql
 
 Or use the JSON files if needed:
 ```bash
-# Legacy JSON format
+# Alternative JSON format
 harper-fabric db seed --file data/seed-tenants.json
 ```
 
