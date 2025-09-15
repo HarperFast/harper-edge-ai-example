@@ -13,7 +13,8 @@ This repository demonstrates edge AI implementation using Harper as your data la
 - Statistical A/B testing for AI model optimization
 
 **Harper-Native Architecture:**
-- AI models as first-class Harper components
+- AI models managed by Harper Extensions (ProxyService, ModelManager, TrainingManager)
+- Resources consume Extensions through dependency injection
 - Data flows that keep user context local
 - Multi-tenant isolation with per-tenant AI configurations
 - Cold storage integration for analytics and retraining
@@ -204,8 +205,8 @@ graph TD
 ### 1. **Edge AI ≠ Smaller Models**
 You can run full TensorFlow.js models at the edge. The Universal Sentence Encoder generates 512-dimensional embeddings in ~30ms on modest hardware.
 
-### 2. **Harper as AI Orchestration Layer** 
-Harper's resource system naturally handles AI model lifecycle - loading, caching, and cleanup become part of your normal Harper application logic.
+### 2. **Harper Extensions for AI Orchestration** 
+Harper's Extension system naturally handles AI model lifecycle - ProxyServiceExtension manages personalization, ModelManagerExtension handles TensorFlow.js models, and TrainingManagerExtension orchestrates retraining workflows.
 
 ### 3. **Multi-Tenant AI is Straightforward**
 Different customers can have different AI models, A/B experiments, and personalization strategies - Harper's tenant system handles this naturally.
@@ -508,13 +509,14 @@ curl https://your-instance.harperdbcloud.com/api/outdoor-retailer-1/experiment/r
 ## 🚀 Next Steps
 
 ### For AI/ML Engineers:
-- **Extend the PersonalizationEngine** in `harper-components/ai/PersonalizationEngine.js`
-- **Add new TensorFlow.js models** using the pattern in `setup-advanced-models.js`
-- **Implement custom business logic** following the A/B testing and pricing examples
+- **Extend the ProxyServiceExtension** in `harper-components/extensions/ProxyServiceExtension.js`
+- **Add new TensorFlow.js models** via ModelManagerExtension in `harper-components/extensions/ModelManagerExtension.js`
+- **Implement retraining workflows** using TrainingManagerExtension in `harper-components/extensions/TrainingManagerExtension.js`
 - **Deploy to production** and monitor AI model performance in real-world traffic
 
 ### For Backend Engineers:
-- **Study the Harper resource patterns** in `harper-components/resources.js`
+- **Study the Harper Extension patterns** in `harper-components/extensions/`
+- **Understand Resources consuming Extensions** in `harper-components/resources.js`
 - **Understand multi-tenant data flows** in `harper-components/utils/HarperTenantService.js`
 - **Explore caching strategies** in `harper-components/extensions/CacheExtension.js`
 - **Set up production monitoring** using Harper's built-in metrics

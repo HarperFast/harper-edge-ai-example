@@ -17,8 +17,10 @@ The Harper Edge AI Proxy uses TensorFlow.js models for real-time personalization
 - **`ab-testing-engine`** - Statistical A/B testing with Chi-square significance analysis
 - **`price-sensitivity-analyzer`** - Price elasticity calculation and revenue optimization
 
-### Harper Integration Layer
-- **`PersonalizationEngine`** - Main AI orchestration engine for Harper-native integration
+### Harper Extensions Integration
+- **`ProxyServiceExtension`** - Harper Extension wrapping PersonalizationEngine for AI orchestration
+- **`ModelManagerExtension`** - Harper Extension for TensorFlow.js model lifecycle management
+- **`TrainingManagerExtension`** - Harper Extension for retraining workflows and scheduling
 
 ## 🚀 Quick Setup
 
@@ -96,20 +98,21 @@ models/
 ## 🔧 Model Configuration
 
 ### Model Integration
-Models are integrated through the PersonalizationEngine:
+Models are integrated through Harper Extensions architecture:
 
 ```javascript
-// A/B Testing Engine
-import { ABTestingEngine } from './models/ab-testing-engine/ab-testing-engine.js';
-const abTest = new ABTestingEngine();
+// ProxyServiceExtension manages PersonalizationEngine integration
+const proxyService = extensions.proxyService;
+const enhanced = await proxyService.enhanceResponse(response, userContext, tenant, endpoint);
 
-// Price Sensitivity Analyzer
-import { PriceSensitivityAnalyzer } from './models/price-sensitivity-analyzer/price-sensitivity-analyzer.js';
-const priceAnalyzer = new PriceSensitivityAnalyzer();
+// ModelManagerExtension handles TensorFlow.js models
+const modelManager = extensions.modelManager;
+await modelManager.loadModel('universal-sentence-encoder', './models/use/', options);
+const model = await modelManager.getModel('universal-sentence-encoder');
 
-// TensorFlow.js models
-import * as use from '@tensorflow-models/universal-sentence-encoder';
-const textModel = await use.load();
+// TrainingManagerExtension orchestrates retraining workflows
+const trainingManager = extensions.trainingManager;
+await trainingManager.scheduleRetraining('recommendation-model', 'daily', options);
 ```
 
 ### Environment Variables

@@ -56,24 +56,27 @@ The component includes all necessary Harper-fabric files:
 
 ```
 harper-components/
-├── resources.js              # Main Harper Resource classes
-├── harperdb-config.yaml     # Component configuration
+├── config.yaml              # Harper component configuration with LoadEnv
+├── resources.js             # Harper Resource classes (consume Extensions)
 ├── package.json             # Component metadata
+├── extensions/              # Harper Extensions (core functionality)
+│   ├── ProxyServiceExtension.js    # AI personalization engine  
+│   ├── ModelManagerExtension.js    # TensorFlow.js model management
+│   ├── TrainingManagerExtension.js # Retraining workflows & scheduling
+│   └── CacheExtension.js           # Multi-layer caching
+├── ai/                      # AI/ML core classes
 ├── schemas/                 # Database schemas
-├── ai/                      # AI/ML components  
-├── utils/                   # Utility classes
-├── extensions/              # Harper extensions
-└── deployment/              # Deployment configs
+└── utils/                   # Utility classes
 ```
 
 ## Configuration Files
 
-### 1. Component Configuration (`harperdb-config.yaml`)
+### 1. Component Configuration (`config.yaml`)
 Already configured with:
+- LoadEnv extension for environment variable management
+- Harper Extensions loaded in proper order (ProxyService, ModelManager, TrainingManager, Cache)
+- Resources loaded after Extensions for dependency injection
 - Component metadata (EdgeAIProxy v1.0.0)
-- Database schemas (tenants, user_profiles, metrics)
-- Performance settings (caching, clustering)
-- Security configuration
 
 ### 2. Package Configuration (`package.json`)
 Harper-fabric component with:
@@ -81,11 +84,11 @@ Harper-fabric component with:
 - Component entry point
 - Harper-fabric metadata
 
-### 3. Resources (`resources.js`)
-Harper Resource classes:
-- `ProxyResource` - Main proxy functionality
-- `TenantResource` - Multi-tenant management
-- `MetricsResource` - Performance monitoring
+### 3. Resources (`resources.js`) 
+Harper Resource classes that consume Extensions:
+- `ProxyResource` - Main proxy functionality using ProxyServiceExtension
+- `TenantResource` - Multi-tenant management with Extension integration
+- `MetricsResource` - Performance monitoring across all Extensions
 
 ## Environment Variables for Harper-fabric
 

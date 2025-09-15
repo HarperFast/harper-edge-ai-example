@@ -41,7 +41,8 @@ A production-ready Harper component that provides intelligent proxy services wit
 ## Key Features
 
 ### Harper Native Integration
-- **Resource-based Architecture**: Built using Harper Resource classes
+- **Extension-based Architecture**: Core functionality provided by Harper Extensions (ProxyService, ModelManager, TrainingManager, Cache)
+- **Resource Layer**: Resources consume Extensions through dependency injection pattern
 - **Native Multi-tenancy**: Leverages Harper's tenant isolation capabilities  
 - **Distributed Database**: Uses Harper for configuration and analytics storage
 - **Built-in Clustering**: Automatic scaling and load balancing
@@ -187,13 +188,20 @@ eventSource.onmessage = (event) => {
 
 ```
 harper-components/
-├── resources.js                 # Main Harper Resource classes
-├── harperdb-config.yaml        # Harper component configuration
+├── config.yaml                 # Harper component configuration with LoadEnv
+├── resources.js                # Harper Resource classes (consume Extensions)
 ├── package.json                # Harper component metadata
 │
-├── ai/                         # AI/ML components
+├── extensions/                 # Harper Extensions (core functionality)
+│   ├── ProxyServiceExtension.js    # AI personalization engine
+│   ├── ModelManagerExtension.js    # TensorFlow.js model management
+│   ├── TrainingManagerExtension.js # Retraining workflows & scheduling
+│   └── CacheExtension.js           # Multi-layer caching
+│
+├── ai/                         # AI/ML core classes
 │   ├── PersonalizationEngine.js
-│   └── ModelManager.js
+│   ├── ModelManager.js
+│   └── HarperModelRetrainer.js
 │
 ├── schemas/                    # GraphQL Database Schema  
 │   ├── schema.graphql         # Complete schema definitions
@@ -202,14 +210,11 @@ harper-components/
 ├── utils/                      # Utility classes
 │   ├── ResponseEnhancer.js
 │   ├── TenantValidator.js
-│   └── MetricsCollector.js
+│   ├── MetricsCollector.js
+│   └── HarperDataService.js
 │
-├── extensions/                 # Harper extensions
-│   └── CacheExtension.js
-│
-└── deployment/                 # Deployment configuration
-    ├── cluster.config.js
-    └── environment.config.js
+└── data/                       # Seed data
+    └── seed-tenants.json
 ```
 
 ## API Endpoints
@@ -346,9 +351,9 @@ Access comprehensive monitoring through Harper Cloud console:
 
 ### Adding New AI Models
 1. Place model files in `models/{model-name}/`
-2. Update `ai/ModelManager.js` configuration
-3. Implement enhancement logic in `ai/PersonalizationEngine.js`
-4. Add model metrics to monitoring
+2. Use ModelManagerExtension to load models: `modelManagerExtension.loadModel()`
+3. Implement enhancement logic via ProxyServiceExtension
+4. Add model metrics to monitoring via Extensions health endpoints
 
 ### Custom Enhancement Types
 ```javascript
