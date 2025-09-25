@@ -276,14 +276,7 @@ npm run validate-harper
 ```
 
 ### Step 2: Deploy to Harper Cloud
-```bash
-# Authenticate with Harper Cloud
-harperdb login
-
-# Deploy the entire application
-harperdb deploy
-# Your edge AI service will be available at: https://your-instance.harperdbcloud.com
-```
+Coming soon...
 
 ### Step 3: Production Configuration
 ```bash
