@@ -70,8 +70,8 @@ const optimization = analyzer.optimizePrice('hiking-boots-pro', 150);
 
 ### Setup (2 minutes)
 ```bash
-git clone https://github.com/HarperDB/harper-edge-ai-personalization-example
-cd harper-edge-ai-personalization-example
+git clone https://github.com/HarperDB/harper-edge-ai-example
+cd harper-edge-ai-example
 npm install
 
 # Install AI models (TensorFlow.js + custom business logic)
