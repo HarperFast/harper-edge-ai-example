@@ -156,6 +156,20 @@ POST /personalize
 GET /health
 ```
 
+## Demo Script
+
+Run the included demo script to see the API in action:
+
+```bash
+./demo.sh
+```
+
+The script will:
+1. Check server health
+2. Run personalization for trail running gear
+3. Run personalization for winter camping gear
+4. Show similarity scores for each scenario
+
 ## How It Works
 
 1. **User Context Embedding**: The system converts user context (activity type, experience level, season, location) into a semantic query string

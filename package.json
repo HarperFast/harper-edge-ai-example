@@ -40,5 +40,10 @@
   "os": [
     "darwin",
     "linux"
-  ]
+  ],
+  "devDependencies": {
+    "@harperdb/code-guidelines": "^0.0.5",
+    "eslint": "^9.36.0",
+    "prettier": "^3.6.2"
+  }
 }
