@@ -23,7 +23,7 @@ This project showcases how to:
 ## Features
 
 - **Semantic Product Matching**: Match products to user preferences using vector embeddings
-- **Real-time Inference**: Sub-100ms AI inference without external API calls
+- **Real-time Inference**: Sub-50ms AI inference without external API calls
 - **Simple Architecture**: ~300 lines of code across 2 files
 - **Edge AI**: AI processing happens locally within Harper
 
