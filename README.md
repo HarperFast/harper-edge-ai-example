@@ -45,7 +45,7 @@ Check your versions:
 ```bash
 node --version
 npm --version
-harperdb --version
+harper --version
 ```
 
 ## Installation
@@ -114,7 +114,7 @@ npm run dev
 
 Or directly with Harper CLI:
 ```bash
-harperdb dev .
+harper dev .
 ```
 
 Server starts at: `http://localhost:9925`
