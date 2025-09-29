@@ -8,8 +8,8 @@
     "preinstall": "echo '\n📦 Installing dependencies (this may take 1-2 minutes)...\n'",
     "postinstall": "echo '\n✅ Installation complete!\n\n📝 Next steps:\n   npm test          - Test the model\n   npm run dev       - Run with Harper\n'",
     "test": "node --no-deprecation models/test-model.js",
-    "dev": "harperdb dev .",
-    "start": "harperdb run .",
+    "dev": "harper dev .",
+    "start": "harper run .",
     "clean": "rm -rf node_modules package-lock.json",
     "verify": "node -e \"console.log('Node version:', process.version); console.log('✅ Environment OK')\""
   },
@@ -18,8 +18,6 @@
     "url": "https://github.com/HarperDB/harper-edge-ai-example.git"
   },
   "keywords": [
-    "harper",
-    "harperdb",
     "tensorflow",
     "edge-ai",
     "machine-learning",

@@ -117,7 +117,7 @@ Or directly with Harper CLI:
 harper dev .
 ```
 
-Server starts at: `http://localhost:9925`
+Server starts at: `http://localhost:9926`
 
 ## Usage
 
