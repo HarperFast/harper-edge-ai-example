@@ -168,7 +168,7 @@ The script will:
 1. Check server health
 2. Run personalization for trail running gear
 3. Run personalization for winter camping gear
-4. Show similarity scores for each scenario
+4. Show similarity scores for each scenario (personalizedScore)
 
 ## How It Works
 
@@ -206,27 +206,4 @@ Each product receives a `personalizedScore` between 0 and 1, where higher scores
 | `npm start` | Run Harper in production mode |
 | `npm run verify` | Check Node.js environment |
 | `npm run clean` | Remove node_modules |
-| `npm run reinstall` | Clean install from scratch |
 
-## Troubleshooting
-
-### Issue: "Cannot find module @tensorflow/tfjs-node"
-
-**Solution:** Run a clean reinstall:
-```bash
-npm run reinstall
-```
-
-### Issue: Native binding errors on macOS
-
-**Solution:** Install Xcode Command Line Tools:
-```bash
-xcode-select --install
-```
-
-### Issue: Native binding errors on Linux
-
-**Solution:** Install build essentials:
-```bash
-sudo apt-get install build-essential
-```
