@@ -63,33 +63,6 @@ const REAL_MODELS = {
   },
   
   // Optional Advanced Models
-  'posenet': {
-    package: '@tensorflow-models/posenet',
-    description: 'Human pose estimation for outdoor activity analysis',
-    size: '~13MB',
-    core: false,
-    usage: 'Activity detection, gear fit analysis, exercise form checking',
-    license: 'Apache 2.0',
-    category: 'computer-vision'
-  },
-  'handpose': {
-    package: '@tensorflow-models/handpose',
-    description: 'Hand tracking for gear interaction analysis',
-    size: '~12MB',
-    core: false,
-    usage: 'Equipment handling analysis, grip preference detection',
-    license: 'Apache 2.0',
-    category: 'computer-vision'
-  },
-  'face-landmarks-detection': {
-    package: '@tensorflow-models/face-landmarks-detection',
-    description: 'Face analysis for helmet and eyewear fitting',
-    size: '~10MB',
-    core: false,
-    usage: 'Safety gear sizing, sunglasses fit analysis',
-    license: 'Apache 2.0',
-    category: 'computer-vision'
-  },
   'qna': {
     package: '@tensorflow-models/qna',
     description: 'Question answering for product support and recommendations',

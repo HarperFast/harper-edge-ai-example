@@ -40,11 +40,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Harper/harper-edge-ai-personalization-example.git"
+    "url": "git+https://github.com/Harper/harper-edge-ai-example.git"
   },
   "bugs": {
-    "url": "https://github.com/Harper/harper-edge-ai-personalization-example/issues"
+    "url": "https://github.com/Harper/harper-edge-ai-example/issues"
   },
-  "homepage": "https://github.com/Harper/harper-edge-ai-personalization-example",
+  "homepage": "https://github.com/Harper/harper-edge-ai-example",
   "license": "Apache-2.0"
 }

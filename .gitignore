@@ -64,3 +64,6 @@ models/cached/
 # Temporary files
 tmp/
 temp/
+
+# AI
+.claude/
