@@ -66,7 +66,7 @@ nvm use 18
 
 ### 2. Install Harper
 
-Follow the [Harper installation guide](https://docs.harperdb.io/docs/getting-started).
+Follow the [Harper installation guide](https://docs.harperdb.io/docs/getting-started/installation#install-with-npm-fastest-way)
 
 ### 3. Clone and Install Dependencies
 
