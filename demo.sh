@@ -1,13 +1,31 @@
 #!/bin/bash
 
-echo "🧠 Harper Edge AI Example - Demo"
-echo "=================================="
-echo
+set -o pipefail 
 
 # Colors for output
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
+RED='\033[0;31m'
 NC='\033[0m' # No Color
+
+
+function output_errors(){
+   # I'd use LINENO, but it seems to references weird when hitting pipefail
+   local exit_status=$?
+   local failing_command=$BASH_COMMAND
+
+   echo "** ERROR ** " >&2
+   echo -e "${RED}Exit Status: $exit_status" >&2
+   echo -e "Command:     '$failing_command'${NC}" >&2
+
+   exit $exit_status
+}
+
+trap 'output_errors' ERR
+
+echo "🧠 Harper Edge AI Example - Demo"
+echo "=================================="
+echo
 
 # Check if server is running
 echo "Checking server status..."
