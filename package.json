@@ -8,6 +8,8 @@
     "preinstall": "echo '\n📦 Installing dependencies (this may take 1-2 minutes)...\n'",
     "postinstall": "echo '\n✅ Installation complete!\n\n📝 Next steps:\n   npm test          - Test the model\n   npm run dev       - Run with Harper\n'",
     "test": "node --no-deprecation models/test-model.js",
+    "test:unit": "node --test tests/unit/**/*.test.js",
+    "test:all": "npm run test && npm run test:unit",
     "dev": "harper dev .",
     "start": "harper run .",
     "clean": "rm -rf node_modules package-lock.json",
