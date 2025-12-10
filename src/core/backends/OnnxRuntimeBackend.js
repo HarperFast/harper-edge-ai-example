@@ -37,7 +37,7 @@ export class OnnxRuntimeBackend {
   /**
    * Run inference with ONNX model
    * @param {string} modelKey - Cache key
-   * @param {Object} inputs - Input tensors { inputName: Float32Array }
+   * @param {Object} inputs - Input tensors { inputName: Float32Array | {data: Float32Array, shape: number[]} }
    * @returns {Object} Output tensors
    */
   async predict(modelKey, inputs) {
@@ -50,13 +50,21 @@ export class OnnxRuntimeBackend {
     try {
       // Convert inputs to ONNX tensors
       const feeds = {};
-      for (const [name, data] of Object.entries(inputs)) {
-        // Determine shape from data
-        let shape;
-        if (data instanceof Float32Array || Array.isArray(data)) {
-          shape = [1, data.length]; // Assume batch size 1
+      for (const [name, input] of Object.entries(inputs)) {
+        let data, shape;
+
+        // Check if input is an object with explicit shape
+        if (input && typeof input === 'object' && 'data' in input && 'shape' in input) {
+          data = input.data;
+          shape = input.shape;
         } else {
-          throw new Error(`Unsupported input type for ${name}`);
+          // Simple data without explicit shape - infer shape
+          data = input;
+          if (data instanceof Float32Array || Array.isArray(data)) {
+            shape = [1, data.length]; // Assume batch size 1, flat array
+          } else {
+            throw new Error(`Unsupported input type for ${name}`);
+          }
         }
 
         feeds[name] = new ort.Tensor('float32', Float32Array.from(data), shape);
