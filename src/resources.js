@@ -355,3 +355,147 @@ export class Predict extends Resource {
 		}
 	}
 }
+
+/**
+ * Feedback resource - POST /feedback
+ * Record actual outcomes for predictions
+ */
+export class Feedback extends Resource {
+	constructor() {
+		super();
+		this.rest = {
+			POST: this.recordFeedback.bind(this)
+		};
+	}
+
+	async recordFeedback(request) {
+		try {
+			const data = await request.json();
+			const { inferenceId, outcome, correct } = data;
+
+			// Validation
+			if (!inferenceId || !outcome) {
+				return Response.json({
+					error: 'inferenceId and outcome required'
+				}, { status: 400 });
+			}
+
+			// Record feedback
+			await monitoringBackend.recordFeedback(inferenceId, {
+				actualOutcome: JSON.stringify(outcome),
+				correct: correct !== undefined ? correct : null
+			});
+
+			return Response.json({
+				success: true,
+				inferenceId
+			});
+
+		} catch (error) {
+			console.error('Feedback recording failed:', error);
+			return Response.json({
+				error: 'Feedback recording failed',
+				details: error.message
+			}, { status: 500 });
+		}
+	}
+}
+
+/**
+ * Monitoring resource - GET /monitoring/events and /monitoring/metrics
+ * Query inference events and aggregate metrics
+ */
+export class Monitoring extends Resource {
+	constructor() {
+		super();
+		this.rest = {
+			events: this.getEvents.bind(this),
+			metrics: this.getMetrics.bind(this)
+		};
+	}
+
+	async getEvents(request) {
+		try {
+			const url = new URL(request.url);
+			const modelId = url.searchParams.get('modelId');
+			const userId = url.searchParams.get('userId');
+			const limit = parseInt(url.searchParams.get('limit') || '100');
+
+			// Time range
+			let startTime = url.searchParams.get('startTime');
+			let endTime = url.searchParams.get('endTime');
+
+			if (startTime) {
+				startTime = new Date(parseInt(startTime));
+			} else {
+				// Default to last hour
+				startTime = new Date(Date.now() - 3600000);
+			}
+
+			if (endTime) {
+				endTime = new Date(parseInt(endTime));
+			}
+
+			const events = await monitoringBackend.queryEvents({
+				modelId,
+				userId,
+				startTime,
+				endTime,
+				limit
+			});
+
+			return Response.json({
+				events,
+				count: events.length
+			});
+
+		} catch (error) {
+			console.error('Query events failed:', error);
+			return Response.json({
+				error: 'Query events failed',
+				details: error.message
+			}, { status: 500 });
+		}
+	}
+
+	async getMetrics(request) {
+		try {
+			const url = new URL(request.url);
+			const modelId = url.searchParams.get('modelId');
+
+			if (!modelId) {
+				return Response.json({
+					error: 'modelId parameter required'
+				}, { status: 400 });
+			}
+
+			// Time range
+			let startTime = url.searchParams.get('startTime');
+			let endTime = url.searchParams.get('endTime');
+
+			if (startTime) {
+				startTime = new Date(parseInt(startTime));
+			}
+			if (endTime) {
+				endTime = new Date(parseInt(endTime));
+			}
+
+			const metrics = await monitoringBackend.getMetrics(modelId, {
+				startTime,
+				endTime
+			});
+
+			return Response.json({
+				modelId,
+				...metrics
+			});
+
+		} catch (error) {
+			console.error('Get metrics failed:', error);
+			return Response.json({
+				error: 'Get metrics failed',
+				details: error.message
+			}, { status: 500 });
+		}
+	}
+}
