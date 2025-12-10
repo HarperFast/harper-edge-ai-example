@@ -67,3 +67,6 @@ temp/
 
 # AI
 .claude/
+
+# Git worktrees
+.worktrees/
