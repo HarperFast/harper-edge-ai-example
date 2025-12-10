@@ -2,6 +2,7 @@
  * Universal Sentence Encoder - Simple Usage Example
  */
 
+import './polyfill.js'; // Load polyfill first to fix Node.js 18+ compatibility
 import '@tensorflow/tfjs-node'; // Import backend first
 import * as use from '@tensorflow-models/universal-sentence-encoder';
 
