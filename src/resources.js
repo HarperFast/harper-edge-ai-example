@@ -295,3 +295,63 @@ export class ModelInfo extends Resource {
 		}
 	}
 }
+
+/**
+ * Predict resource - POST /predict
+ * Run inference with a loaded model
+ */
+export class Predict extends Resource {
+	constructor() {
+		super();
+		this.rest = {
+			POST: this.predict.bind(this)
+		};
+	}
+
+	async predict(request) {
+		try {
+			const data = await request.json();
+			const { modelId, version, features, userId, sessionId } = data;
+
+			// Validation
+			if (!modelId || !features) {
+				return Response.json({
+					error: 'modelId and features required'
+				}, { status: 400 });
+			}
+
+			// Run inference
+			const startTime = Date.now();
+			const result = await inferenceEngine.predict(modelId, features, version);
+
+			// Record to monitoring
+			const inferenceId = await monitoringBackend.recordInference({
+				modelId,
+				modelVersion: result.modelVersion,
+				framework: result.framework,
+				requestId: `req-${Date.now()}`,
+				userId: userId || null,
+				sessionId: sessionId || null,
+				featuresIn: JSON.stringify(features),
+				prediction: JSON.stringify(result.output),
+				confidence: result.confidence || null,
+				latencyMs: result.latencyMs
+			});
+
+			return Response.json({
+				inferenceId,
+				prediction: result.output,
+				confidence: result.confidence,
+				modelVersion: result.modelVersion,
+				latencyMs: result.latencyMs
+			});
+
+		} catch (error) {
+			console.error('Prediction failed:', error);
+			return Response.json({
+				error: 'Prediction failed',
+				details: error.message
+			}, { status: 500 });
+		}
+	}
+}
