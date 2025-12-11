@@ -1,0 +1,222 @@
+{
+  "info": {
+    "name": "Harper Edge AI - MLOps",
+    "description": "REST API collection for Harper Edge AI with ONNX Runtime",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9926",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Model Management",
+      "item": [
+        {
+          "name": "Upload Model (multipart)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "modelId",
+                  "value": "my-classifier",
+                  "type": "text"
+                },
+                {
+                  "key": "version",
+                  "value": "v1",
+                  "type": "text"
+                },
+                {
+                  "key": "framework",
+                  "value": "onnx",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/model.onnx"
+                },
+                {
+                  "key": "inputSchema",
+                  "value": "{\"inputs\": [{\"name\": \"input\", \"shape\": [1, 10]}]}",
+                  "type": "text"
+                },
+                {
+                  "key": "outputSchema",
+                  "value": "{\"outputs\": [{\"name\": \"output\", \"shape\": [1, 2]}]}",
+                  "type": "text"
+                },
+                {
+                  "key": "metadata",
+                  "value": "{\"description\": \"Binary classifier\"}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/model/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["model", "upload"]
+            }
+          }
+        },
+        {
+          "name": "Get Model Info",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/model/:modelId/:version",
+              "host": ["{{baseUrl}}"],
+              "path": ["model", ":modelId", ":version"],
+              "variable": [
+                {
+                  "key": "modelId",
+                  "value": "my-classifier"
+                },
+                {
+                  "key": "version",
+                  "value": "v1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Model Versions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/model/versions?modelId=my-classifier",
+              "host": ["{{baseUrl}}"],
+              "path": ["model", "versions"],
+              "query": [
+                {
+                  "key": "modelId",
+                  "value": "my-classifier"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inference",
+      "item": [
+        {
+          "name": "Predict",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"modelId\": \"my-classifier\",\n  \"version\": \"v1\",\n  \"features\": {\n    \"input\": [0.5, 1.2, 0.8, 1.5, 0.3, 0.9, 1.1, 0.6, 1.4, 0.7]\n  },\n  \"userId\": \"user-123\",\n  \"sessionId\": \"session-456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/predict",
+              "host": ["{{baseUrl}}"],
+              "path": ["predict"]
+            }
+          }
+        },
+        {
+          "name": "Personalize Products (existing)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"products\": [\n    {\n      \"id\": \"trail-runner-pro\",\n      \"name\": \"Trail Runner Pro Shoes\",\n      \"description\": \"Lightweight running shoes for mountain trails\",\n      \"category\": \"footwear\"\n    },\n    {\n      \"id\": \"ultralight-backpack\",\n      \"name\": \"Ultralight Backpack 40L\",\n      \"description\": \"Minimalist pack for fast hiking\",\n      \"category\": \"packs\"\n    }\n  ],\n  \"userContext\": {\n    \"activityType\": \"trail-running\",\n    \"experienceLevel\": \"advanced\",\n    \"season\": \"spring\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/personalize",
+              "host": ["{{baseUrl}}"],
+              "path": ["personalize"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Observability",
+      "item": [
+        {
+          "name": "Record Feedback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inferenceId\": \"<inferenceId-from-predict>\",\n  \"outcome\": {\n    \"class\": 1\n  },\n  \"correct\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/feedback",
+              "host": ["{{baseUrl}}"],
+              "path": ["feedback"]
+            }
+          }
+        },
+        {
+          "name": "Get Inference Events",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/monitoring/events?modelId=my-classifier&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["monitoring", "events"],
+              "query": [
+                {
+                  "key": "modelId",
+                  "value": "my-classifier"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Model Metrics",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/monitoring/metrics?modelId=my-classifier",
+              "host": ["{{baseUrl}}"],
+              "path": ["monitoring", "metrics"],
+              "query": [
+                {
+                  "key": "modelId",
+                  "value": "my-classifier"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
