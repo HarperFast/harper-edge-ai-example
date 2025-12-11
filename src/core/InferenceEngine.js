@@ -1,14 +1,14 @@
 import { OnnxRuntimeBackend } from './backends/OnnxRuntimeBackend.js';
 import { TensorFlowBackend } from './backends/TensorFlowBackend.js';
 import { OllamaBackend } from './backends/OllamaBackend.js';
+import { tables } from '@harperdb/harperdb';
 
 /**
  * Inference Engine - Framework-agnostic model loading and inference
  * Automatically routes to correct backend based on model framework
  */
 export class InferenceEngine {
-  constructor(modelRegistry) {
-    this.registry = modelRegistry;
+  constructor() {
     this.backends = new Map();
     this.cache = new Map(); // Cache loaded models: modelKey -> { backend, metadata }
     this.maxCacheSize = 10; // LRU cache size
@@ -58,15 +58,16 @@ export class InferenceEngine {
     }
 
     // Fetch from Harper table directly
+    const modelsTable = tables.get('Model');
     let model;
     if (version) {
-      // Get specific version
-      const id = this.registry._buildModelKey(modelId, version);
-      model = await this.registry.modelsTable.get(id);
+      // Get specific version using composite key
+      const id = `${modelId}:${version}`;
+      model = await modelsTable.get(id);
     } else {
       // Get latest version - query all versions and sort by uploadedAt
       const allVersions = [];
-      for await (const record of this.registry.modelsTable.search({ modelId })) {
+      for await (const record of modelsTable.search({ modelId })) {
         allVersions.push(record);
       }
       if (allVersions.length > 0) {

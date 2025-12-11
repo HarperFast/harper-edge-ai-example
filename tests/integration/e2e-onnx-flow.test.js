@@ -1,13 +1,11 @@
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert';
-import { ModelRegistry } from '../../src/core/ModelRegistry.js';
 import { InferenceEngine } from '../../src/core/InferenceEngine.js';
 import { MonitoringBackend } from '../../src/core/MonitoringBackend.js';
 import { getTestOnnxModel } from '../fixtures/test-models.js';
 import { tables } from '@harperdb/harperdb';
 
 describe('End-to-End ONNX Flow', () => {
-  let registry;
   let engine;
   let monitoring;
   let modelsTable;
@@ -15,13 +13,10 @@ describe('End-to-End ONNX Flow', () => {
   let inferenceId;
 
   before(async () => {
-    registry = new ModelRegistry();
-    await registry.initialize();
-
     monitoring = new MonitoringBackend();
     await monitoring.initialize();
 
-    engine = new InferenceEngine(registry);
+    engine = new InferenceEngine();
     await engine.initialize();
 
     // Get Harper table references for direct operations
@@ -52,7 +47,7 @@ describe('End-to-End ONNX Flow', () => {
   test('complete flow: upload → predict → feedback', async () => {
     // 1. Upload model using Harper native table.put()
     const modelBlob = await getTestOnnxModel();
-    const modelKey = registry._buildModelKey('test-e2e-onnx', 'v1');
+    const modelKey = `test-e2e-onnx:v1`;
 
     await modelsTable.put({
       id: modelKey,

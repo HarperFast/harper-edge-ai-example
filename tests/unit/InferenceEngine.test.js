@@ -1,31 +1,38 @@
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert';
 import { InferenceEngine } from '../../src/core/InferenceEngine.js';
-import { ModelRegistry } from '../../src/core/ModelRegistry.js';
 import { getTestOnnxModel } from '../fixtures/test-models.js';
+import { tables } from '@harperdb/harperdb';
 
 describe('InferenceEngine', () => {
   let engine;
-  let registry;
+  let modelsTable;
 
   before(async () => {
-    registry = new ModelRegistry();
-    await registry.initialize();
-
-    engine = new InferenceEngine(registry);
+    engine = new InferenceEngine();
     await engine.initialize();
+
+    // Get Harper table reference for direct operations
+    modelsTable = tables.get('Model');
   });
 
   after(async () => {
-    await registry.cleanup();
+    // Clean up test data
+    try {
+      await modelsTable.delete('test-onnx-inference:v1');
+    } catch (err) {
+      // Ignore if doesn't exist
+    }
     await engine.cleanup();
   });
 
   test('should load and cache ONNX model', async () => {
-    // Register a test ONNX model
+    // Register a test ONNX model using Harper native table.put()
     const modelBlob = await getTestOnnxModel();
+    const modelKey = 'test-onnx-inference:v1';
 
-    await registry.registerModel({
+    await modelsTable.put({
+      id: modelKey,
       modelId: 'test-onnx-inference',
       version: 'v1',
       framework: 'onnx',
@@ -33,7 +40,8 @@ describe('InferenceEngine', () => {
       inputSchema: JSON.stringify({ inputs: [{ name: 'data', shape: [1, 2] }] }),
       outputSchema: JSON.stringify({ outputs: [{ name: 'result', shape: [1, 2] }] }),
       metadata: '{}',
-      stage: 'development'
+      stage: 'development',
+      uploadedAt: Date.now()
     });
 
     // Load model

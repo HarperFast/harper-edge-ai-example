@@ -5,7 +5,6 @@
 import { PersonalizationEngine } from './PersonalizationEngine.js';
 import { v4 as uuidv4 } from 'uuid';
 import {
-	ModelRegistry,
 	InferenceEngine,
 	FeatureStore,
 	MonitoringBackend
@@ -23,14 +22,12 @@ async function getPersonalizationEngine() {
 }
 
 // Initialize shared instances for MLOps components
-const modelRegistry = new ModelRegistry();
 const featureStore = new FeatureStore();
 const monitoringBackend = new MonitoringBackend();
-const inferenceEngine = new InferenceEngine(modelRegistry);
+const inferenceEngine = new InferenceEngine();
 
 // Initialize on module load
 (async () => {
-	await modelRegistry.initialize();
 	await monitoringBackend.initialize();
 	await inferenceEngine.initialize();
 	console.log('MLOps components initialized');
