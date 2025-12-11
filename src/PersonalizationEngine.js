@@ -1,51 +1,30 @@
 /**
  * PersonalizationEngine - Product personalization using embeddings
  *
- * Supports two modes:
- * 1. **New mode (recommended)**: Uses InferenceEngine for backend-agnostic predictions
- *    - Supports ONNX, TensorFlow, and Ollama models
- *    - Enable model selection at runtime
+ * Uses InferenceEngine for backend-agnostic predictions
+ * - Supports ONNX, TensorFlow, and Ollama models
+ * - Enable model selection at runtime
  *
- * 2. **Legacy mode (deprecated)**: Direct TensorFlow.js integration
- *    - Backward compatible with existing code
- *    - Shows deprecation warning
- *
- * Example (new mode):
+ * Example:
  *   const engine = new PersonalizationEngine({
  *     inferenceEngine: inferenceEngineInstance,
  *     modelId: 'universal-sentence-encoder',
  *     version: 'v1'
  *   });
- *
- * Example (legacy mode - deprecated):
- *   const engine = new PersonalizationEngine();
  */
 
-import { TensorFlowBackend } from './core/backends/TensorFlow.js';
-
 export class PersonalizationEngine {
-  constructor(options = {}) {
-    this.options = options;
-
-    // Detect mode based on whether inferenceEngine is provided
-    if (options.inferenceEngine) {
-      // NEW MODE: Backend-agnostic with InferenceEngine
-      this.mode = 'inference-engine';
-      this.inferenceEngine = options.inferenceEngine;
-      this.modelId = options.modelId || 'universal-sentence-encoder';
-      this.version = options.version || 'v1';
-    } else {
-      // LEGACY MODE: Direct TensorFlow backend (deprecated)
-      this.mode = 'legacy';
-      this.backend = new TensorFlowBackend();
-      this.modelKey = 'personalization-use';
-
-      // Show deprecation warning
-      console.warn(
-        'DEPRECATED: PersonalizationEngine without inferenceEngine is deprecated. ' +
-          'Please use new constructor: new PersonalizationEngine({ inferenceEngine, modelId, version })'
+  constructor(options) {
+    if (!options || !options.inferenceEngine) {
+      throw new Error(
+        'PersonalizationEngine requires inferenceEngine. ' +
+          'Usage: new PersonalizationEngine({ inferenceEngine, modelId, version })'
       );
     }
+
+    this.inferenceEngine = options.inferenceEngine;
+    this.modelId = options.modelId || 'universal-sentence-encoder';
+    this.version = options.version || 'v1';
 
     this.initialized = false;
     this.stats = {
@@ -59,23 +38,12 @@ export class PersonalizationEngine {
     console.log('Initializing PersonalizationEngine...');
 
     try {
-      if (this.mode === 'inference-engine') {
-        // NEW MODE: No model loading needed, InferenceEngine handles it
-        console.log(
-          `PersonalizationEngine ready (InferenceEngine mode: ${this.modelId}:${this.version})`
-        );
-        this.initialized = true;
-        return true;
-      } else {
-        // LEGACY MODE: Load TensorFlow model
-        console.log(
-          'Loading Universal Sentence Encoder (legacy TensorFlow mode)...'
-        );
-        await this.backend.loadModel(this.modelKey, 'universal-sentence-encoder');
-        this.initialized = true;
-        console.log('Universal Sentence Encoder loaded successfully');
-        return true;
-      }
+      // No model loading needed, InferenceEngine handles it
+      console.log(
+        `PersonalizationEngine ready (model: ${this.modelId}:${this.version})`
+      );
+      this.initialized = true;
+      return true;
     } catch (error) {
       console.error('Failed to initialize PersonalizationEngine:', error);
       throw error;
@@ -93,21 +61,12 @@ export class PersonalizationEngine {
     const startTime = Date.now();
 
     try {
-      let embeddingData;
-
-      if (this.mode === 'inference-engine') {
-        // NEW MODE: Use InferenceEngine
-        const result = await this.inferenceEngine.predict(
-          this.modelId,
-          this.version,
-          { texts }
-        );
-        embeddingData = result;
-      } else {
-        // LEGACY MODE: Use TensorFlow backend directly
-        const result = await this.backend.predict(this.modelKey, { texts });
-        embeddingData = result.embeddings;
-      }
+      // Use InferenceEngine for predictions
+      const embeddingData = await this.inferenceEngine.predict(
+        this.modelId,
+        this.version,
+        { texts }
+      );
 
       // Calculate cosine similarity between first text (query) and others
       const queryEmbedding = embeddingData[0];
@@ -204,24 +163,12 @@ export class PersonalizationEngine {
   }
 
   getLoadedModels() {
-    if (this.mode === 'inference-engine') {
-      return [
-        {
-          name: `${this.modelId}:${this.version}`,
-          loaded: this.initialized,
-          status: this.isReady() ? 'ready' : 'not loaded',
-          mode: 'inference-engine',
-        },
-      ];
-    } else {
-      return [
-        {
-          name: 'universal-sentence-encoder',
-          loaded: this.initialized,
-          status: this.isReady() ? 'ready' : 'not loaded',
-          mode: 'legacy',
-        },
-      ];
-    }
+    return [
+      {
+        name: `${this.modelId}:${this.version}`,
+        loaded: this.initialized,
+        status: this.isReady() ? 'ready' : 'not loaded',
+      },
+    ];
   }
 }

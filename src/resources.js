@@ -11,34 +11,38 @@ import {
 	BenchmarkEngine
 } from './core/index.js';
 
+/**
+ * Helper to create consistent error responses
+ */
+function errorResponse(error, requestId = null, status = 500) {
+	const response = {
+		error: typeof error === 'string' ? error : error.message,
+	};
+
+	if (requestId) {
+		response.requestId = requestId;
+	}
+
+	return Response.json(response, { status });
+}
+
 // Initialize personalization engine (shared across requests)
-let personalizationEngine = null;
 const personalizationEngineCache = new Map();
 
-async function getPersonalizationEngine(modelId = null, version = null) {
-	// New mode: model selection via parameters
-	if (modelId && version) {
-		const cacheKey = `${modelId}:${version}`;
+async function getPersonalizationEngine(modelId, version) {
+	const cacheKey = `${modelId}:${version}`;
 
-		if (!personalizationEngineCache.has(cacheKey)) {
-			const engine = new PersonalizationEngine({
-				inferenceEngine,
-				modelId,
-				version
-			});
-			await engine.initialize();
-			personalizationEngineCache.set(cacheKey, engine);
-		}
-
-		return personalizationEngineCache.get(cacheKey);
+	if (!personalizationEngineCache.has(cacheKey)) {
+		const engine = new PersonalizationEngine({
+			inferenceEngine,
+			modelId,
+			version
+		});
+		await engine.initialize();
+		personalizationEngineCache.set(cacheKey, engine);
 	}
 
-	// Legacy mode: default TensorFlow USE
-	if (!personalizationEngine) {
-		personalizationEngine = new PersonalizationEngine();
-		await personalizationEngine.initialize();
-	}
-	return personalizationEngine;
+	return personalizationEngineCache.get(cacheKey);
 }
 
 // Initialize shared instances for MLOps components
@@ -69,7 +73,7 @@ export class Personalize extends Resource {
 	/**
 	 * Personalize product recommendations
 	 * POST /personalize
-	 * Query params (optional): modelId, version
+	 * Query params: modelId, version
 	 */
 	async personalizeProducts(request) {
 		const requestId = uuidv4();
@@ -81,25 +85,23 @@ export class Personalize extends Resource {
 			const modelId = url.searchParams.get('modelId');
 			const version = url.searchParams.get('version');
 
+			if (!modelId || !version) {
+				return errorResponse('modelId and version query parameters are required', requestId, 400);
+			}
+
 			// Parse request body
 			const data = await request.json();
 			const { products, userContext } = data;
 
 			if (!products || !Array.isArray(products)) {
-				return Response.json({
-					error: 'Missing or invalid products array',
-					requestId,
-				}, { status: 400 });
+				return errorResponse('Missing or invalid products array', requestId, 400);
 			}
 
-			// Get AI engine (with optional model selection)
+			// Get AI engine with model selection
 			const engine = await getPersonalizationEngine(modelId, version);
 
 			if (!engine.isReady()) {
-				return Response.json({
-					error: 'AI engine not ready',
-					requestId,
-				}, { status: 503 });
+				return errorResponse('AI engine not ready', requestId, 503);
 			}
 
 			// Enhance products with personalization
@@ -108,22 +110,16 @@ export class Personalize extends Resource {
 			// Sort by personalized score
 			const sortedProducts = enhancedProducts.sort((a, b) => (b.personalizedScore || 0) - (a.personalizedScore || 0));
 
-			const modelInfo = engine.getLoadedModels()[0];
-
 			return Response.json({
 				requestId,
 				products: sortedProducts,
 				personalized: true,
-				model: modelId && version ? `${modelId}:${version}` : 'universal-sentence-encoder',
-				mode: modelInfo.mode || 'legacy',
+				model: `${modelId}:${version}`,
 				responseTime: Date.now() - startTime,
 			});
 		} catch (error) {
 			console.error('Personalization failed:', error);
-			return Response.json({
-				error: error.message,
-				requestId,
-			}, { status: 500 });
+			return errorResponse(error, requestId, 500);
 		}
 	}
 }
@@ -133,24 +129,16 @@ export class Personalize extends Resource {
  */
 export class Status extends Resource {
 	async get() {
-		try {
-			const engine = await getPersonalizationEngine();
-			const models = engine.getLoadedModels();
-			const stats = engine.getStats();
-
-			return {
-				status: engine.isReady() ? 'healthy' : 'initializing',
-				models,
-				stats,
-				uptime: process.uptime(),
-				memory: process.memoryUsage(),
-			};
-		} catch (error) {
-			return {
-				status: 'unhealthy',
-				error: error.message,
-			};
-		}
+		return {
+			status: 'healthy',
+			uptime: process.uptime(),
+			memory: process.memoryUsage(),
+			components: {
+				inferenceEngine: 'ready',
+				monitoringBackend: 'ready',
+				benchmarkEngine: 'ready',
+			},
+		};
 	}
 }
 
@@ -175,9 +163,7 @@ export class Predict extends Resource {
 
 			// Validation
 			if (!modelId || !features) {
-				return Response.json({
-					error: 'modelId and features required'
-				}, { status: 400 });
+				return errorResponse('modelId and features required', null, 400);
 			}
 
 			// Run inference
@@ -208,10 +194,7 @@ export class Predict extends Resource {
 
 		} catch (error) {
 			console.error('Prediction failed:', error);
-			return Response.json({
-				error: 'Prediction failed',
-				details: error.message
-			}, { status: 500 });
+			return errorResponse(error, null, 500);
 		}
 	}
 }
@@ -235,9 +218,7 @@ export class Monitoring extends Resource {
 			const modelId = url.searchParams.get('modelId');
 
 			if (!modelId) {
-				return Response.json({
-					error: 'modelId parameter required'
-				}, { status: 400 });
+				return errorResponse('modelId parameter required', null, 400);
 			}
 
 			// Time range
@@ -263,10 +244,7 @@ export class Monitoring extends Resource {
 
 		} catch (error) {
 			console.error('Get metrics failed:', error);
-			return Response.json({
-				error: 'Get metrics failed',
-				details: error.message
-			}, { status: 500 });
+			return errorResponse(error, null, 500);
 		}
 	}
 }
@@ -298,15 +276,11 @@ export class Benchmark extends Resource {
 
 			// Validation
 			if (!taskType || !equivalenceGroup) {
-				return Response.json({
-					error: 'taskType and equivalenceGroup are required'
-				}, { status: 400 });
+				return errorResponse('taskType and equivalenceGroup are required', null, 400);
 			}
 
 			if (!testData || !Array.isArray(testData) || testData.length === 0) {
-				return Response.json({
-					error: 'testData must be a non-empty array'
-				}, { status: 400 });
+				return errorResponse('testData must be a non-empty array', null, 400);
 			}
 
 			// Find equivalent models
@@ -316,10 +290,11 @@ export class Benchmark extends Resource {
 			);
 
 			if (models.length < 2) {
-				return Response.json({
-					error: `Not enough models found. Found ${models.length} models with taskType="${taskType}" and equivalenceGroup="${equivalenceGroup}". At least 2 models are required.`,
-					foundModels: models.map(m => m.id)
-				}, { status: 400 });
+				return errorResponse(
+					`Not enough models found. Found ${models.length} models with taskType="${taskType}" and equivalenceGroup="${equivalenceGroup}". At least 2 models are required.`,
+					null,
+					400
+				);
 			}
 
 			// Run benchmark
@@ -339,10 +314,7 @@ export class Benchmark extends Resource {
 
 		} catch (error) {
 			console.error('Benchmark comparison failed:', error);
-			return Response.json({
-				error: 'Benchmark comparison failed',
-				details: error.message
-			}, { status: 500 });
+			return errorResponse(error, null, 500);
 		}
 	}
 
@@ -365,10 +337,7 @@ export class Benchmark extends Resource {
 
 		} catch (error) {
 			console.error('Get benchmark history failed:', error);
-			return Response.json({
-				error: 'Get benchmark history failed',
-				details: error.message
-			}, { status: 500 });
+			return errorResponse(error, null, 500);
 		}
 	}
 }

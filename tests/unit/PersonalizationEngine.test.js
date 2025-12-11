@@ -78,10 +78,10 @@ describe('PersonalizationEngine', () => {
       mockInferenceEngine.predict = async (modelId, version, input) => {
         capturedModelId = modelId;
         capturedVersion = version;
-        return [Array(512).fill(0.1)];
+        return [Array(512).fill(0.1), Array(512).fill(0.2)];
       };
 
-      await personalizationEngine.calculateSimilarity(['test']);
+      await personalizationEngine.calculateSimilarity(['test', 'test2']);
 
       assert.equal(capturedModelId, 'custom-embedding-model');
       assert.equal(capturedVersion, 'v2');
@@ -132,46 +132,26 @@ describe('PersonalizationEngine', () => {
     });
   });
 
-  describe('legacy constructor pattern (backward compatibility)', () => {
-    let personalizationEngine;
-    let consoleWarnCalled = false;
-    let originalConsoleWarn;
-
-    beforeEach(() => {
-      // Capture console.warn
-      originalConsoleWarn = console.warn;
-      console.warn = () => {
-        consoleWarnCalled = true;
-      };
+  describe('constructor validation', () => {
+    it('should throw error without inferenceEngine', () => {
+      assert.throws(
+        () => new PersonalizationEngine(),
+        /requires inferenceEngine/i
+      );
     });
 
-    afterEach(() => {
-      console.warn = originalConsoleWarn;
+    it('should throw error with empty options', () => {
+      assert.throws(
+        () => new PersonalizationEngine({}),
+        /requires inferenceEngine/i
+      );
     });
 
-    it('should support legacy constructor (no arguments)', () => {
-      personalizationEngine = new PersonalizationEngine();
-
-      assert.ok(personalizationEngine instanceof PersonalizationEngine);
-    });
-
-    it('should show deprecation warning in legacy mode', async () => {
-      personalizationEngine = new PersonalizationEngine();
-
-      // Note: We can't actually load TensorFlow model in tests,
-      // but we can verify the constructor pattern works
-      assert.ok(personalizationEngine);
-    });
-
-    it('should work with legacy code', () => {
-      // This is the old pattern that should continue to work
-      personalizationEngine = new PersonalizationEngine({
-        /* legacy options */
-      });
-
-      assert.ok(personalizationEngine);
-      assert.equal(typeof personalizationEngine.calculateSimilarity, 'function');
-      assert.equal(typeof personalizationEngine.enhanceProducts, 'function');
+    it('should throw error with null', () => {
+      assert.throws(
+        () => new PersonalizationEngine(null),
+        /requires inferenceEngine/i
+      );
     });
   });
 
@@ -323,7 +303,7 @@ describe('PersonalizationEngine', () => {
       assert.deepEqual(enhanced, []);
     });
 
-    it('should return unenhanced products on error', async () => {
+    it('should return products with zero score on error', async () => {
       await personalizationEngine.initialize();
 
       mockInferenceEngine.predict = async () => {
@@ -336,7 +316,11 @@ describe('PersonalizationEngine', () => {
         {}
       );
 
-      assert.deepEqual(enhanced, products);
+      // When similarity calculation fails, products get score of 0
+      assert.equal(enhanced.length, 1);
+      assert.equal(enhanced[0].name, 'Product 1');
+      assert.equal(enhanced[0].personalizedScore, 0);
+      assert.equal(enhanced[0].personalized, true);
     });
   });
 

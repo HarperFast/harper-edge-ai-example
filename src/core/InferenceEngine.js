@@ -22,13 +22,6 @@ export class InferenceEngine {
   }
 
   /**
-   * Build cache key for model
-   */
-  _buildCacheKey(modelId, version) {
-    return `${modelId}:${version}`;
-  }
-
-  /**
    * Get backend by framework name
    */
   getBackend(framework) {
@@ -39,7 +32,7 @@ export class InferenceEngine {
    * Check if model is cached
    */
   isCached(modelId, version) {
-    const key = this._buildCacheKey(modelId, version);
+    const key = `${modelId}:${version}`;
     return this.cache.has(key);
   }
 
@@ -50,7 +43,7 @@ export class InferenceEngine {
    * @returns {Object} Loaded model metadata
    */
   async loadModel(modelId, version) {
-    const cacheKey = this._buildCacheKey(modelId, version || 'latest');
+    const cacheKey = `${modelId}:${version || 'latest'}`;
 
     // Check cache first
     if (this.cache.has(cacheKey)) {
@@ -125,7 +118,7 @@ export class InferenceEngine {
       await this.loadModel(modelId, version);
     }
 
-    const cacheKey = this._buildCacheKey(modelId, version || 'latest');
+    const cacheKey = `${modelId}:${version || 'latest'}`;
     const cached = this.cache.get(cacheKey);
 
     if (!cached) {

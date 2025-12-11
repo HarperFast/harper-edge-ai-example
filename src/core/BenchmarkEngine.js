@@ -17,6 +17,26 @@ export class BenchmarkEngine {
   }
 
   /**
+   * Parse model metadata, optionally throwing on error
+   * @private
+   * @param {Object} model - Model record
+   * @param {boolean} throwOnError - Whether to throw on parse error
+   * @returns {Object|null} Parsed metadata or null if parse fails
+   */
+  _parseMetadata(model, throwOnError = false) {
+    try {
+      return JSON.parse(model.metadata || '{}');
+    } catch (err) {
+      if (throwOnError) {
+        throw new Error(
+          `Invalid metadata for model ${model.id}: ${err.message}`
+        );
+      }
+      return null;
+    }
+  }
+
+  /**
    * Find equivalent models by taskType and equivalenceGroup
    * @param {string} taskType - Type of ML task (e.g., "text-embedding")
    * @param {string} equivalenceGroup - Equivalence group identifier
@@ -28,21 +48,17 @@ export class BenchmarkEngine {
 
     // Search all models and filter by metadata
     for await (const model of modelsTable.search()) {
-      try {
-        const metadata = JSON.parse(model.metadata || '{}');
+      const metadata = this._parseMetadata(model, false);
 
-        if (
-          metadata.taskType === taskType &&
-          metadata.equivalenceGroup === equivalenceGroup
-        ) {
-          matchingModels.push({
-            ...model,
-            parsedMetadata: metadata,
-          });
-        }
-      } catch (err) {
-        // Skip models with invalid metadata
-        continue;
+      if (
+        metadata &&
+        metadata.taskType === taskType &&
+        metadata.equivalenceGroup === equivalenceGroup
+      ) {
+        matchingModels.push({
+          ...model,
+          parsedMetadata: metadata,
+        });
       }
     }
 
@@ -65,15 +81,8 @@ export class BenchmarkEngine {
     const dimensionsArray = [];
 
     for (const model of models) {
-      let metadata;
-      try {
-        metadata =
-          model.parsedMetadata || JSON.parse(model.metadata || '{}');
-      } catch (err) {
-        throw new Error(
-          `Invalid metadata for model ${model.id}: ${err.message}`
-        );
-      }
+      const metadata =
+        model.parsedMetadata || this._parseMetadata(model, true);
 
       if (!metadata.outputDimensions) {
         throw new Error(
@@ -191,31 +200,20 @@ export class BenchmarkEngine {
 
       // Compute metrics
       const sortedLatencies = latencies.sort((a, b) => a - b);
+      const hasData = sortedLatencies.length > 0;
       const avgLatency =
-        latencies.length > 0
+        hasData
           ? latencies.reduce((sum, l) => sum + l, 0) / latencies.length
           : 0;
       const errorRate = errorCount / iterations;
 
       const metrics = {
         avgLatency,
-        p50Latency:
-          sortedLatencies.length > 0
-            ? this.calculatePercentile(sortedLatencies, 50)
-            : 0,
-        p95Latency:
-          sortedLatencies.length > 0
-            ? this.calculatePercentile(sortedLatencies, 95)
-            : 0,
-        p99Latency:
-          sortedLatencies.length > 0
-            ? this.calculatePercentile(sortedLatencies, 99)
-            : 0,
-        minLatency: sortedLatencies.length > 0 ? sortedLatencies[0] : 0,
-        maxLatency:
-          sortedLatencies.length > 0
-            ? sortedLatencies[sortedLatencies.length - 1]
-            : 0,
+        p50Latency: hasData ? this.calculatePercentile(sortedLatencies, 50) : 0,
+        p95Latency: hasData ? this.calculatePercentile(sortedLatencies, 95) : 0,
+        p99Latency: hasData ? this.calculatePercentile(sortedLatencies, 99) : 0,
+        minLatency: hasData ? sortedLatencies[0] : 0,
+        maxLatency: hasData ? sortedLatencies[sortedLatencies.length - 1] : 0,
         errorRate,
         successCount,
         errorCount,

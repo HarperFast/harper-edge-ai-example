@@ -65,6 +65,25 @@ export function createMockInferenceEngine({
 }
 
 /**
+ * Create mock inference engine with specific latency per model
+ * Useful for testing latency-based comparisons
+ * @param {Object} latencyMap - Map of modelId to latency in ms
+ * @returns {Object} Mock inference engine
+ */
+export function createLatencyMockEngine(latencyMap) {
+  return {
+    async predict(modelId, version, input) {
+      const latency = latencyMap[modelId] || 10;
+      await new Promise((resolve) => setTimeout(resolve, latency));
+      return [Array(512).fill(0.1)];
+    },
+    async initialize() {
+      // No-op for mock
+    },
+  };
+}
+
+/**
  * Create mock models for benchmark comparison
  * @param {Object} options - Configuration
  * @param {string} options.taskType - Task type for models
