@@ -1,28 +1,20 @@
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert';
-import { InferenceEngine } from '../../src/core/InferenceEngine.js';
 import { getTestOnnxModel } from '../fixtures/test-models.js';
 import { tables } from '@harperdb/harperdb';
+import { setupInferenceEngine, cleanupModels } from '../helpers/setup.js';
 
 describe('InferenceEngine', () => {
   let engine;
   let modelsTable;
 
   before(async () => {
-    engine = new InferenceEngine();
-    await engine.initialize();
-
-    // Get Harper table reference for direct operations
+    engine = await setupInferenceEngine();
     modelsTable = tables.get('Model');
   });
 
   after(async () => {
-    // Clean up test data
-    try {
-      await modelsTable.delete('test-onnx-inference:v1');
-    } catch (err) {
-      // Ignore if doesn't exist
-    }
+    await cleanupModels(['test-onnx-inference:v1']);
     await engine.cleanup();
   });
 

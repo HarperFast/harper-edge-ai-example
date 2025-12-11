@@ -1,11 +1,12 @@
 import * as ort from 'onnxruntime-node';
+import { BaseBackend } from './Base.js';
 
 /**
  * ONNX Runtime Backend - Load and run ONNX models
  */
-export class OnnxBackend {
+export class OnnxBackend extends BaseBackend {
   constructor() {
-    this.name = 'OnnxBackend';
+    super('OnnxBackend');
     this.sessions = new Map(); // Cache loaded sessions
   }
 
@@ -97,11 +98,8 @@ export class OnnxBackend {
    * Unload model from cache
    */
   async unload(modelKey) {
-    const session = this.sessions.get(modelKey);
-    if (session) {
-      // ONNX Runtime sessions don't need explicit disposal in Node.js
-      this.sessions.delete(modelKey);
-    }
+    // ONNX Runtime sessions don't need explicit disposal in Node.js
+    this.sessions.delete(modelKey);
   }
 
   /**

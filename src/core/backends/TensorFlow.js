@@ -1,15 +1,16 @@
 import '../../../models/polyfill.js'; // Load polyfill first to fix Node.js 18+ compatibility
 import '@tensorflow/tfjs-node'; // Import backend first
 import * as use from '@tensorflow-models/universal-sentence-encoder';
+import { parseModelBlob } from '../utils/modelConfig.js';
+import { BaseBackend } from './Base.js';
 
 /**
  * TensorFlow Backend - Load and run TensorFlow.js models
  * Supports Universal Sentence Encoder and other TensorFlow.js models
  */
-export class TensorFlowBackend {
+export class TensorFlowBackend extends BaseBackend {
   constructor() {
-    this.name = 'TensorFlowBackend';
-    this.models = new Map();
+    super('TensorFlowBackend');
   }
 
   /**
@@ -22,27 +23,8 @@ export class TensorFlowBackend {
    */
   async loadModel(modelKey, modelBlob) {
     try {
-      let config;
-
-      // Parse modelBlob - can be string (model name/URL) or JSON config
-      if (typeof modelBlob === 'string') {
-        try {
-          config = JSON.parse(modelBlob);
-        } catch {
-          // If not JSON, treat as model identifier
-          config = { modelType: modelBlob };
-        }
-      } else if (Buffer.isBuffer(modelBlob)) {
-        const str = modelBlob.toString('utf-8');
-        try {
-          config = JSON.parse(str);
-        } catch {
-          config = { modelType: str };
-        }
-      } else {
-        config = modelBlob;
-      }
-
+      // Use shared parsing utility
+      const config = parseModelBlob(modelBlob, { primaryKey: 'modelType' });
       const modelType = config.modelType || config.model || 'universal-sentence-encoder';
 
       let model;
@@ -134,34 +116,5 @@ export class TensorFlowBackend {
     };
   }
 
-  /**
-   * Check if model is loaded
-   */
-  isLoaded(modelKey) {
-    return this.models.has(modelKey);
-  }
-
-  /**
-   * Unload model from cache
-   */
-  async unload(modelKey) {
-    const modelInfo = this.models.get(modelKey);
-    if (modelInfo && modelInfo.model && modelInfo.model.dispose) {
-      // Dispose TensorFlow resources if available
-      modelInfo.model.dispose();
-    }
-    this.models.delete(modelKey);
-  }
-
-  /**
-   * Cleanup all loaded models
-   */
-  async cleanup() {
-    for (const [key, modelInfo] of this.models.entries()) {
-      if (modelInfo.model && modelInfo.model.dispose) {
-        modelInfo.model.dispose();
-      }
-    }
-    this.models.clear();
-  }
+  // isLoaded(), unload(), and cleanup() inherited from BaseBackend
 }

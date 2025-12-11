@@ -1,27 +1,19 @@
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert';
-import { MonitoringBackend } from '../../src/core/MonitoringBackend.js';
 import { tables } from '@harperdb/harperdb';
+import { setupMonitoring, cleanupInferenceEvents } from '../helpers/setup.js';
 
 describe('MonitoringBackend', () => {
   let monitoring;
   let eventsTable;
 
   before(async () => {
-    monitoring = new MonitoringBackend();
-    await monitoring.initialize();
+    monitoring = await setupMonitoring();
     eventsTable = tables.get('InferenceEvent');
   });
 
   after(async () => {
-    // Clean up test data
-    const testEvents = [];
-    for await (const record of eventsTable.search({ modelId: 'test-metrics-model' })) {
-      testEvents.push(record);
-    }
-    for (const event of testEvents) {
-      await eventsTable.delete(event.id);
-    }
+    await cleanupInferenceEvents('test-metrics-model');
   });
 
   test('should calculate aggregate metrics with no events', async () => {

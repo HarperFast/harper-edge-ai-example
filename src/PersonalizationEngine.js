@@ -142,7 +142,7 @@ export class PersonalizationEngine {
 
 	// Public API
 	isReady() {
-		return this.initialized && this.model !== null;
+		return this.initialized;
 	}
 
 	getStats() {

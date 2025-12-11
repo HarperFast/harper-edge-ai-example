@@ -1,11 +1,13 @@
+import { parseModelBlob } from '../utils/modelConfig.js';
+import { BaseBackend } from './Base.js';
+
 /**
  * Ollama Backend - Load and run local LLM models via Ollama HTTP API
  */
-export class OllamaBackend {
+export class OllamaBackend extends BaseBackend {
   constructor(baseUrl = process.env.OLLAMA_HOST || 'http://localhost:11434') {
-    this.name = 'OllamaBackend';
+    super('OllamaBackend');
     this.baseUrl = baseUrl;
-    this.models = new Map(); // Cache loaded model names and configs
   }
 
   /**
@@ -16,25 +18,11 @@ export class OllamaBackend {
    */
   async loadModel(modelKey, modelBlob) {
     try {
-      // Parse modelBlob - can be string (model name) or JSON config
-      let config;
-      if (typeof modelBlob === 'string') {
-        try {
-          config = JSON.parse(modelBlob);
-        } catch {
-          // If not JSON, treat as plain model name
-          config = { modelName: modelBlob, mode: 'chat' };
-        }
-      } else if (Buffer.isBuffer(modelBlob)) {
-        const str = modelBlob.toString('utf-8');
-        try {
-          config = JSON.parse(str);
-        } catch {
-          config = { modelName: str, mode: 'chat' };
-        }
-      } else {
-        config = modelBlob;
-      }
+      // Use shared parsing utility
+      const config = parseModelBlob(modelBlob, {
+        primaryKey: 'modelName',
+        mode: 'chat'
+      });
 
       const modelName = config.modelName || config.model || process.env.OLLAMA_DEFAULT_MODEL || 'llama2';
       const mode = config.mode || 'chat'; // 'chat' or 'embeddings'
@@ -173,24 +161,5 @@ export class OllamaBackend {
     };
   }
 
-  /**
-   * Check if model is loaded
-   */
-  isLoaded(modelKey) {
-    return this.models.has(modelKey);
-  }
-
-  /**
-   * Unload model from cache
-   */
-  async unload(modelKey) {
-    this.models.delete(modelKey);
-  }
-
-  /**
-   * Cleanup all loaded models
-   */
-  async cleanup() {
-    this.models.clear();
-  }
+  // isLoaded(), unload(), and cleanup() inherited from BaseBackend
 }

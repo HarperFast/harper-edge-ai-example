@@ -11,7 +11,7 @@ export class InferenceEngine {
   constructor() {
     this.backends = new Map();
     this.cache = new Map(); // Cache loaded models: modelKey -> { backend, metadata }
-    this.maxCacheSize = 10; // LRU cache size
+    this.maxCacheSize = parseInt(process.env.MODEL_CACHE_SIZE) || 10; // LRU cache size
   }
 
   async initialize() {
