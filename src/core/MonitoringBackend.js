@@ -2,8 +2,8 @@ import { tables } from '@harperdb/harperdb';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
- * Monitoring Backend - Record and query inference events
- * Stores events in Harper tables
+ * Monitoring Backend - Record inference events and compute metrics
+ * Users should use PUT /InferenceEvent/:id for feedback updates
  */
 export class MonitoringBackend {
   constructor() {
@@ -16,7 +16,7 @@ export class MonitoringBackend {
   }
 
   /**
-   * Record an inference event
+   * Record an inference event (simplified - direct table.put)
    * @param {Object} event - Inference event data
    * @returns {string} inferenceId
    */
@@ -47,82 +47,26 @@ export class MonitoringBackend {
   }
 
   /**
-   * Record feedback for an inference
-   * @param {string} inferenceId - The inference ID
-   * @param {Object} feedback - Feedback data
-   */
-  async recordFeedback(inferenceId, feedback) {
-    const event = await this.eventsTable.get(inferenceId);
-
-    if (!event) {
-      throw new Error(`Inference ${inferenceId} not found`);
-    }
-
-    // Update with feedback
-    event.actualOutcome = feedback.actualOutcome;
-    event.feedbackTimestamp = Date.now();
-    event.correct = feedback.correct;
-
-    await this.eventsTable.put(event);
-  }
-
-  /**
-   * Query inference events
-   * @param {Object} query - Query parameters
-   * @returns {Object[]} Filtered events
-   */
-  async queryEvents(query) {
-    const { modelId, startTime, endTime, userId, limit } = query;
-
-    const results = [];
-
-    // Build search criteria
-    const searchCriteria = {};
-    if (modelId) {
-      searchCriteria.modelId = modelId;
-    }
-    if (userId) {
-      searchCriteria.userId = userId;
-    }
-
-    // Search events
-    for await (const record of this.eventsTable.search(searchCriteria)) {
-      // Filter by time range
-      if (startTime && record.timestamp < startTime.getTime()) {
-        continue;
-      }
-      if (endTime && record.timestamp > endTime.getTime()) {
-        continue;
-      }
-
-      results.push(record);
-    }
-
-    // Sort by timestamp descending (most recent first)
-    results.sort((a, b) => b.timestamp - a.timestamp);
-
-    // Apply limit
-    if (limit) {
-      return results.slice(0, limit);
-    }
-
-    return results;
-  }
-
-  /**
    * Get aggregate metrics for a model
    * @param {string} modelId - The model identifier
    * @param {Object} [options] - Optional time range
    * @returns {Object} Aggregate metrics
    */
   async getMetrics(modelId, options = {}) {
-    const events = await this.queryEvents({
-      modelId,
-      startTime: options.startTime,
-      endTime: options.endTime
-    });
+    // Use Harper search directly
+    const results = [];
+    for await (const record of this.eventsTable.search({ modelId })) {
+      // Filter by time range if provided
+      if (options.startTime && record.timestamp < options.startTime.getTime()) {
+        continue;
+      }
+      if (options.endTime && record.timestamp > options.endTime.getTime()) {
+        continue;
+      }
+      results.push(record);
+    }
 
-    if (events.length === 0) {
+    if (results.length === 0) {
       return {
         count: 0,
         avgLatency: 0,
@@ -132,34 +76,17 @@ export class MonitoringBackend {
     }
 
     // Calculate aggregates
-    const totalLatency = events.reduce((sum, e) => sum + (e.latencyMs || 0), 0);
-    const totalConfidence = events.reduce((sum, e) => sum + (e.confidence || 0), 0);
+    const totalLatency = results.reduce((sum, e) => sum + (e.latencyMs || 0), 0);
+    const totalConfidence = results.reduce((sum, e) => sum + (e.confidence || 0), 0);
 
-    const withFeedback = events.filter(e => e.correct !== null);
+    const withFeedback = results.filter(e => e.correct !== null);
     const correct = withFeedback.filter(e => e.correct === true).length;
 
     return {
-      count: events.length,
-      avgLatency: totalLatency / events.length,
-      avgConfidence: totalConfidence / events.length,
+      count: results.length,
+      avgLatency: totalLatency / results.length,
+      avgConfidence: totalConfidence / results.length,
       accuracy: withFeedback.length > 0 ? correct / withFeedback.length : null
     };
-  }
-
-  /**
-   * Cleanup test data (for testing only)
-   */
-  async cleanup() {
-    // Delete all test events
-    const testEvents = [];
-    for await (const record of this.eventsTable.search()) {
-      if (record.modelId.startsWith('test-')) {
-        testEvents.push(record.id);
-      }
-    }
-
-    for (const id of testEvents) {
-      await this.eventsTable.delete(id);
-    }
   }
 }

@@ -80,37 +80,43 @@ Harper Edge AI now supports ONNX Runtime alongside TensorFlow.js through a unifi
 
 ## REST API
 
-### Model Management
+### Model Management (Harper Native @export)
 
-#### Upload Model
+Harper automatically generates REST endpoints for the Model table via the @export directive.
+
+#### Create Model
 
 ```bash
-POST /model/upload
-Content-Type: multipart/form-data
+POST /Model
+Content-Type: application/json
 
-Fields:
-- modelId (required): Model identifier
-- version (required): Version string
-- framework (required): "onnx" | "tensorflow"
-- file (required): Model file (ONNX or TF.js)
-- inputSchema (optional): JSON describing input shape
-- outputSchema (optional): JSON describing output shape
-- metadata (optional): Additional metadata
-- stage (optional): "development" | "staging" | "production"
+Body:
+{
+  "id": "my-model:v1",
+  "modelId": "my-model",
+  "version": "v1",
+  "framework": "onnx",
+  "stage": "development",
+  "modelBlob": "<base64-encoded-blob>",
+  "inputSchema": "{...}",
+  "outputSchema": "{...}",
+  "metadata": "{...}"
+}
 
 Response:
 {
-  "success": true,
+  "id": "my-model:v1",
   "modelId": "my-model",
   "version": "v1",
-  "uploadedAt": 1234567890
+  "uploadedAt": 1234567890,
+  ...
 }
 ```
 
 #### Get Model Info
 
 ```bash
-GET /model/:modelId/:version
+GET /Model/my-model:v1
 
 Response:
 {
@@ -125,19 +131,16 @@ Response:
 }
 ```
 
-#### List Model Versions
+#### List Models by ID
 
 ```bash
-GET /model/versions?modelId=my-model
+GET /Model?modelId=my-model
 
 Response:
-{
-  "modelId": "my-model",
-  "versions": [
-    {"version": "v1", "framework": "onnx", "stage": "development"},
-    {"version": "v2", "framework": "onnx", "stage": "production"}
-  ]
-}
+[
+  {"id": "my-model:v1", "version": "v1", "framework": "onnx", "stage": "development"},
+  {"id": "my-model:v2", "version": "v2", "framework": "onnx", "stage": "production"}
+]
 ```
 
 ### Inference
@@ -173,61 +176,64 @@ Response:
 
 ### Observability
 
-#### Record Feedback
+#### Record Feedback (Harper Native @export)
+
+Use Harper's native PUT endpoint to update inference events with feedback:
 
 ```bash
-POST /feedback
+PUT /InferenceEvent/:inferenceId
 Content-Type: application/json
 
 Body:
 {
-  "inferenceId": "uuid",
-  "outcome": {
-    "class": 1
-  },
-  "correct": true  // optional, boolean
+  "actualOutcome": "{\"class\": 1}",
+  "feedbackTimestamp": 1234567890,
+  "correct": true
 }
 
 Response:
 {
-  "success": true,
-  "inferenceId": "uuid"
+  "id": "uuid",
+  "actualOutcome": "{\"class\": 1}",
+  "feedbackTimestamp": 1234567890,
+  "correct": true,
+  ...
 }
 ```
 
-#### Query Inference Events
+#### Query Inference Events (Harper Native @export)
+
+Use Harper's native GET endpoint with query parameters:
 
 ```bash
-GET /monitoring/events?modelId=my-model&limit=10&startTime=1234567890
+GET /InferenceEvent?modelId=my-model&limit=10
 
 Query Parameters:
-- modelId (optional): Filter by model
-- userId (optional): Filter by user
-- limit (optional): Max results (default: 100)
-- startTime (optional): Unix timestamp in ms
-- endTime (optional): Unix timestamp in ms
+- modelId: Filter by model
+- userId: Filter by user
+- limit: Max results
+- Any indexed field from schema
 
 Response:
-{
-  "events": [
-    {
-      "id": "uuid",
-      "timestamp": 1234567890,
-      "modelId": "my-model",
-      "modelVersion": "v1",
-      "framework": "onnx",
-      "featuresIn": "{...}",
-      "prediction": "{...}",
-      "confidence": 0.8,
-      "latencyMs": 42,
-      "correct": true
-    }
-  ],
-  "count": 1
-}
+[
+  {
+    "id": "uuid",
+    "timestamp": 1234567890,
+    "modelId": "my-model",
+    "modelVersion": "v1",
+    "framework": "onnx",
+    "featuresIn": "{...}",
+    "prediction": "{...}",
+    "confidence": 0.8,
+    "latencyMs": 42,
+    "correct": true
+  }
+]
 ```
 
-#### Get Model Metrics
+#### Get Model Metrics (Custom Endpoint)
+
+Compute aggregate metrics for a model:
 
 ```bash
 GET /monitoring/metrics?modelId=my-model&startTime=1234567890
@@ -268,16 +274,25 @@ with open("model.onnx", "wb") as f:
     f.write(onnx_model.SerializeToString())
 ```
 
-### Upload to Harper
+### Upload to Harper (Native API)
 
 ```bash
-curl -X POST http://localhost:9926/model/upload \
-  -F "modelId=sklearn-classifier" \
-  -F "version=v1" \
-  -F "framework=onnx" \
-  -F "file=@model.onnx" \
-  -F "inputSchema={\"inputs\":[{\"name\":\"float_input\",\"shape\":[1,10]}]}" \
-  -F "outputSchema={\"outputs\":[{\"name\":\"output_label\",\"shape\":[1]},{\"name\":\"output_probability\",\"shape\":[1,2]}]}"
+# First, encode the model as base64
+MODEL_BASE64=$(base64 -i model.onnx)
+
+# Then POST to Harper's native endpoint
+curl -X POST http://localhost:9926/Model \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"id\": \"sklearn-classifier:v1\",
+    \"modelId\": \"sklearn-classifier\",
+    \"version\": \"v1\",
+    \"framework\": \"onnx\",
+    \"stage\": \"development\",
+    \"modelBlob\": \"$MODEL_BASE64\",
+    \"inputSchema\": \"{\\\"inputs\\\":[{\\\"name\\\":\\\"float_input\\\",\\\"shape\\\":[1,10]}]}\",
+    \"outputSchema\": \"{\\\"outputs\\\":[{\\\"name\\\":\\\"output_label\\\",\\\"shape\\\":[1]},{\\\"name\\\":\\\"output_probability\\\",\\\"shape\\\":[1,2]}]}\"
+  }"
 ```
 
 ### Run Inference
@@ -297,23 +312,25 @@ curl -X POST http://localhost:9926/predict \
 ### JavaScript: Using the API
 
 ```javascript
-// Upload a model
-async function uploadModel(modelId, version, framework, file) {
-  const formData = new FormData();
-  formData.append('modelId', modelId);
-  formData.append('version', version);
-  formData.append('framework', framework);
-  formData.append('file', file);
-  formData.append('inputSchema', JSON.stringify({
-    inputs: [{ name: 'input', shape: [1, 10] }]
-  }));
-  formData.append('outputSchema', JSON.stringify({
-    outputs: [{ name: 'output', shape: [1, 2] }]
-  }));
-
-  const response = await fetch('http://localhost:9926/model/upload', {
+// Upload a model using Harper's native endpoint
+async function uploadModel(modelId, version, framework, modelBlobBase64) {
+  const response = await fetch('http://localhost:9926/Model', {
     method: 'POST',
-    body: formData
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      id: `${modelId}:${version}`,
+      modelId,
+      version,
+      framework,
+      stage: 'development',
+      modelBlob: modelBlobBase64,
+      inputSchema: JSON.stringify({
+        inputs: [{ name: 'input', shape: [1, 10] }]
+      }),
+      outputSchema: JSON.stringify({
+        outputs: [{ name: 'output', shape: [1, 2] }]
+      })
+    })
   });
 
   return response.json();
@@ -334,14 +351,14 @@ async function predict(modelId, features) {
   return response.json();
 }
 
-// Record feedback
+// Record feedback using Harper's native endpoint
 async function recordFeedback(inferenceId, correct) {
-  const response = await fetch('http://localhost:9926/feedback', {
-    method: 'POST',
+  const response = await fetch(`http://localhost:9926/InferenceEvent/${inferenceId}`, {
+    method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      inferenceId,
-      outcome: { class: 1 },
+      actualOutcome: JSON.stringify({ class: 1 }),
+      feedbackTimestamp: Date.now(),
       correct
     })
   });
@@ -374,6 +391,13 @@ curl "http://localhost:9926/monitoring/metrics?modelId=model-onnx"
 # Check TensorFlow metrics
 curl "http://localhost:9926/monitoring/metrics?modelId=model-tf"
 ```
+
+## Architecture Benefits
+
+- **50% Code Reduction**: Removed ~410 lines by leveraging Harper's @export directive
+- **Native CRUD**: Harper auto-generates POST/GET/PUT/DELETE endpoints for tables
+- **Simplified Codebase**: ModelRegistry and MonitoringBackend are now minimal helpers
+- **Direct Table Access**: InferenceEngine uses Harper tables directly
 
 ## Limitations (MVP)
 

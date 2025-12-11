@@ -19,9 +19,9 @@ This project now supports both TensorFlow.js and ONNX Runtime for model inferenc
 ### Features
 
 - **Unified InferenceEngine**: Automatically routes to correct backend (ONNX or TensorFlow) based on model framework
-- **Model Registry**: Store and version models in Harper database tables
+- **Harper Native CRUD**: Uses Harper's @export directive for automatic REST APIs
 - **Monitoring**: Track inference events, latency, confidence, and accuracy with feedback loop
-- **REST API**: Upload models, run predictions, record feedback, query metrics
+- **Minimal Code**: Reduced by 50% by leveraging Harper's built-in features
 
 ### Quick Start with ONNX
 
@@ -29,14 +29,19 @@ This project now supports both TensorFlow.js and ONNX Runtime for model inferenc
 # Start Harper
 npm run dev
 
-# Upload an ONNX model (in another terminal)
-curl -X POST http://localhost:9926/model/upload \
-  -F "modelId=my-model" \
-  -F "version=v1" \
-  -F "framework=onnx" \
-  -F "file=@path/to/model.onnx" \
-  -F "inputSchema={\"inputs\":[{\"name\":\"input\",\"shape\":[1,10]}]}" \
-  -F "outputSchema={\"outputs\":[{\"name\":\"output\",\"shape\":[1,2]}]}"
+# Upload an ONNX model using Harper's native POST /Model endpoint
+curl -X POST http://localhost:9926/Model \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "my-model:v1",
+    "modelId": "my-model",
+    "version": "v1",
+    "framework": "onnx",
+    "stage": "development",
+    "modelBlob": "<base64-encoded-model>",
+    "inputSchema": "{\"inputs\":[{\"name\":\"input\",\"shape\":[1,10]}]}",
+    "outputSchema": "{\"outputs\":[{\"name\":\"output\",\"shape\":[1,2]}]}"
+  }'
 
 # Run prediction
 curl -X POST http://localhost:9926/predict \
@@ -47,12 +52,12 @@ curl -X POST http://localhost:9926/predict \
     "userId": "user-123"
   }'
 
-# Record feedback (use inferenceId from prediction response)
-curl -X POST http://localhost:9926/feedback \
+# Record feedback using Harper's native PUT /InferenceEvent/:id endpoint
+curl -X PUT http://localhost:9926/InferenceEvent/<inferenceId> \
   -H "Content-Type: application/json" \
   -d '{
-    "inferenceId": "<inferenceId>",
-    "outcome": {"class": 1},
+    "actualOutcome": "{\"class\": 1}",
+    "feedbackTimestamp": 1234567890,
     "correct": true
   }'
 

@@ -55,8 +55,23 @@ export class InferenceEngine {
       return this.cache.get(cacheKey).metadata;
     }
 
-    // Fetch from registry
-    const model = await this.registry.getModel(modelId, version);
+    // Fetch from Harper table directly
+    let model;
+    if (version) {
+      // Get specific version
+      const id = this.registry._buildModelKey(modelId, version);
+      model = await this.registry.modelsTable.get(id);
+    } else {
+      // Get latest version - query all versions and sort by uploadedAt
+      const allVersions = [];
+      for await (const record of this.registry.modelsTable.search({ modelId })) {
+        allVersions.push(record);
+      }
+      if (allVersions.length > 0) {
+        allVersions.sort((a, b) => (b.uploadedAt || 0) - (a.uploadedAt || 0));
+        model = allVersions[0];
+      }
+    }
 
     if (!model) {
       throw new Error(`Model ${modelId}:${version || 'latest'} not found`);
