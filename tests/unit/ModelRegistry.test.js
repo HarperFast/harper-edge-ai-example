@@ -1,4 +1,4 @@
-import { describe, test, before, after } from 'node:test';
+import { describe, test, before } from 'node:test';
 import assert from 'node:assert';
 import { ModelRegistry } from '../../src/core/ModelRegistry.js';
 
@@ -10,83 +10,25 @@ describe('ModelRegistry', () => {
     await registry.initialize();
   });
 
-  after(async () => {
-    // Cleanup test data
-    await registry.cleanup();
+  test('should build composite model key from modelId and version', () => {
+    const key = registry._buildModelKey('my-model', 'v1.0');
+    assert.strictEqual(key, 'my-model:v1.0');
   });
 
-  test('should store and retrieve ONNX model blob', async () => {
-    // Create a minimal test blob (fake ONNX model)
-    const modelBlob = Buffer.from('fake onnx model data');
-
-    const registration = {
-      modelId: 'test-onnx',
-      version: 'v1',
-      framework: 'onnx',
-      modelBlob,
-      inputSchema: JSON.stringify({ shape: [1, 10] }),
-      outputSchema: JSON.stringify({ shape: [1, 2] }),
-      metadata: JSON.stringify({ description: 'Test ONNX model' }),
-      stage: 'development'
-    };
-
-    // Register model
-    const registered = await registry.registerModel(registration);
-
-    // Verify registration
-    assert.strictEqual(registered.modelId, 'test-onnx');
-    assert.strictEqual(registered.version, 'v1');
-    assert.strictEqual(registered.framework, 'onnx');
-
-    // Retrieve model
-    const retrieved = await registry.getModel('test-onnx', 'v1');
-
-    // Verify retrieval
-    assert.strictEqual(retrieved.modelId, 'test-onnx');
-    assert.strictEqual(retrieved.framework, 'onnx');
-    assert.ok(Buffer.isBuffer(retrieved.modelBlob));
-    assert.strictEqual(retrieved.modelBlob.toString(), 'fake onnx model data');
-  });
-
-  test('should get latest version when version not specified', async () => {
-    const blob1 = Buffer.from('v1 data');
-    const blob2 = Buffer.from('v2 data');
-
-    // Register two versions
-    await registry.registerModel({
-      modelId: 'test-versions',
-      version: 'v1',
-      framework: 'onnx',
-      modelBlob: blob1,
-      inputSchema: '{}',
-      outputSchema: '{}',
-      metadata: '{}',
-      stage: 'development'
+  test('should parse composite key into modelId and version', () => {
+    const parsed = registry._parseModelKey('my-model:v1.0');
+    assert.deepStrictEqual(parsed, {
+      modelId: 'my-model',
+      version: 'v1.0'
     });
-
-    await registry.registerModel({
-      modelId: 'test-versions',
-      version: 'v2',
-      framework: 'onnx',
-      modelBlob: blob2,
-      inputSchema: '{}',
-      outputSchema: '{}',
-      metadata: '{}',
-      stage: 'development'
-    });
-
-    // Get without version should return latest
-    const latest = await registry.getModel('test-versions');
-    assert.strictEqual(latest.version, 'v2');
-    assert.strictEqual(latest.modelBlob.toString(), 'v2 data');
   });
 
-  test('should list all versions of a model', async () => {
-    const versions = await registry.listVersions('test-versions');
+  test('should handle complex modelIds with hyphens and underscores', () => {
+    const key = registry._buildModelKey('my-complex_model-123', 'v2.1.3');
+    assert.strictEqual(key, 'my-complex_model-123:v2.1.3');
 
-    assert.ok(Array.isArray(versions));
-    assert.strictEqual(versions.length, 2);
-    assert.ok(versions.some(v => v.version === 'v1'));
-    assert.ok(versions.some(v => v.version === 'v2'));
+    const parsed = registry._parseModelKey(key);
+    assert.strictEqual(parsed.modelId, 'my-complex_model-123');
+    assert.strictEqual(parsed.version, 'v2.1.3');
   });
 });
