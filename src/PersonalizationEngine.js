@@ -1,6 +1,20 @@
 /**
  * Simplified PersonalizationEngine - Universal Sentence Encoder only
  * Single-tenant, single-model implementation for Harper Edge AI
+ *
+ * TODO: Refactor to use InferenceEngine for backend-agnostic sentence encoding
+ * This will allow swapping between TensorFlow.js and ONNX sentence encoders.
+ *
+ * Future improvements:
+ * 1. Load Universal Sentence Encoder into ModelRegistry (ONNX or TensorFlow version)
+ * 2. Inject InferenceEngine as dependency
+ * 3. Replace model.embed() with inferenceEngine.predict() calls
+ * 4. Support both frameworks without code changes via framework field in ModelRegistry
+ * 5. Enable performance comparison between TensorFlow.js and ONNX implementations
+ * 6. Migrate embedding cache to shared FeatureStore
+ *
+ * Current implementation works well for MVP - this is a future enhancement
+ * for framework flexibility and MLOps integration.
  */
 
 import '../models/polyfill.js'; // Load polyfill first to fix Node.js 18+ compatibility
