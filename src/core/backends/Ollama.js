@@ -2,7 +2,7 @@
  * Ollama Backend - Load and run local LLM models via Ollama HTTP API
  */
 export class OllamaBackend {
-  constructor(baseUrl = 'http://localhost:11434') {
+  constructor(baseUrl = process.env.OLLAMA_HOST || 'http://localhost:11434') {
     this.name = 'OllamaBackend';
     this.baseUrl = baseUrl;
     this.models = new Map(); // Cache loaded model names and configs
@@ -36,7 +36,7 @@ export class OllamaBackend {
         config = modelBlob;
       }
 
-      const modelName = config.modelName || config.model || 'llama2';
+      const modelName = config.modelName || config.model || process.env.OLLAMA_DEFAULT_MODEL || 'llama2';
       const mode = config.mode || 'chat'; // 'chat' or 'embeddings'
 
       // Validate model is available (optional - ping Ollama)

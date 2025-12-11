@@ -577,14 +577,111 @@ Any model available in Ollama can be used:
 
 Check available models: `ollama list`
 
+### Environment Variable Configuration
+
+The Ollama backend supports configuration via environment variables. Harper automatically loads `.env` files at startup.
+
+Create a `.env` file in your project root:
+
+```env
+# Ollama Configuration
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_DEFAULT_MODEL=llama2
+```
+
+Available environment variables:
+
+- **`OLLAMA_HOST`**: Ollama server URL
+  - Default: `http://localhost:11434`
+  - Example: `http://custom-host:8080`
+  - Used when creating `OllamaBackend` instances without explicit host
+
+- **`OLLAMA_DEFAULT_MODEL`**: Default model name when not specified in modelBlob
+  - Default: `llama2`
+  - Example: `mistral`, `codellama`, `phi`
+  - Used when model name is not provided in configuration
+
+#### Configuration Precedence
+
+The Ollama backend follows this configuration hierarchy (highest to lowest priority):
+
+1. **Model Configuration**: modelBlob specifies exact model name
+   ```json
+   "modelBlob": "{\"modelName\": \"mistral\", \"mode\": \"chat\"}"
+   ```
+
+2. **Environment Variable**: `OLLAMA_DEFAULT_MODEL` from `.env` file
+   ```env
+   OLLAMA_DEFAULT_MODEL=mistral
+   ```
+
+3. **Hardcoded Default**: Falls back to `llama2`
+
+Example with different configuration levels:
+
+```bash
+# Using model config (highest priority)
+curl -X POST http://localhost:9926/Model \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "chat:v1",
+    "modelId": "chat",
+    "version": "v1",
+    "framework": "ollama",
+    "stage": "development",
+    "modelBlob": "{\"modelName\": \"mistral\", \"mode\": \"chat\"}"
+  }'
+# Uses: mistral (from modelBlob)
+
+# Using environment variable (medium priority)
+# Set OLLAMA_DEFAULT_MODEL=codellama in .env
+curl -X POST http://localhost:9926/Model \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "chat:v1",
+    "modelId": "chat",
+    "version": "v1",
+    "framework": "ollama",
+    "stage": "development",
+    "modelBlob": "{\"mode\": \"chat\"}"
+  }'
+# Uses: codellama (from OLLAMA_DEFAULT_MODEL)
+
+# Using hardcoded default (lowest priority)
+# No .env file, no modelName in modelBlob
+curl -X POST http://localhost:9926/Model \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "chat:v1",
+    "modelId": "chat",
+    "version": "v1",
+    "framework": "ollama",
+    "stage": "development",
+    "modelBlob": "{\"mode\": \"chat\"}"
+  }'
+# Uses: llama2 (hardcoded default)
+```
+
 ### Custom Ollama Host
 
-By default, OllamaBackend connects to `http://localhost:11434`. To use a custom host:
+You can configure a custom Ollama host in three ways:
 
+**1. Via Environment Variable (Recommended):**
+```env
+OLLAMA_HOST=http://custom-host:8080
+```
+
+**2. Via Constructor (Programmatic):**
 ```javascript
 import { OllamaBackend } from './backends/OllamaBackend.js';
 
 const backend = new OllamaBackend('http://custom-host:8080');
+```
+
+**3. Using Default:**
+```javascript
+// Uses process.env.OLLAMA_HOST or defaults to http://localhost:11434
+const backend = new OllamaBackend();
 ```
 
 ### Performance Considerations

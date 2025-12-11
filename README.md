@@ -73,6 +73,10 @@ curl http://localhost:9926/monitoring/metrics?modelId=my-model
 # Download from https://ollama.ai/
 ollama pull llama2
 
+# Configure environment (optional)
+cp .env.example .env
+# Edit .env to customize OLLAMA_HOST and OLLAMA_DEFAULT_MODEL if needed
+
 # Start Harper
 npm run dev
 
@@ -173,6 +177,30 @@ Check your versions:
 node --version
 npm --version
 harper --version
+```
+
+## Configuration
+
+This project uses environment variables for configuration. Harper automatically loads `.env` files at startup.
+
+### Environment Variables
+
+Copy `.env.example` to `.env` to customize configuration:
+
+```bash
+cp .env.example .env
+```
+
+Available variables:
+
+- `OLLAMA_HOST`: Ollama server URL (default: `http://localhost:11434`)
+- `OLLAMA_DEFAULT_MODEL`: Default Ollama model name (default: `llama2`)
+
+Example `.env` file:
+```env
+# Ollama Configuration
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_DEFAULT_MODEL=llama2
 ```
 
 ## Installation
