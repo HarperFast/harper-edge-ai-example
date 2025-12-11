@@ -3,8 +3,8 @@
  * This test doesn't require Harper's internal packages
  */
 
-import { OnnxRuntimeBackend } from '../src/core/backends/OnnxRuntimeBackend.js';
-import { TensorFlowBackend } from '../src/core/backends/TensorFlowBackend.js';
+import { OnnxBackend } from '../src/core/backends/Onnx.js';
+import { TensorFlowBackend } from '../src/core/backends/TensorFlow.js';
 import { getTestOnnxModel } from './fixtures/test-models.js';
 
 async function testOnnxBackend() {
@@ -12,8 +12,8 @@ async function testOnnxBackend() {
 
   try {
     // Test 1: Initialize backend
-    console.log('Test 1: Initialize OnnxRuntimeBackend');
-    const backend = new OnnxRuntimeBackend();
+    console.log('Test 1: Initialize OnnxBackend');
+    const backend = new OnnxBackend();
     console.log(`✅ Backend name: ${backend.name}`);
     console.log();
 

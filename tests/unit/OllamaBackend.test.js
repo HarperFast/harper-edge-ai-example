@@ -1,6 +1,6 @@
 import { describe, test, before, after, mock } from 'node:test';
 import assert from 'node:assert';
-import { OllamaBackend } from '../../src/core/backends/OllamaBackend.js';
+import { OllamaBackend } from '../../src/core/backends/Ollama.js';
 
 describe('OllamaBackend', () => {
   let backend;

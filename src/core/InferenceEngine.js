@@ -1,6 +1,6 @@
-import { OnnxRuntimeBackend } from './backends/OnnxRuntimeBackend.js';
-import { TensorFlowBackend } from './backends/TensorFlowBackend.js';
-import { OllamaBackend } from './backends/OllamaBackend.js';
+import { OnnxBackend } from './backends/Onnx.js';
+import { TensorFlowBackend } from './backends/TensorFlow.js';
+import { OllamaBackend } from './backends/Ollama.js';
 import { tables } from '@harperdb/harperdb';
 
 /**
@@ -16,7 +16,7 @@ export class InferenceEngine {
 
   async initialize() {
     // Initialize backends
-    this.backends.set('onnx', new OnnxRuntimeBackend());
+    this.backends.set('onnx', new OnnxBackend());
     this.backends.set('tensorflow', new TensorFlowBackend());
     this.backends.set('ollama', new OllamaBackend());
   }

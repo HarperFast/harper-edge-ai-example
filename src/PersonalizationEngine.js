@@ -2,29 +2,28 @@
  * Simplified PersonalizationEngine - Universal Sentence Encoder only
  * Single-tenant, single-model implementation for Harper Edge AI
  *
- * TODO: Refactor to use InferenceEngine for backend-agnostic sentence encoding
- * This will allow swapping between TensorFlow.js and ONNX sentence encoders.
+ * Now uses TensorFlowBackend for model loading and inference.
+ * The backend abstracts away the TensorFlow.js implementation details.
  *
- * Future improvements:
- * 1. Load Universal Sentence Encoder into ModelRegistry (ONNX or TensorFlow version)
- * 2. Inject InferenceEngine as dependency
- * 3. Replace model.embed() with inferenceEngine.predict() calls
- * 4. Support both frameworks without code changes via framework field in ModelRegistry
- * 5. Enable performance comparison between TensorFlow.js and ONNX implementations
- * 6. Migrate embedding cache to shared FeatureStore
+ * TODO: Future refactoring to integrate with InferenceEngine + ModelRegistry
+ * This would enable:
+ * 1. Load Universal Sentence Encoder into ModelRegistry (support both TF.js and ONNX versions)
+ * 2. Use InferenceEngine for framework-agnostic inference
+ * 3. Support swapping between TensorFlow.js and ONNX implementations without code changes
+ * 4. Enable performance comparison between different backend implementations
+ * 5. Migrate embedding cache to shared FeatureStore
+ * 6. Integrate with MonitoringBackend for inference tracking
  *
- * Current implementation works well for MVP - this is a future enhancement
- * for framework flexibility and MLOps integration.
+ * Current implementation is a thin wrapper over TensorFlowBackend, which works well for MVP.
  */
 
-import '../models/polyfill.js'; // Load polyfill first to fix Node.js 18+ compatibility
-import '@tensorflow/tfjs-node'; // Import backend first
-import * as use from '@tensorflow-models/universal-sentence-encoder';
+import { TensorFlowBackend } from './core/backends/TensorFlow.js';
 
 export class PersonalizationEngine {
 	constructor(options = {}) {
 		this.options = options;
-		this.model = null;
+		this.backend = new TensorFlowBackend();
+		this.modelKey = 'personalization-use';
 		this.initialized = false;
 		this.stats = {
 			inferences: 0,
@@ -37,7 +36,7 @@ export class PersonalizationEngine {
 		console.log('Initializing PersonalizationEngine with Universal Sentence Encoder...');
 
 		try {
-			this.model = await use.load();
+			await this.backend.loadModel(this.modelKey, 'universal-sentence-encoder');
 			this.initialized = true;
 			console.log('Universal Sentence Encoder loaded successfully');
 			return true;
@@ -51,21 +50,20 @@ export class PersonalizationEngine {
 	 * Calculate similarity between product descriptions and user preferences
 	 */
 	async calculateSimilarity(texts) {
-		if (!this.model || texts.length < 2) {
+		if (!this.initialized || texts.length < 2) {
 			return [];
 		}
 
 		const startTime = Date.now();
 
 		try {
-			const embeddings = await this.model.embed(texts);
-			const embeddingData = await embeddings.array();
+			// Use backend to generate embeddings
+			const result = await this.backend.predict(this.modelKey, { texts });
+			const embeddingData = result.embeddings;
 
 			// Calculate cosine similarity between first text (query) and others
 			const queryEmbedding = embeddingData[0];
 			const similarities = embeddingData.slice(1).map((embedding) => this.cosineSimilarity(queryEmbedding, embedding));
-
-			embeddings.dispose();
 
 			this.recordMetrics(Date.now() - startTime, true);
 

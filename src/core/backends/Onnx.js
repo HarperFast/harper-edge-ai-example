@@ -3,9 +3,9 @@ import * as ort from 'onnxruntime-node';
 /**
  * ONNX Runtime Backend - Load and run ONNX models
  */
-export class OnnxRuntimeBackend {
+export class OnnxBackend {
   constructor() {
-    this.name = 'OnnxRuntimeBackend';
+    this.name = 'OnnxBackend';
     this.sessions = new Map(); // Cache loaded sessions
   }
 

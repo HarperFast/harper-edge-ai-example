@@ -72,7 +72,7 @@ describe('InferenceEngine', () => {
 
   test('should select correct backend based on framework', async () => {
     const backend = engine.getBackend('onnx');
-    assert.strictEqual(backend.name, 'OnnxRuntimeBackend');
+    assert.strictEqual(backend.name, 'OnnxBackend');
 
     const tfBackend = engine.getBackend('tensorflow');
     assert.strictEqual(tfBackend.name, 'TensorFlowBackend');
