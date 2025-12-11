@@ -51,3 +51,30 @@ type InferenceEvent @table(database: "harper-edge-ai-example") @export {
   # Timestamps
   timestamp: Long @createdTime @indexed
 }
+
+type BenchmarkResult @table(database: "harper-edge-ai-example") @export {
+  # Primary key - UUID for each benchmark run
+  id: ID @primaryKey
+
+  # Benchmark parameters
+  taskType: String @indexed          # e.g., "text-embedding", "image-classification"
+  equivalenceGroup: String @indexed  # e.g., "sentence-encoder", "resnet-variants"
+
+  # Models compared (array of model keys: modelId:version)
+  modelIds: String  # JSON stringified array
+
+  # Results (detailed metrics per model)
+  results: String  # JSON stringified object
+
+  # Test data summary
+  testDataSummary: String  # JSON: { sampleCount, inputShape, description }
+  iterations: Int
+
+  # Metadata
+  runBy: String  # Optional user/system identifier
+  notes: String  # Optional notes about the benchmark
+
+  # Timestamps
+  timestamp: Long @createdTime @indexed
+  completedAt: Long
+}

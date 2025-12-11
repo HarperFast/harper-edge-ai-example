@@ -1,161 +1,227 @@
 /**
- * Simplified PersonalizationEngine - Universal Sentence Encoder only
- * Single-tenant, single-model implementation for Harper Edge AI
+ * PersonalizationEngine - Product personalization using embeddings
  *
- * Now uses TensorFlowBackend for model loading and inference.
- * The backend abstracts away the TensorFlow.js implementation details.
+ * Supports two modes:
+ * 1. **New mode (recommended)**: Uses InferenceEngine for backend-agnostic predictions
+ *    - Supports ONNX, TensorFlow, and Ollama models
+ *    - Enable model selection at runtime
  *
- * TODO: Future refactoring to integrate with InferenceEngine + ModelRegistry
- * This would enable:
- * 1. Load Universal Sentence Encoder into ModelRegistry (support both TF.js and ONNX versions)
- * 2. Use InferenceEngine for framework-agnostic inference
- * 3. Support swapping between TensorFlow.js and ONNX implementations without code changes
- * 4. Enable performance comparison between different backend implementations
- * 5. Migrate embedding cache to shared FeatureStore
- * 6. Integrate with MonitoringBackend for inference tracking
+ * 2. **Legacy mode (deprecated)**: Direct TensorFlow.js integration
+ *    - Backward compatible with existing code
+ *    - Shows deprecation warning
  *
- * Current implementation is a thin wrapper over TensorFlowBackend, which works well for MVP.
+ * Example (new mode):
+ *   const engine = new PersonalizationEngine({
+ *     inferenceEngine: inferenceEngineInstance,
+ *     modelId: 'universal-sentence-encoder',
+ *     version: 'v1'
+ *   });
+ *
+ * Example (legacy mode - deprecated):
+ *   const engine = new PersonalizationEngine();
  */
 
 import { TensorFlowBackend } from './core/backends/TensorFlow.js';
 
 export class PersonalizationEngine {
-	constructor(options = {}) {
-		this.options = options;
-		this.backend = new TensorFlowBackend();
-		this.modelKey = 'personalization-use';
-		this.initialized = false;
-		this.stats = {
-			inferences: 0,
-			averageLatency: 0,
-			errors: 0,
-		};
-	}
+  constructor(options = {}) {
+    this.options = options;
 
-	async initialize() {
-		console.log('Initializing PersonalizationEngine with Universal Sentence Encoder...');
+    // Detect mode based on whether inferenceEngine is provided
+    if (options.inferenceEngine) {
+      // NEW MODE: Backend-agnostic with InferenceEngine
+      this.mode = 'inference-engine';
+      this.inferenceEngine = options.inferenceEngine;
+      this.modelId = options.modelId || 'universal-sentence-encoder';
+      this.version = options.version || 'v1';
+    } else {
+      // LEGACY MODE: Direct TensorFlow backend (deprecated)
+      this.mode = 'legacy';
+      this.backend = new TensorFlowBackend();
+      this.modelKey = 'personalization-use';
 
-		try {
-			await this.backend.loadModel(this.modelKey, 'universal-sentence-encoder');
-			this.initialized = true;
-			console.log('Universal Sentence Encoder loaded successfully');
-			return true;
-		} catch (error) {
-			console.error('Failed to initialize PersonalizationEngine:', error);
-			throw error;
-		}
-	}
+      // Show deprecation warning
+      console.warn(
+        'DEPRECATED: PersonalizationEngine without inferenceEngine is deprecated. ' +
+          'Please use new constructor: new PersonalizationEngine({ inferenceEngine, modelId, version })'
+      );
+    }
 
-	/**
-	 * Calculate similarity between product descriptions and user preferences
-	 */
-	async calculateSimilarity(texts) {
-		if (!this.initialized || texts.length < 2) {
-			return [];
-		}
+    this.initialized = false;
+    this.stats = {
+      inferences: 0,
+      averageLatency: 0,
+      errors: 0,
+    };
+  }
 
-		const startTime = Date.now();
+  async initialize() {
+    console.log('Initializing PersonalizationEngine...');
 
-		try {
-			// Use backend to generate embeddings
-			const result = await this.backend.predict(this.modelKey, { texts });
-			const embeddingData = result.embeddings;
+    try {
+      if (this.mode === 'inference-engine') {
+        // NEW MODE: No model loading needed, InferenceEngine handles it
+        console.log(
+          `PersonalizationEngine ready (InferenceEngine mode: ${this.modelId}:${this.version})`
+        );
+        this.initialized = true;
+        return true;
+      } else {
+        // LEGACY MODE: Load TensorFlow model
+        console.log(
+          'Loading Universal Sentence Encoder (legacy TensorFlow mode)...'
+        );
+        await this.backend.loadModel(this.modelKey, 'universal-sentence-encoder');
+        this.initialized = true;
+        console.log('Universal Sentence Encoder loaded successfully');
+        return true;
+      }
+    } catch (error) {
+      console.error('Failed to initialize PersonalizationEngine:', error);
+      throw error;
+    }
+  }
 
-			// Calculate cosine similarity between first text (query) and others
-			const queryEmbedding = embeddingData[0];
-			const similarities = embeddingData.slice(1).map((embedding) => this.cosineSimilarity(queryEmbedding, embedding));
+  /**
+   * Calculate similarity between product descriptions and user preferences
+   */
+  async calculateSimilarity(texts) {
+    if (!this.initialized || texts.length < 2) {
+      return [];
+    }
 
-			this.recordMetrics(Date.now() - startTime, true);
+    const startTime = Date.now();
 
-			return similarities;
-		} catch (error) {
-			console.error('Similarity calculation failed:', error);
-			this.recordMetrics(Date.now() - startTime, false);
-			return [];
-		}
-	}
+    try {
+      let embeddingData;
 
-	cosineSimilarity(a, b) {
-		const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0);
-		const magnitudeA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
-		const magnitudeB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
-		return dotProduct / (magnitudeA * magnitudeB);
-	}
+      if (this.mode === 'inference-engine') {
+        // NEW MODE: Use InferenceEngine
+        const result = await this.inferenceEngine.predict(
+          this.modelId,
+          this.version,
+          { texts }
+        );
+        embeddingData = result;
+      } else {
+        // LEGACY MODE: Use TensorFlow backend directly
+        const result = await this.backend.predict(this.modelKey, { texts });
+        embeddingData = result.embeddings;
+      }
 
-	/**
-	 * Enhance products with personalized scores based on user context
-	 */
-	async enhanceProducts(products, userContext) {
-		if (!products || products.length === 0) return products;
+      // Calculate cosine similarity between first text (query) and others
+      const queryEmbedding = embeddingData[0];
+      const similarities = embeddingData
+        .slice(1)
+        .map((embedding) => this.cosineSimilarity(queryEmbedding, embedding));
 
-		try {
-			// Build query from user context
-			const userQuery = this.buildUserQuery(userContext);
+      this.recordMetrics(Date.now() - startTime, true);
 
-			// Get product descriptions
-			const productTexts = products.map((p) => `${p.name || ''} ${p.description || ''} ${p.category || ''}`);
+      return similarities;
+    } catch (error) {
+      console.error('Similarity calculation failed:', error);
+      this.recordMetrics(Date.now() - startTime, false);
+      return [];
+    }
+  }
 
-			// Calculate similarities
-			const texts = [userQuery, ...productTexts];
-			const similarities = await this.calculateSimilarity(texts);
+  cosineSimilarity(a, b) {
+    const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0);
+    const magnitudeA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
+    const magnitudeB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
+    return dotProduct / (magnitudeA * magnitudeB);
+  }
 
-			// Add similarity scores to products
-			return products.map((product, idx) => ({
-				...product,
-				personalizedScore: similarities[idx] || 0,
-				personalized: true,
-			}));
-		} catch (error) {
-			console.error('Product enhancement failed:', error);
-			return products;
-		}
-	}
+  /**
+   * Enhance products with personalized scores based on user context
+   */
+  async enhanceProducts(products, userContext) {
+    if (!products || products.length === 0) return products;
 
-	buildUserQuery(userContext) {
-		const parts = [];
+    try {
+      // Build query from user context
+      const userQuery = this.buildUserQuery(userContext);
 
-		if (userContext.activityType) {
-			parts.push(userContext.activityType);
-		}
-		if (userContext.experienceLevel) {
-			parts.push(userContext.experienceLevel);
-		}
-		if (userContext.season) {
-			parts.push(userContext.season);
-		}
-		if (userContext.location) {
-			parts.push(userContext.location);
-		}
+      // Get product descriptions
+      const productTexts = products.map(
+        (p) =>
+          `${p.name || ''} ${p.description || ''} ${p.category || ''}`.trim()
+      );
 
-		return parts.length > 0 ? parts.join(' ') : 'outdoor gear';
-	}
+      // Calculate similarities
+      const texts = [userQuery, ...productTexts];
+      const similarities = await this.calculateSimilarity(texts);
 
-	recordMetrics(latency, success) {
-		this.stats.inferences++;
-		this.stats.averageLatency =
-			(this.stats.averageLatency * (this.stats.inferences - 1) + latency) / this.stats.inferences;
+      // Add similarity scores to products
+      return products.map((product, idx) => ({
+        ...product,
+        personalizedScore: similarities[idx] || 0,
+        personalized: true,
+      }));
+    } catch (error) {
+      console.error('Product enhancement failed:', error);
+      return products;
+    }
+  }
 
-		if (!success) {
-			this.stats.errors++;
-		}
-	}
+  buildUserQuery(userContext) {
+    const parts = [];
 
-	// Public API
-	isReady() {
-		return this.initialized;
-	}
+    if (userContext.activityType) {
+      parts.push(userContext.activityType);
+    }
+    if (userContext.experienceLevel) {
+      parts.push(userContext.experienceLevel);
+    }
+    if (userContext.season) {
+      parts.push(userContext.season);
+    }
+    if (userContext.location) {
+      parts.push(userContext.location);
+    }
 
-	getStats() {
-		return { ...this.stats };
-	}
+    return parts.length > 0 ? parts.join(' ') : 'outdoor gear';
+  }
 
-	getLoadedModels() {
-		return [
-			{
-				name: 'universal-sentence-encoder',
-				loaded: this.initialized,
-				status: this.isReady() ? 'ready' : 'not loaded',
-			},
-		];
-	}
+  recordMetrics(latency, success) {
+    this.stats.inferences++;
+    this.stats.averageLatency =
+      (this.stats.averageLatency * (this.stats.inferences - 1) + latency) /
+      this.stats.inferences;
+
+    if (!success) {
+      this.stats.errors++;
+    }
+  }
+
+  // Public API
+  isReady() {
+    return this.initialized;
+  }
+
+  getStats() {
+    return { ...this.stats };
+  }
+
+  getLoadedModels() {
+    if (this.mode === 'inference-engine') {
+      return [
+        {
+          name: `${this.modelId}:${this.version}`,
+          loaded: this.initialized,
+          status: this.isReady() ? 'ready' : 'not loaded',
+          mode: 'inference-engine',
+        },
+      ];
+    } else {
+      return [
+        {
+          name: 'universal-sentence-encoder',
+          loaded: this.initialized,
+          status: this.isReady() ? 'ready' : 'not loaded',
+          mode: 'legacy',
+        },
+      ];
+    }
+  }
 }
