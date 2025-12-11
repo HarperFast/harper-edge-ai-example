@@ -1,5 +1,6 @@
 import { OnnxRuntimeBackend } from './backends/OnnxRuntimeBackend.js';
 import { TensorFlowBackend } from './backends/TensorFlowBackend.js';
+import { OllamaBackend } from './backends/OllamaBackend.js';
 
 /**
  * Inference Engine - Framework-agnostic model loading and inference
@@ -17,6 +18,7 @@ export class InferenceEngine {
     // Initialize backends
     this.backends.set('onnx', new OnnxRuntimeBackend());
     this.backends.set('tensorflow', new TensorFlowBackend());
+    this.backends.set('ollama', new OllamaBackend());
   }
 
   /**

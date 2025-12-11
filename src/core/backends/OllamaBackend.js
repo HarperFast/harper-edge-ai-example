@@ -1,0 +1,196 @@
+/**
+ * Ollama Backend - Load and run local LLM models via Ollama HTTP API
+ */
+export class OllamaBackend {
+  constructor(baseUrl = 'http://localhost:11434') {
+    this.name = 'OllamaBackend';
+    this.baseUrl = baseUrl;
+    this.models = new Map(); // Cache loaded model names and configs
+  }
+
+  /**
+   * Load Ollama model (stores model name and validates availability)
+   * @param {string} modelKey - Cache key
+   * @param {string|Buffer} modelBlob - Model name or configuration
+   * @returns {Object} Loaded model metadata
+   */
+  async loadModel(modelKey, modelBlob) {
+    try {
+      // Parse modelBlob - can be string (model name) or JSON config
+      let config;
+      if (typeof modelBlob === 'string') {
+        try {
+          config = JSON.parse(modelBlob);
+        } catch {
+          // If not JSON, treat as plain model name
+          config = { modelName: modelBlob, mode: 'chat' };
+        }
+      } else if (Buffer.isBuffer(modelBlob)) {
+        const str = modelBlob.toString('utf-8');
+        try {
+          config = JSON.parse(str);
+        } catch {
+          config = { modelName: str, mode: 'chat' };
+        }
+      } else {
+        config = modelBlob;
+      }
+
+      const modelName = config.modelName || config.model || 'llama2';
+      const mode = config.mode || 'chat'; // 'chat' or 'embeddings'
+
+      // Validate model is available (optional - ping Ollama)
+      // For now, just store the config
+      this.models.set(modelKey, {
+        modelName,
+        mode,
+        config
+      });
+
+      return {
+        loaded: true,
+        modelName,
+        mode,
+        inputNames: mode === 'chat' ? ['messages'] : ['prompt'],
+        outputNames: mode === 'chat' ? ['response'] : ['embeddings']
+      };
+    } catch (error) {
+      console.error('Failed to load Ollama model:', error);
+      throw new Error(`Ollama model loading failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Run inference with Ollama model
+   * @param {string} modelKey - Cache key
+   * @param {Object} inputs - Input data
+   *   For chat mode: { messages: [{role: 'user', content: 'text'}] } or { prompt: 'text' }
+   *   For embeddings mode: { prompt: 'text' }
+   * @returns {Object} Output from Ollama
+   */
+  async predict(modelKey, inputs) {
+    const modelInfo = this.models.get(modelKey);
+
+    if (!modelInfo) {
+      throw new Error(`Model ${modelKey} not loaded`);
+    }
+
+    try {
+      const { modelName, mode } = modelInfo;
+
+      if (mode === 'embeddings') {
+        return await this._generateEmbeddings(modelName, inputs);
+      } else {
+        return await this._generateChat(modelName, inputs);
+      }
+    } catch (error) {
+      console.error('Ollama inference failed:', error);
+      throw new Error(`Ollama inference failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Generate chat completion
+   * @private
+   */
+  async _generateChat(modelName, inputs) {
+    let messages;
+
+    // Support both messages array and simple prompt
+    if (inputs.messages) {
+      messages = inputs.messages;
+    } else if (inputs.prompt || inputs.content) {
+      messages = [{
+        role: 'user',
+        content: inputs.prompt || inputs.content
+      }];
+    } else {
+      throw new Error('Chat mode requires either "messages" array or "prompt" string');
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: modelName,
+        messages,
+        stream: false
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Ollama API error: ${response.status} ${errorText}`);
+    }
+
+    const result = await response.json();
+
+    return {
+      response: result.message?.content || '',
+      message: result.message,
+      done: result.done,
+      total_duration: result.total_duration,
+      load_duration: result.load_duration,
+      prompt_eval_count: result.prompt_eval_count,
+      eval_count: result.eval_count
+    };
+  }
+
+  /**
+   * Generate embeddings
+   * @private
+   */
+  async _generateEmbeddings(modelName, inputs) {
+    const prompt = inputs.prompt || inputs.text || inputs.content;
+
+    if (!prompt) {
+      throw new Error('Embeddings mode requires "prompt", "text", or "content" field');
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/embeddings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: modelName,
+        prompt
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Ollama API error: ${response.status} ${errorText}`);
+    }
+
+    const result = await response.json();
+
+    return {
+      embeddings: result.embedding || result.embeddings || [],
+      embedding: result.embedding
+    };
+  }
+
+  /**
+   * Check if model is loaded
+   */
+  isLoaded(modelKey) {
+    return this.models.has(modelKey);
+  }
+
+  /**
+   * Unload model from cache
+   */
+  async unload(modelKey) {
+    this.models.delete(modelKey);
+  }
+
+  /**
+   * Cleanup all loaded models
+   */
+  async cleanup() {
+    this.models.clear();
+  }
+}

@@ -22,6 +22,7 @@ Harper Edge AI now supports ONNX Runtime alongside TensorFlow.js through a unifi
 
 - **OnnxRuntimeBackend**: Loads and runs ONNX models using `onnxruntime-node`
 - **TensorFlowBackend**: Loads and runs TensorFlow.js models (stub implementation for MVP)
+- **OllamaBackend**: Loads and runs local LLMs via Ollama HTTP API (supports chat completions and embeddings)
 
 ### Architecture Diagram
 
@@ -391,6 +392,215 @@ curl "http://localhost:9926/monitoring/metrics?modelId=model-onnx"
 # Check TensorFlow metrics
 curl "http://localhost:9926/monitoring/metrics?modelId=model-tf"
 ```
+
+## Ollama Local LLM Support
+
+Harper now supports running local LLMs via Ollama, enabling fully local AI inference without external API calls.
+
+### Prerequisites
+
+1. **Install Ollama**: Download from [ollama.ai](https://ollama.ai/)
+2. **Pull a model**:
+   ```bash
+   ollama pull llama2
+   ollama pull mistral
+   ollama pull codellama
+   ```
+3. **Start Ollama**: Should run automatically on `http://localhost:11434`
+
+### Usage Examples
+
+#### Chat Completions
+
+```bash
+# Register Ollama model for chat
+curl -X POST http://localhost:9926/Model \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "llama2-chat:v1",
+    "modelId": "llama2-chat",
+    "version": "v1",
+    "framework": "ollama",
+    "stage": "development",
+    "modelBlob": "{\"modelName\": \"llama2\", \"mode\": \"chat\"}",
+    "inputSchema": "{\"inputs\":[{\"name\":\"messages\",\"type\":\"array\"}]}",
+    "outputSchema": "{\"outputs\":[{\"name\":\"response\",\"type\":\"string\"}]}"
+  }'
+
+# Run chat inference with messages
+curl -X POST http://localhost:9926/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "modelId": "llama2-chat",
+    "features": {
+      "messages": [
+        {"role": "user", "content": "What is machine learning?"}
+      ]
+    },
+    "userId": "user-123"
+  }'
+
+# Or use simple prompt format
+curl -X POST http://localhost:9926/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "modelId": "llama2-chat",
+    "features": {
+      "prompt": "Explain neural networks in simple terms"
+    }
+  }'
+```
+
+#### Text Embeddings
+
+```bash
+# Register Ollama model for embeddings
+curl -X POST http://localhost:9926/Model \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "llama2-embed:v1",
+    "modelId": "llama2-embed",
+    "version": "v1",
+    "framework": "ollama",
+    "stage": "development",
+    "modelBlob": "{\"modelName\": \"llama2\", \"mode\": \"embeddings\"}",
+    "inputSchema": "{\"inputs\":[{\"name\":\"prompt\",\"type\":\"string\"}]}",
+    "outputSchema": "{\"outputs\":[{\"name\":\"embeddings\",\"type\":\"array\"}]}"
+  }'
+
+# Generate embeddings
+curl -X POST http://localhost:9926/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "modelId": "llama2-embed",
+    "features": {
+      "prompt": "The quick brown fox jumps over the lazy dog"
+    }
+  }'
+```
+
+### JavaScript Client Example
+
+```javascript
+// Register Ollama chat model
+async function registerOllamaModel() {
+  const response = await fetch('http://localhost:9926/Model', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      id: 'mistral:v1',
+      modelId: 'mistral',
+      version: 'v1',
+      framework: 'ollama',
+      stage: 'development',
+      modelBlob: JSON.stringify({
+        modelName: 'mistral',
+        mode: 'chat'
+      }),
+      inputSchema: JSON.stringify({
+        inputs: [{ name: 'messages', type: 'array' }]
+      }),
+      outputSchema: JSON.stringify({
+        outputs: [{ name: 'response', type: 'string' }]
+      })
+    })
+  });
+  return response.json();
+}
+
+// Chat with local LLM
+async function chatWithLLM(prompt) {
+  const response = await fetch('http://localhost:9926/predict', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      modelId: 'mistral',
+      features: {
+        messages: [
+          { role: 'system', content: 'You are a helpful AI assistant.' },
+          { role: 'user', content: prompt }
+        ]
+      },
+      userId: 'user-123'
+    })
+  });
+
+  const result = await response.json();
+  return result.prediction.response;
+}
+
+// Generate embeddings
+async function generateEmbeddings(text) {
+  const response = await fetch('http://localhost:9926/predict', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      modelId: 'llama2-embed',
+      features: { prompt: text }
+    })
+  });
+
+  const result = await response.json();
+  return result.prediction.embeddings;
+}
+
+// Example usage
+await registerOllamaModel();
+const answer = await chatWithLLM('What is the capital of France?');
+console.log(answer);
+
+const embeddings = await generateEmbeddings('Hello world');
+console.log('Embedding dimension:', embeddings.length);
+```
+
+### Ollama Backend Configuration
+
+The `modelBlob` field accepts JSON configuration:
+
+```json
+{
+  "modelName": "llama2",    // Required: Ollama model name
+  "mode": "chat"            // Required: "chat" or "embeddings"
+}
+```
+
+Or simply pass the model name as a string (defaults to chat mode):
+```json
+"modelBlob": "llama2"
+```
+
+### Supported Models
+
+Any model available in Ollama can be used:
+- **Chat Models**: llama2, mistral, codellama, vicuna, phi, neural-chat, etc.
+- **Embedding Models**: Any model can generate embeddings via the `/api/embeddings` endpoint
+
+Check available models: `ollama list`
+
+### Custom Ollama Host
+
+By default, OllamaBackend connects to `http://localhost:11434`. To use a custom host:
+
+```javascript
+import { OllamaBackend } from './backends/OllamaBackend.js';
+
+const backend = new OllamaBackend('http://custom-host:8080');
+```
+
+### Performance Considerations
+
+- **First Request**: May be slow if model needs to load into memory
+- **Subsequent Requests**: Much faster as model stays in memory
+- **Memory Usage**: Large models (7B+) require significant RAM
+- **Concurrency**: Ollama handles concurrent requests automatically
+
+### Benefits of Ollama Integration
+
+- **Privacy**: All inference happens locally, no data leaves your machine
+- **No API Costs**: Free local inference
+- **Offline Capable**: Works without internet connection
+- **Model Variety**: Access to dozens of open-source models
+- **Unified API**: Same Harper API for ONNX, TensorFlow, and Ollama models
 
 ## Architecture Benefits
 

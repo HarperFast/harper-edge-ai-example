@@ -14,11 +14,12 @@ npm run dev
 
 ## ONNX Runtime Integration (New)
 
-This project now supports both TensorFlow.js and ONNX Runtime for model inference through a unified MLOps architecture.
+This project now supports TensorFlow.js, ONNX Runtime, and Ollama for model inference through a unified MLOps architecture.
 
 ### Features
 
-- **Unified InferenceEngine**: Automatically routes to correct backend (ONNX or TensorFlow) based on model framework
+- **Unified InferenceEngine**: Automatically routes to correct backend (ONNX, TensorFlow, or Ollama) based on model framework
+- **Local LLM Support**: Run local language models via Ollama integration (llama2, mistral, codellama, etc.)
 - **Harper Native CRUD**: Uses Harper's @export directive for automatic REST APIs
 - **Monitoring**: Track inference events, latency, confidence, and accuracy with feedback loop
 - **Minimal Code**: Reduced by 50% by leveraging Harper's built-in features
@@ -63,6 +64,65 @@ curl -X PUT http://localhost:9926/InferenceEvent/<inferenceId> \
 
 # Check metrics
 curl http://localhost:9926/monitoring/metrics?modelId=my-model
+```
+
+### Quick Start with Ollama (Local LLMs)
+
+```bash
+# Install and start Ollama (if not already installed)
+# Download from https://ollama.ai/
+ollama pull llama2
+
+# Start Harper
+npm run dev
+
+# Register an Ollama model for chat
+curl -X POST http://localhost:9926/Model \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "llama2-chat:v1",
+    "modelId": "llama2-chat",
+    "version": "v1",
+    "framework": "ollama",
+    "stage": "development",
+    "modelBlob": "{\"modelName\": \"llama2\", \"mode\": \"chat\"}",
+    "inputSchema": "{\"inputs\":[{\"name\":\"messages\",\"type\":\"array\"}]}",
+    "outputSchema": "{\"outputs\":[{\"name\":\"response\",\"type\":\"string\"}]}"
+  }'
+
+# Chat with local LLM
+curl -X POST http://localhost:9926/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "modelId": "llama2-chat",
+    "features": {
+      "prompt": "What is machine learning?"
+    },
+    "userId": "user-123"
+  }'
+
+# Generate embeddings
+curl -X POST http://localhost:9926/Model \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "llama2-embed:v1",
+    "modelId": "llama2-embed",
+    "version": "v1",
+    "framework": "ollama",
+    "stage": "development",
+    "modelBlob": "{\"modelName\": \"llama2\", \"mode\": \"embeddings\"}",
+    "inputSchema": "{\"inputs\":[{\"name\":\"prompt\",\"type\":\"string\"}]}",
+    "outputSchema": "{\"outputs\":[{\"name\":\"embeddings\",\"type\":\"array\"}]}"
+  }'
+
+curl -X POST http://localhost:9926/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "modelId": "llama2-embed",
+    "features": {
+      "prompt": "Hello world"
+    }
+  }'
 ```
 
 ### Testing

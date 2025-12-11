@@ -6,7 +6,7 @@ type Model @table(database: "harper-edge-ai-example") @export {
   # Model metadata
   modelId: String @indexed
   version: String @indexed
-  framework: String @indexed  # "onnx" | "tensorflow" | "tfjs-graph"
+  framework: String @indexed  # "onnx" | "tensorflowjs" | "ollama"
   stage: String @indexed      # "development" | "staging" | "production"
 
   # Model binary data (use Blob for large ONNX/TF models)
