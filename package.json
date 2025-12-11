@@ -14,7 +14,11 @@
     "dev": "harper dev .",
     "start": "harper run .",
     "clean": "rm -rf node_modules package-lock.json",
-    "verify": "node -e \"console.log('Node version:', process.version); console.log('✅ Environment OK')\""
+    "verify": "node -e \"console.log('Node version:', process.version); console.log('✅ Environment OK')\"",
+    "preload-models": "node scripts/preload-models.js",
+    "benchmark": "node scripts/run-benchmark.js",
+    "generate-test-models": "node scripts/generate-test-models.js",
+    "benchmark-example": "node examples/benchmark-comparison.js"
   },
   "repository": {
     "type": "git",
