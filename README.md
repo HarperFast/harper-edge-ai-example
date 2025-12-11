@@ -12,6 +12,68 @@ npm test
 npm run dev
 ```
 
+## ONNX Runtime Integration (New)
+
+This project now supports both TensorFlow.js and ONNX Runtime for model inference through a unified MLOps architecture.
+
+### Features
+
+- **Unified InferenceEngine**: Automatically routes to correct backend (ONNX or TensorFlow) based on model framework
+- **Model Registry**: Store and version models in Harper database tables
+- **Monitoring**: Track inference events, latency, confidence, and accuracy with feedback loop
+- **REST API**: Upload models, run predictions, record feedback, query metrics
+
+### Quick Start with ONNX
+
+```bash
+# Start Harper
+npm run dev
+
+# Upload an ONNX model (in another terminal)
+curl -X POST http://localhost:9926/model/upload \
+  -F "modelId=my-model" \
+  -F "version=v1" \
+  -F "framework=onnx" \
+  -F "file=@path/to/model.onnx" \
+  -F "inputSchema={\"inputs\":[{\"name\":\"input\",\"shape\":[1,10]}]}" \
+  -F "outputSchema={\"outputs\":[{\"name\":\"output\",\"shape\":[1,2]}]}"
+
+# Run prediction
+curl -X POST http://localhost:9926/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "modelId": "my-model",
+    "features": {"input": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]},
+    "userId": "user-123"
+  }'
+
+# Record feedback (use inferenceId from prediction response)
+curl -X POST http://localhost:9926/feedback \
+  -H "Content-Type: application/json" \
+  -d '{
+    "inferenceId": "<inferenceId>",
+    "outcome": {"class": 1},
+    "correct": true
+  }'
+
+# Check metrics
+curl http://localhost:9926/monitoring/metrics?modelId=my-model
+```
+
+### Testing
+
+```bash
+npm run test:unit         # Unit tests (requires Harper running)
+npm run test:integration  # Integration tests (requires Harper running)
+npm run test:all          # All tests including TensorFlow.js model test
+```
+
+### API Documentation
+
+See [ONNX Runtime Guide](docs/ONNX_RUNTIME_GUIDE.md) for detailed API documentation.
+
+Use the Postman collection in `postman/` for interactive API testing.
+
 ## Overview
 
 This project showcases how to:
