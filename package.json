@@ -1,55 +1,57 @@
 {
-  "type": "module",
-  "name": "harper-edge-ai-example",
-  "version": "1.0.0",
-  "description": "Minimal example demonstrating TensorFlow.js integration with Harper",
-  "main": "src/resources.js",
-  "scripts": {
-    "preinstall": "echo '\n📦 Installing dependencies (this may take 1-2 minutes)...\n'",
-    "postinstall": "echo '\n✅ Installation complete!\n\n📝 Next steps:\n   npm test          - Test the model\n   npm run dev       - Run with Harper\n'",
-    "test": "node --no-deprecation models/test-model.js",
-    "test:unit": "node --test tests/unit/**/*.test.js",
-    "test:integration": "node --test tests/integration/**/*.test.js",
-    "test:all": "npm run test && npm run test:unit && npm run test:integration",
-    "dev": "harper dev .",
-    "start": "harper run .",
-    "clean": "rm -rf node_modules package-lock.json",
-    "verify": "node -e \"console.log('Node version:', process.version); console.log('✅ Environment OK')\"",
-    "preload-models": "node scripts/preload-models.js",
-    "benchmark": "node scripts/run-benchmark.js",
-    "generate-test-models": "node scripts/generate-test-models.js",
-    "benchmark-example": "node examples/benchmark-comparison.js"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/HarperDB/harper-edge-ai-example.git"
-  },
-  "keywords": [
-    "tensorflow",
-    "edge-ai",
-    "machine-learning",
-    "semantic-similarity",
-    "universal-sentence-encoder"
-  ],
-  "author": "HarperDB",
-  "license": "Apache-2.0",
-  "dependencies": {
-    "@tensorflow-models/universal-sentence-encoder": "^1.3.3",
-    "@tensorflow/tfjs-node": "^4.22.0",
-    "onnxruntime-node": "^1.20.0",
-    "uuid": "^11.0.3"
-  },
-  "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
-  },
-  "os": [
-    "darwin",
-    "linux"
-  ],
-  "devDependencies": {
-    "@harperdb/code-guidelines": "^0.0.5",
-    "eslint": "^9.36.0",
-    "prettier": "^3.6.2"
-  }
+	"type": "module",
+	"name": "harper-edge-ai-example",
+	"version": "1.0.0",
+	"description": "Minimal example demonstrating TensorFlow.js integration with Harper",
+	"main": "src/resources.js",
+	"scripts": {
+		"preinstall": "echo '\n📦 Installing dependencies (this may take 1-2 minutes)...\n'",
+		"postinstall": "echo '\n✅ Installation complete!\n\n📝 Next steps:\n   npm test          - Test the model\n   npm run dev       - Run with Harper\n'",
+		"test": "node --no-deprecation models/test-model.js",
+		"test:unit": "node --test tests/unit/**/*.test.js",
+		"test:integration": "node --test tests/integration/**/*.test.js",
+		"test:all": "npm run test && npm run test:unit && npm run test:integration",
+		"dev": "harper dev .",
+		"start": "harper run .",
+		"clean": "rm -rf node_modules package-lock.json",
+		"verify": "node -e \"console.log('Node version:', process.version); console.log('✅ Environment OK')\"",
+		"pull-ollama-models": "node scripts/pull-ollama-models.js",
+		"preload-models": "node scripts/preload-models.js",
+		"benchmark": "node scripts/run-benchmark.js",
+		"benchmark:all": "node scripts/run-benchmark.js --all",
+		"generate-test-models": "node scripts/generate-test-models.js",
+		"benchmark-example": "node examples/benchmark-comparison.js"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/HarperDB/harper-edge-ai-example.git"
+	},
+	"keywords": [
+		"tensorflow",
+		"edge-ai",
+		"machine-learning",
+		"semantic-similarity",
+		"universal-sentence-encoder"
+	],
+	"author": "HarperDB",
+	"license": "Apache-2.0",
+	"dependencies": {
+		"@tensorflow-models/universal-sentence-encoder": "^1.3.3",
+		"@tensorflow/tfjs-node": "^4.22.0",
+		"onnxruntime-node": "^1.20.0",
+		"uuid": "^11.0.3"
+	},
+	"engines": {
+		"node": ">=18.0.0",
+		"npm": ">=9.0.0"
+	},
+	"os": [
+		"darwin",
+		"linux"
+	],
+	"devDependencies": {
+		"@harperdb/code-guidelines": "^0.0.5",
+		"eslint": "^9.36.0",
+		"prettier": "^3.6.2"
+	}
 }

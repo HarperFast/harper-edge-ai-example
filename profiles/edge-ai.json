@@ -1,0 +1,39 @@
+{
+  "name": "edge-ai",
+  "description": "Models for edge AI inference, embeddings, and benchmarking",
+  "models": [
+    {
+      "name": "nomic-embed-text",
+      "tag": "latest",
+      "purpose": "Text embeddings for semantic similarity (768 dimensions)"
+    },
+    {
+      "name": "mxbai-embed-large",
+      "tag": "latest",
+      "purpose": "Large text embeddings for high-quality semantic search (1024 dimensions)"
+    },
+    {
+      "name": "llama3.2:3b",
+      "tag": "latest",
+      "purpose": "Lightweight chat and classification tasks"
+    },
+    {
+      "name": "mistral:7b",
+      "tag": "latest",
+      "purpose": "General-purpose classification and reasoning"
+    }
+  ],
+  "recommended_for": [
+    "Edge AI inference testing",
+    "Semantic similarity benchmarks",
+    "Text classification",
+    "Product recommendation systems",
+    "Cross-backend model comparison"
+  ],
+  "size_estimate": "~10GB total",
+  "notes": [
+    "nomic-embed-text and mxbai-embed-large are embedding models for Harper benchmarks",
+    "llama3.2 and mistral provide different performance/quality trade-offs for classification",
+    "All models work with Harper's unified InferenceEngine"
+  ]
+}

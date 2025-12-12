@@ -10,20 +10,22 @@ Models store metadata in the `metadata` JSON field to declare their capabilities
 
 ```json
 {
-  "taskType": "text-embedding",
-  "equivalenceGroup": "universal-sentence-encoder",
-  "outputDimensions": [512],
-  "description": "Optional human-readable description",
-  "tags": ["semantic-search", "sentence-similarity"]
+	"taskType": "text-embedding",
+	"equivalenceGroup": "universal-sentence-encoder",
+	"outputDimensions": [512],
+	"description": "Optional human-readable description",
+	"tags": ["semantic-search", "sentence-similarity"]
 }
 ```
 
 ### Required Fields
 
 #### `taskType` (String)
+
 Defines the category of ML task the model performs.
 
 **Common values:**
+
 - `"text-embedding"` - Converts text to dense vector representations
 - `"image-classification"` - Classifies images into categories
 - `"object-detection"` - Detects objects in images
@@ -32,23 +34,28 @@ Defines the category of ML task the model performs.
 - `"named-entity-recognition"` - Extracts entities from text
 
 #### `equivalenceGroup` (String)
+
 Identifies models that are functionally equivalent (same architecture, training data, output format).
 
 Models in the same equivalence group:
+
 - Produce similar outputs for the same inputs
 - Can be compared in benchmarks
 - Are interchangeable in production
 
 **Examples:**
+
 - `"universal-sentence-encoder"` - USE variants (TensorFlow, ONNX versions)
 - `"resnet-50"` - ResNet-50 variants
 - `"bert-base-uncased"` - BERT base variants
 - `"llama-2-7b"` - Llama 2 7B variants
 
 #### `outputDimensions` (Array)
+
 Specifies the shape of the model's output tensor.
 
 **Examples:**
+
 - `[512]` - 512-dimensional embedding vector
 - `[768]` - 768-dimensional embedding vector
 - `[1, 1000]` - 1000 class probabilities
@@ -59,20 +66,22 @@ Specifies the shape of the model's output tensor.
 ### Optional Fields
 
 #### `description` (String)
+
 Human-readable description of the model.
 
 ```json
 {
-  "description": "Universal Sentence Encoder optimized for ONNX Runtime"
+	"description": "Universal Sentence Encoder optimized for ONNX Runtime"
 }
 ```
 
 #### `tags` (Array<String>)
+
 Additional categorization tags for search and filtering.
 
 ```json
 {
-  "tags": ["semantic-search", "sentence-similarity", "nlp"]
+	"tags": ["semantic-search", "sentence-similarity", "nlp"]
 }
 ```
 
@@ -82,11 +91,11 @@ Additional categorization tags for search and filtering.
 
 ```json
 {
-  "taskType": "text-embedding",
-  "equivalenceGroup": "universal-sentence-encoder",
-  "outputDimensions": [512],
-  "description": "Universal Sentence Encoder (TensorFlow.js)",
-  "tags": ["nlp", "semantic-similarity"]
+	"taskType": "text-embedding",
+	"equivalenceGroup": "universal-sentence-encoder",
+	"outputDimensions": [512],
+	"description": "Universal Sentence Encoder (TensorFlow.js)",
+	"tags": ["nlp", "semantic-similarity"]
 }
 ```
 
@@ -94,11 +103,11 @@ Additional categorization tags for search and filtering.
 
 ```json
 {
-  "taskType": "text-embedding",
-  "equivalenceGroup": "universal-sentence-encoder",
-  "outputDimensions": [512],
-  "description": "Universal Sentence Encoder (ONNX optimized)",
-  "tags": ["nlp", "semantic-similarity", "optimized"]
+	"taskType": "text-embedding",
+	"equivalenceGroup": "universal-sentence-encoder",
+	"outputDimensions": [512],
+	"description": "Universal Sentence Encoder (ONNX optimized)",
+	"tags": ["nlp", "semantic-similarity", "optimized"]
 }
 ```
 
@@ -106,11 +115,11 @@ Additional categorization tags for search and filtering.
 
 ```json
 {
-  "taskType": "image-classification",
-  "equivalenceGroup": "resnet-50",
-  "outputDimensions": [1000],
-  "description": "ResNet-50 trained on ImageNet",
-  "tags": ["computer-vision", "imagenet"]
+	"taskType": "image-classification",
+	"equivalenceGroup": "resnet-50",
+	"outputDimensions": [1000],
+	"description": "ResNet-50 trained on ImageNet",
+	"tags": ["computer-vision", "imagenet"]
 }
 ```
 
@@ -119,6 +128,7 @@ Additional categorization tags for search and filtering.
 The BenchmarkEngine validates models before comparison:
 
 ### 1. Minimum Model Count
+
 At least **2 models** must exist with the same `taskType` and `equivalenceGroup`.
 
 ```javascript
@@ -131,6 +141,7 @@ Model 1: { taskType: "text-embedding", equivalenceGroup: "use", outputDimensions
 ```
 
 ### 2. Output Dimension Matching
+
 All models must have **identical** `outputDimensions` (deep equality).
 
 ```javascript
@@ -148,6 +159,7 @@ Model 2: { outputDimensions: [512, 1] }
 ```
 
 ### 3. Framework Diversity (Recommended)
+
 While not required, benchmarks are most useful when comparing models across different backends:
 
 ```javascript
@@ -201,52 +213,64 @@ curl -X POST http://localhost:9926/benchmark/compare \
 ## Best Practices
 
 ### 1. Use Descriptive Equivalence Groups
+
 Choose names that clearly identify the model architecture:
 
 ✅ **Good:**
+
 - `"universal-sentence-encoder"`
 - `"bert-base-uncased"`
 - `"resnet-50-imagenet"`
 
 ❌ **Bad:**
+
 - `"model1"`
 - `"embedder"`
 - `"v2"`
 
 ### 2. Document Output Dimensions Clearly
+
 Ensure `outputDimensions` accurately reflects the tensor shape:
 
 ```javascript
 // For embeddings
-{ outputDimensions: [512] }  // Not [1, 512] or [512, 1]
+{
+	outputDimensions: [512];
+} // Not [1, 512] or [512, 1]
 
 // For classification
-{ outputDimensions: [1000] }  // Class probabilities
+{
+	outputDimensions: [1000];
+} // Class probabilities
 
 // For images
-{ outputDimensions: [224, 224, 3] }  // Height, width, channels
+{
+	outputDimensions: [224, 224, 3];
+} // Height, width, channels
 ```
 
 ### 3. Add Meaningful Tags
+
 Use tags to help with discovery and filtering:
 
 ```json
 {
-  "tags": [
-    "production-ready",    // Deployment status
-    "optimized",          // Performance characteristic
-    "quantized",          // Model type
-    "nlp"                 // Domain
-  ]
+	"tags": [
+		"production-ready", // Deployment status
+		"optimized", // Performance characteristic
+		"quantized", // Model type
+		"nlp" // Domain
+	]
 }
 ```
 
 ### 4. Keep Descriptions Concise
+
 Focus on what makes this model variant unique:
 
 ```json
 {
-  "description": "USE with INT8 quantization for 3x faster inference"
+	"description": "USE with INT8 quantization for 3x faster inference"
 }
 ```
 
@@ -255,44 +279,45 @@ Focus on what makes this model variant unique:
 ### Find All Models for a Task
 
 ```javascript
-const models = await Model.search()
-  .filter({ taskType: 'text-embedding' })
-  .all();
+const models = await Model.search().filter({ taskType: 'text-embedding' }).all();
 ```
 
 ### Find Equivalent Models
 
 ```javascript
 const models = await Model.search()
-  .filter({
-    taskType: 'text-embedding',
-    equivalenceGroup: 'universal-sentence-encoder'
-  })
-  .all();
+	.filter({
+		taskType: 'text-embedding',
+		equivalenceGroup: 'universal-sentence-encoder',
+	})
+	.all();
 ```
 
 ### Find Models by Framework
 
 ```javascript
 const onnxModels = await Model.search()
-  .filter({
-    framework: 'onnx',
-    taskType: 'text-embedding'
-  })
-  .all();
+	.filter({
+		framework: 'onnx',
+		taskType: 'text-embedding',
+	})
+	.all();
 ```
 
 ## Troubleshooting
 
 ### Error: "Not enough models for comparison"
+
 - **Cause:** Less than 2 models with matching `taskType` and `equivalenceGroup`
 - **Solution:** Upload additional models with matching metadata
 
 ### Error: "Output dimensions do not match"
+
 - **Cause:** Models have different `outputDimensions`
 - **Solution:** Verify output shapes and ensure exact match
 
 ### Error: "Invalid metadata format"
+
 - **Cause:** Malformed JSON or missing required fields
 - **Solution:** Validate JSON and ensure `taskType`, `equivalenceGroup`, and `outputDimensions` are present
 

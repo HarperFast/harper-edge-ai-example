@@ -148,6 +148,7 @@ npm run benchmark
 ```
 
 **See [docs/BENCHMARKING.md](docs/BENCHMARKING.md) for complete documentation including:**
+
 - Detailed API reference
 - Model metadata conventions
 - Usage examples and best practices
@@ -162,6 +163,7 @@ Use the Postman collection in `postman/` for interactive API testing.
 ## Overview
 
 This project showcases how to:
+
 - Run TensorFlow.js models (Universal Sentence Encoder) directly in Harper
 - Generate embeddings for text descriptions
 - Calculate semantic similarity between user context and products
@@ -189,6 +191,7 @@ This project showcases how to:
 - **OS**: macOS or Linux (TensorFlow.js requires native bindings)
 
 Check your versions:
+
 ```bash
 node --version
 npm --version
@@ -213,6 +216,7 @@ Available variables:
 - `OLLAMA_DEFAULT_MODEL`: Default Ollama model name (default: `llama2`)
 
 Example `.env` file:
+
 ```env
 # Ollama Configuration
 OLLAMA_HOST=http://localhost:11434
@@ -224,11 +228,13 @@ OLLAMA_DEFAULT_MODEL=llama2
 ### 1. Install Node.js (if needed)
 
 **macOS (using Homebrew):**
+
 ```bash
 brew install node@18
 ```
 
 **Linux (using nvm):**
+
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
 nvm install 18
@@ -257,6 +263,7 @@ npm test
 ```
 
 Expected output:
+
 ```
 🧪 Testing Universal Sentence Encoder
 
@@ -284,6 +291,7 @@ npm run dev
 ```
 
 Or directly with Harper CLI:
+
 ```bash
 harper dev .
 ```
@@ -336,6 +344,7 @@ Run the included demo script to see the API in action:
 ```
 
 The script will:
+
 1. Check server health
 2. Run personalization for trail running gear
 3. Run personalization for winter camping gear
@@ -369,12 +378,11 @@ Each product receives a `personalizedScore` between 0 and 1, where higher scores
 
 ## Available Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm install` | Install all dependencies |
-| `npm test` | Test the model standalone |
-| `npm run dev` | Run Harper in development mode |
-| `npm start` | Run Harper in production mode |
-| `npm run verify` | Check Node.js environment |
-| `npm run clean` | Remove node_modules |
-
+| Command          | Description                    |
+| ---------------- | ------------------------------ |
+| `npm install`    | Install all dependencies       |
+| `npm test`       | Test the model standalone      |
+| `npm run dev`    | Run Harper in development mode |
+| `npm start`      | Run Harper in production mode  |
+| `npm run verify` | Check Node.js environment      |
+| `npm run clean`  | Remove node_modules            |

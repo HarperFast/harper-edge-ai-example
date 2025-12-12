@@ -9,6 +9,7 @@ This directory contains utility scripts for managing models and running benchmar
 Preloads test models into Harper for benchmarking across different backends (Ollama, TensorFlow, ONNX).
 
 **Usage:**
+
 ```bash
 # Load all models
 npm run preload-models
@@ -42,6 +43,7 @@ node scripts/preload-models.js --type vision
    - `bakllava` (Ollama)
 
 **Prerequisites:**
+
 - Harper must be running (`npm run dev`)
 - Ollama must be installed and running
 - Ollama models must be pulled:
@@ -55,6 +57,7 @@ node scripts/preload-models.js --type vision
   ```
 
 **Output:**
+
 ```
 ============================================================
 Harper Edge AI - Model Preload Script
@@ -80,6 +83,7 @@ Loading embeddings models:
 Interactive CLI for running benchmarks comparing equivalent models across different backends.
 
 **Usage:**
+
 ```bash
 # Interactive mode
 npm run benchmark
@@ -89,6 +93,7 @@ node scripts/run-benchmark.js
 ```
 
 **Features:**
+
 - Interactive menu for selecting task type and equivalence group
 - Configurable iteration count
 - Generates appropriate test data for each task type
@@ -97,6 +102,7 @@ node scripts/run-benchmark.js
 - Option to save results to JSON file
 
 **Workflow:**
+
 1. Lists available benchmark groups from loaded models
 2. User selects a group (e.g., "text-embedding - product-recommender")
 3. User specifies number of iterations (default: 100)
@@ -105,6 +111,7 @@ node scripts/run-benchmark.js
 6. Option to save detailed results to file
 
 **Output Example:**
+
 ```
 ============================================================
 BENCHMARK RESULTS
@@ -137,6 +144,7 @@ Models Compared: 3
 Generates scripts and documentation for creating minimal ONNX models for testing.
 
 **Usage:**
+
 ```bash
 npm run generate-test-models
 
@@ -145,15 +153,18 @@ node scripts/generate-test-models.js
 ```
 
 **Generated Files:**
+
 - `models/test/generate_test_models.py` - Python script to create ONNX models
 - `models/test/README.md` - Documentation for test models
 
 **Test Models:**
+
 1. **identity.onnx** - Simple identity model for infrastructure testing
 2. **random-embeddings.onnx** - Random embedding model for benchmarks
 3. **simple-classifier.onnx** - Simple linear classifier for testing
 
 **To Generate ONNX Models:**
+
 ```bash
 # Install Python dependencies
 pip install onnx numpy onnxruntime
@@ -217,33 +228,36 @@ node scripts/preload-models.js --clean --type embeddings
 ## Test Data
 
 ### Text Embeddings (Product Recommendations)
+
 ```javascript
 const testData = [
-  { prompt: 'trail running shoes lightweight breathable mesh upper' },
-  { prompt: 'waterproof hiking boots winter insulated ankle support' },
-  { prompt: 'camping tent 4 person family double wall weatherproof' },
-  // ... more product descriptions
+	{ prompt: 'trail running shoes lightweight breathable mesh upper' },
+	{ prompt: 'waterproof hiking boots winter insulated ankle support' },
+	{ prompt: 'camping tent 4 person family double wall weatherproof' },
+	// ... more product descriptions
 ];
 ```
 
 ### Classification (Price Sensitivity)
+
 ```javascript
 const testData = [
-  { prompt: 'This product is too expensive for what it offers' },
-  { prompt: 'Great value for money, would buy again' },
-  { prompt: 'Quality is excellent, price is reasonable' },
-  // ... more customer feedback
+	{ prompt: 'This product is too expensive for what it offers' },
+	{ prompt: 'Great value for money, would buy again' },
+	{ prompt: 'Quality is excellent, price is reasonable' },
+	// ... more customer feedback
 ];
 ```
 
 ### Vision (Image Tagging)
+
 ```javascript
 const testData = [
-  {
-    prompt: 'Describe this product image and provide tags',
-    image: '/path/to/product.jpg',
-  },
-  // ... more image prompts
+	{
+		prompt: 'Describe this product image and provide tags',
+		image: '/path/to/product.jpg',
+	},
+	// ... more image prompts
 ];
 ```
 
@@ -268,6 +282,7 @@ When preloading models, the following metadata structure is used:
 ```
 
 This metadata enables:
+
 - Automatic model grouping for benchmarks
 - Output dimension validation
 - Clear documentation of model purpose
@@ -293,24 +308,31 @@ MODEL_CACHE_SIZE=10
 ## Troubleshooting
 
 ### Harper Not Running
+
 ```
 ✗ Harper is not running. Please start Harper first.
   Run: npm run dev
 ```
+
 **Solution:** Start Harper in a separate terminal with `npm run dev`
 
 ### No Models Found
+
 ```
 ✗ No models found in database
 Run: node scripts/preload-models.js
 ```
+
 **Solution:** Preload models first with `npm run preload-models`
 
 ### Ollama Models Not Available
+
 ```
 Error: Model nomic-embed-text not found
 ```
+
 **Solution:** Pull the required Ollama models:
+
 ```bash
 ollama pull nomic-embed-text
 ollama pull mxbai-embed-large
@@ -318,16 +340,20 @@ ollama pull mxbai-embed-large
 ```
 
 ### Benchmark Fails - Not Enough Models
+
 ```
 Not enough models found. Found 1 models with taskType="text-embedding"
 and equivalenceGroup="product-recommender". At least 2 models are required.
 ```
+
 **Solution:** Ensure at least 2 models with matching metadata are loaded
 
 ### Output Dimensions Mismatch
+
 ```
 Output dimensions do not match. Model model1 has [512] but model2 has [384]
 ```
+
 **Solution:** This is expected for different model architectures. Models with different output dimensions cannot be directly compared. Update metadata or use models with matching dimensions.
 
 ---
@@ -337,34 +363,36 @@ Output dimensions do not match. Model model1 has [512] but model2 has [384]
 All scripts interact with Harper's GraphQL API and REST endpoints:
 
 ### GraphQL Queries
+
 ```graphql
 # Fetch all models
 query {
-  Model {
-    id
-    modelId
-    version
-    framework
-    metadata
-  }
+	Model {
+		id
+		modelId
+		version
+		framework
+		metadata
+	}
 }
 
 # Delete model
 mutation {
-  deleteModel(id: "model-id:v1")
+	deleteModel(id: "model-id:v1")
 }
 
 # Insert model
-mutation($input: ModelInput!) {
-  insertModel(values: $input) {
-    id
-    modelId
-    version
-  }
+mutation ($input: ModelInput!) {
+	insertModel(values: $input) {
+		id
+		modelId
+		version
+	}
 }
 ```
 
 ### REST Endpoints
+
 ```javascript
 // Run benchmark
 POST /benchmark/compare

@@ -1,4 +1,3 @@
-import { tables } from '@harperdb/harperdb';
 import { InferenceEngine } from '../../src/core/InferenceEngine.js';
 import { MonitoringBackend } from '../../src/core/MonitoringBackend.js';
 
@@ -7,9 +6,9 @@ import { MonitoringBackend } from '../../src/core/MonitoringBackend.js';
  * @returns {Promise<MonitoringBackend>} Initialized monitoring backend
  */
 export async function setupMonitoring() {
-  const monitoring = new MonitoringBackend();
-  await monitoring.initialize();
-  return monitoring;
+	const monitoring = new MonitoringBackend();
+	await monitoring.initialize();
+	return monitoring;
 }
 
 /**
@@ -17,16 +16,16 @@ export async function setupMonitoring() {
  * @param {string} modelId - Model ID to filter events by
  */
 export async function cleanupInferenceEvents(modelId) {
-  const eventsTable = tables.get('InferenceEvent');
-  const testEvents = [];
+	const eventsTable = tables.get('InferenceEvent');
+	const testEvents = [];
 
-  for await (const record of eventsTable.search({ modelId })) {
-    testEvents.push(record);
-  }
+	for await (const record of eventsTable.search({ modelId })) {
+		testEvents.push(record);
+	}
 
-  for (const event of testEvents) {
-    await eventsTable.delete(event.id);
-  }
+	for (const event of testEvents) {
+		await eventsTable.delete(event.id);
+	}
 }
 
 /**
@@ -34,9 +33,9 @@ export async function cleanupInferenceEvents(modelId) {
  * @returns {Promise<InferenceEngine>} Initialized inference engine
  */
 export async function setupInferenceEngine() {
-  const engine = new InferenceEngine();
-  await engine.initialize();
-  return engine;
+	const engine = new InferenceEngine();
+	await engine.initialize();
+	return engine;
 }
 
 /**
@@ -44,13 +43,13 @@ export async function setupInferenceEngine() {
  * @param {string[]} modelKeys - Array of model keys (id:version format)
  */
 export async function cleanupModels(modelKeys) {
-  const modelsTable = tables.get('Model');
+	const modelsTable = tables.get('Model');
 
-  for (const key of modelKeys) {
-    try {
-      await modelsTable.delete(key);
-    } catch (err) {
-      // Ignore if doesn't exist
-    }
-  }
+	for (const key of modelKeys) {
+		try {
+			await modelsTable.delete(key);
+		} catch (err) {
+			// Ignore if doesn't exist
+		}
+	}
 }

@@ -1,80 +1,74 @@
 # Database for Harper Edge AI Example with MLOps
-type Model @table(database: "harper-edge-ai-example") @export {
-  # Composite key as single field: "${modelId}:${version}"
-  id: ID @primaryKey
+type Model @table @export {
+	# Composite key as single field: "${modelId}:${version}"
+	id: ID @primaryKey
 
-  # Model metadata
-  modelId: String @indexed
-  version: String @indexed
-  framework: String @indexed  # "onnx" | "tensorflowjs" | "ollama"
-  stage: String @indexed      # "development" | "staging" | "production"
+	# Model metadata
+	modelId: String @indexed
+	version: String @indexed
+	framework: String @indexed # "onnx" | "tensorflowjs" | "ollama"
+	stage: String @indexed # "development" | "staging" | "production"
+	# Model binary data (use Blob for large ONNX/TF models)
+	modelBlob: Blob
 
-  # Model binary data (use Blob for large ONNX/TF models)
-  modelBlob: Blob
+	# Schema definitions (JSON stringified)
+	inputSchema: String
+	outputSchema: String
+	metadata: String
 
-  # Schema definitions (JSON stringified)
-  inputSchema: String
-  outputSchema: String
-  metadata: String
-
-  # Timestamps
-  uploadedAt: Long @createdTime
+	# Timestamps
+	uploadedAt: Long @createdTime
 }
 
-type InferenceEvent @table(database: "harper-edge-ai-example") @export {
-  # Primary key - UUID for each inference
-  id: ID @primaryKey  # This will be the inferenceId
+type InferenceEvent @table @export {
+	# Primary key - UUID for each inference
+	id: ID @primaryKey # This will be the inferenceId
+	# Model information
+	modelId: String @indexed
+	modelVersion: String @indexed
+	framework: String @indexed
 
-  # Model information
-  modelId: String @indexed
-  modelVersion: String @indexed
-  framework: String @indexed
+	# Request tracking
+	requestId: String @indexed
+	userId: String @indexed
+	sessionId: String @indexed
 
-  # Request tracking
-  requestId: String @indexed
-  userId: String @indexed
-  sessionId: String @indexed
+	# Inference data (JSON stringified)
+	featuresIn: String
+	prediction: String
+	confidence: Float
 
-  # Inference data (JSON stringified)
-  featuresIn: String
-  prediction: String
-  confidence: Float
+	# Performance
+	latencyMs: Int
 
-  # Performance
-  latencyMs: Int
+	# Feedback loop (nullable until feedback received)
+	actualOutcome: String
+	feedbackTimestamp: Long
+	correct: Boolean
 
-  # Feedback loop (nullable until feedback received)
-  actualOutcome: String
-  feedbackTimestamp: Long
-  correct: Boolean
-
-  # Timestamps
-  timestamp: Long @createdTime @indexed
+	# Timestamps
+	timestamp: Long @createdTime @indexed
 }
 
-type BenchmarkResult @table(database: "harper-edge-ai-example") @export {
-  # Primary key - UUID for each benchmark run
-  id: ID @primaryKey
+type BenchmarkResult @table @export {
+	# Primary key - UUID for each benchmark run
+	id: ID @primaryKey
 
-  # Benchmark parameters
-  taskType: String @indexed          # e.g., "text-embedding", "image-classification"
-  equivalenceGroup: String @indexed  # e.g., "sentence-encoder", "resnet-variants"
+	# Benchmark parameters
+	taskType: String @indexed # e.g., "text-embedding", "image-classification"
+	equivalenceGroup: String @indexed # e.g., "sentence-encoder", "resnet-variants"
+	# Models compared (array of model keys: modelId:version)
+	modelIds: String # JSON stringified array
+	# Results (detailed metrics per model)
+	results: String # JSON stringified object
+	# Test data summary
+	testDataSummary: String # JSON: { sampleCount, inputShape, description }
+	iterations: Int
 
-  # Models compared (array of model keys: modelId:version)
-  modelIds: String  # JSON stringified array
-
-  # Results (detailed metrics per model)
-  results: String  # JSON stringified object
-
-  # Test data summary
-  testDataSummary: String  # JSON: { sampleCount, inputShape, description }
-  iterations: Int
-
-  # Metadata
-  runBy: String  # Optional user/system identifier
-  notes: String  # Optional notes about the benchmark
-
-  # Timestamps
-  timestamp: Long @createdTime @indexed
-  completedAt: Long
+	# Metadata
+	runBy: String # Optional user/system identifier
+	notes: String # Optional notes about the benchmark
+	# Timestamps
+	timestamp: Long @createdTime @indexed
+	completedAt: Long
 }

@@ -6,25 +6,9 @@ import { PersonalizationEngine } from './PersonalizationEngine.js';
 import { v4 as uuidv4 } from 'uuid';
 import {
 	InferenceEngine,
-	FeatureStore,
 	MonitoringBackend,
 	BenchmarkEngine
 } from './core/index.js';
-
-/**
- * Helper to create consistent error responses
- */
-function errorResponse(error, requestId = null, status = 500) {
-	const response = {
-		error: typeof error === 'string' ? error : error.message,
-	};
-
-	if (requestId) {
-		response.requestId = requestId;
-	}
-
-	return Response.json(response, { status });
-}
 
 // Initialize personalization engine (shared across requests)
 const personalizationEngineCache = new Map();
@@ -45,37 +29,31 @@ async function getPersonalizationEngine(modelId, version) {
 	return personalizationEngineCache.get(cacheKey);
 }
 
-// Initialize shared instances for MLOps components
-const featureStore = new FeatureStore();
-const monitoringBackend = new MonitoringBackend();
-const inferenceEngine = new InferenceEngine();
-const benchmarkEngine = new BenchmarkEngine(inferenceEngine);
+// Shared instances
+let monitoringBackend;
+let inferenceEngine;
+let benchmarkEngine;
 
-// Initialize on module load
-(async () => {
-	await monitoringBackend.initialize();
-	await inferenceEngine.initialize();
-	console.log('MLOps components initialized');
-})();
+async function ensureInitialized() {
+	if (!inferenceEngine) {
+		inferenceEngine = new InferenceEngine();
+		await inferenceEngine.initialize();
+	}
+	if (!monitoringBackend) {
+		monitoringBackend = new MonitoringBackend();
+		await monitoringBackend.initialize();
+	}
+	if (!benchmarkEngine) {
+		benchmarkEngine = new BenchmarkEngine(inferenceEngine);
+	}
+}
 
 /**
  * Main resource for product personalization
  * Supports model selection via query parameters: ?modelId=...&version=...
  */
 export class Personalize extends Resource {
-	constructor() {
-		super();
-		this.rest = {
-			POST: this.personalizeProducts.bind(this)
-		};
-	}
-
-	/**
-	 * Personalize product recommendations
-	 * POST /personalize
-	 * Query params: modelId, version
-	 */
-	async personalizeProducts(request) {
+	async post(data, request) {
 		const requestId = uuidv4();
 		const startTime = Date.now();
 
@@ -86,22 +64,29 @@ export class Personalize extends Resource {
 			const version = url.searchParams.get('version');
 
 			if (!modelId || !version) {
-				return errorResponse('modelId and version query parameters are required', requestId, 400);
+				return {
+					error: 'modelId and version query parameters are required',
+					requestId
+				};
 			}
 
-			// Parse request body
-			const data = await request.json();
 			const { products, userContext } = data;
 
 			if (!products || !Array.isArray(products)) {
-				return errorResponse('Missing or invalid products array', requestId, 400);
+				return {
+					error: 'Missing or invalid products array',
+					requestId
+				};
 			}
 
 			// Get AI engine with model selection
 			const engine = await getPersonalizationEngine(modelId, version);
 
 			if (!engine.isReady()) {
-				return errorResponse('AI engine not ready', requestId, 503);
+				return {
+					error: 'AI engine not ready',
+					requestId
+				};
 			}
 
 			// Enhance products with personalization
@@ -110,16 +95,19 @@ export class Personalize extends Resource {
 			// Sort by personalized score
 			const sortedProducts = enhancedProducts.sort((a, b) => (b.personalizedScore || 0) - (a.personalizedScore || 0));
 
-			return Response.json({
+			return {
 				requestId,
 				products: sortedProducts,
 				personalized: true,
 				model: `${modelId}:${version}`,
-				responseTime: Date.now() - startTime,
-			});
+				responseTime: Date.now() - startTime
+			};
 		} catch (error) {
 			console.error('Personalization failed:', error);
-			return errorResponse(error, requestId, 500);
+			return {
+				error: error.message,
+				requestId
+			};
 		}
 	}
 }
@@ -136,39 +124,50 @@ export class Status extends Resource {
 			components: {
 				inferenceEngine: 'ready',
 				monitoringBackend: 'ready',
-				benchmarkEngine: 'ready',
-			},
+				benchmarkEngine: 'ready'
+			}
 		};
 	}
 }
-
-
 
 /**
  * Predict resource - POST /predict
  * Run inference with a loaded model
  */
 export class Predict extends Resource {
-	constructor() {
-		super();
-		this.rest = {
-			POST: this.predict.bind(this)
-		};
-	}
-
-	async predict(request) {
+	async post(data) {
 		try {
-			const data = await request.json();
+			await ensureInitialized();
+
 			const { modelId, version, features, userId, sessionId } = data;
 
 			// Validation
 			if (!modelId || !features) {
-				return errorResponse('modelId and features required', null, 400);
+				return {
+					error: 'modelId and features required'
+				};
+			}
+
+			// Fetch model from table
+			const id = `${modelId}:${version || 'v1'}`;
+
+			// Check if Model table is available
+			if (!tables.Model) {
+				return {
+					error: 'Model table not available. Check schema configuration.'
+				};
+			}
+
+			const model = await tables.Model.get(id);
+
+			if (!model) {
+				return {
+					error: `Model ${id} not found`
+				};
 			}
 
 			// Run inference
-			const startTime = Date.now();
-			const result = await inferenceEngine.predict(modelId, features, version);
+			const result = await inferenceEngine.predict(modelId, features, version, model);
 
 			// Record to monitoring
 			const inferenceId = await monitoringBackend.recordInference({
@@ -184,41 +183,44 @@ export class Predict extends Resource {
 				latencyMs: result.latencyMs
 			});
 
-			return Response.json({
+			return {
 				inferenceId,
 				prediction: result.output,
 				confidence: result.confidence,
 				modelVersion: result.modelVersion,
 				latencyMs: result.latencyMs
-			});
-
+			};
 		} catch (error) {
 			console.error('Prediction failed:', error);
-			return errorResponse(error, null, 500);
+			return {
+				error: error.message
+			};
 		}
 	}
 }
-
 
 /**
  * Monitoring resource - GET /monitoring/metrics
  * Compute aggregate metrics (use GET /InferenceEvent for raw events)
  */
 export class Monitoring extends Resource {
-	constructor() {
-		super();
-		this.rest = {
-			metrics: this.getMetrics.bind(this)
-		};
-	}
-
-	async getMetrics(request) {
+	async get(data, request) {
 		try {
+			await ensureInitialized();
+
+			if (!request || !request.url) {
+				return {
+					error: 'Invalid request'
+				};
+			}
+
 			const url = new URL(request.url);
 			const modelId = url.searchParams.get('modelId');
 
 			if (!modelId) {
-				return errorResponse('modelId parameter required', null, 400);
+				return {
+					error: 'modelId parameter required'
+				};
 			}
 
 			// Time range
@@ -237,34 +239,29 @@ export class Monitoring extends Resource {
 				endTime
 			});
 
-			return Response.json({
+			return {
 				modelId,
 				...metrics
-			});
-
+			};
 		} catch (error) {
 			console.error('Get metrics failed:', error);
-			return errorResponse(error, null, 500);
+			return {
+				error: error.message
+			};
 		}
 	}
 }
 
 /**
- * Benchmark resource - POST /benchmark/compare
- * Compare performance of equivalent models across backends
+ * Benchmark resource
+ * POST /benchmark/compare - Compare performance of equivalent models
+ * GET /benchmark/history - Get historical benchmark results
  */
 export class Benchmark extends Resource {
-	constructor() {
-		super();
-		this.rest = {
-			compare: this.compareBenchmark.bind(this),
-			history: this.getHistory.bind(this)
-		};
-	}
-
-	async compareBenchmark(request) {
+	async post(data) {
 		try {
-			const data = await request.json();
+			await ensureInitialized();
+
 			const {
 				taskType,
 				equivalenceGroup,
@@ -276,11 +273,15 @@ export class Benchmark extends Resource {
 
 			// Validation
 			if (!taskType || !equivalenceGroup) {
-				return errorResponse('taskType and equivalenceGroup are required', null, 400);
+				return {
+					error: 'taskType and equivalenceGroup are required'
+				};
 			}
 
 			if (!testData || !Array.isArray(testData) || testData.length === 0) {
-				return errorResponse('testData must be a non-empty array', null, 400);
+				return {
+					error: 'testData must be a non-empty array'
+				};
 			}
 
 			// Find equivalent models
@@ -290,11 +291,9 @@ export class Benchmark extends Resource {
 			);
 
 			if (models.length < 2) {
-				return errorResponse(
-					`Not enough models found. Found ${models.length} models with taskType="${taskType}" and equivalenceGroup="${equivalenceGroup}". At least 2 models are required.`,
-					null,
-					400
-				);
+				return {
+					error: `Not enough models found. Found ${models.length} models with taskType="${taskType}" and equivalenceGroup="${equivalenceGroup}". At least 2 models are required.`
+				};
 			}
 
 			// Run benchmark
@@ -310,16 +309,19 @@ export class Benchmark extends Resource {
 				}
 			);
 
-			return Response.json(result);
-
+			return result;
 		} catch (error) {
 			console.error('Benchmark comparison failed:', error);
-			return errorResponse(error, null, 500);
+			return {
+				error: error.message
+			};
 		}
 	}
 
-	async getHistory(request) {
+	async get(data, request) {
 		try {
+			await ensureInitialized();
+
 			const url = new URL(request.url);
 			const taskType = url.searchParams.get('taskType');
 			const equivalenceGroup = url.searchParams.get('equivalenceGroup');
@@ -330,14 +332,15 @@ export class Benchmark extends Resource {
 
 			const history = await benchmarkEngine.getHistoricalResults(filters);
 
-			return Response.json({
+			return {
 				count: history.length,
 				results: history
-			});
-
+			};
 		} catch (error) {
 			console.error('Get benchmark history failed:', error);
-			return errorResponse(error, null, 500);
+			return {
+				error: error.message
+			};
 		}
 	}
 }

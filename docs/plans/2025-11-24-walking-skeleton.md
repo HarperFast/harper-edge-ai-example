@@ -7,6 +7,7 @@
 **Architecture:** Single Harper instance with in-process components. All operations synchronous. TDD approach: write test first, watch it fail, implement minimal code, watch it pass, commit. No external dependencies beyond existing TensorFlow.js.
 
 **Tech Stack:**
+
 - Harper (database + application server)
 - Node.js ES modules
 - TensorFlow.js (@tensorflow/tfjs-node)
@@ -18,6 +19,7 @@
 ## Task 1: Setup Testing Infrastructure
 
 **Files:**
+
 - Create: `tests/setup.js`
 - Create: `tests/FeatureStore.test.js`
 - Modify: `package.json` (add test script)
@@ -33,8 +35,8 @@ import { test, describe } from 'node:test';
 
 // Helper to clean up test data
 export async function cleanupTestData(tables) {
-  // TODO: Implement Harper table cleanup
-  // For now, just a placeholder
+	// TODO: Implement Harper table cleanup
+	// For now, just a placeholder
 }
 
 export { assert, test, describe };
@@ -46,11 +48,11 @@ Modify `package.json`:
 
 ```json
 {
-  "scripts": {
-    "test": "node --no-deprecation models/test-model.js",
-    "test:unit": "node --test tests/**/*.test.js",
-    "test:all": "npm run test && npm run test:unit"
-  }
+	"scripts": {
+		"test": "node --no-deprecation models/test-model.js",
+		"test:unit": "node --test tests/**/*.test.js",
+		"test:all": "npm run test && npm run test:unit"
+	}
 }
 ```
 
@@ -72,6 +74,7 @@ git commit -m "feat: add test infrastructure with Node test runner"
 ## Task 2: Feature Store - Write Test
 
 **Files:**
+
 - Create: `tests/FeatureStore.test.js`
 
 **Step 1: Write failing test for writeFeatures**
@@ -84,22 +87,22 @@ import assert from 'node:assert';
 import { FeatureStore } from '../src/core/FeatureStore.js';
 
 describe('FeatureStore', () => {
-  test('should write and read features for an entity', async () => {
-    const store = new FeatureStore();
+	test('should write and read features for an entity', async () => {
+		const store = new FeatureStore();
 
-    // Write features
-    await store.writeFeatures('user_123', {
-      age: 25,
-      city: 'SF'
-    });
+		// Write features
+		await store.writeFeatures('user_123', {
+			age: 25,
+			city: 'SF',
+		});
 
-    // Read features back
-    const features = await store.getFeatures('user_123', ['age', 'city']);
+		// Read features back
+		const features = await store.getFeatures('user_123', ['age', 'city']);
 
-    // Verify
-    assert.strictEqual(features.age, 25);
-    assert.strictEqual(features.city, 'SF');
-  });
+		// Verify
+		assert.strictEqual(features.age, 25);
+		assert.strictEqual(features.city, 'SF');
+	});
 });
 ```
 
@@ -121,6 +124,7 @@ git commit -m "test: add failing test for FeatureStore read/write"
 ## Task 3: Feature Store - Minimal Implementation
 
 **Files:**
+
 - Create: `src/core/FeatureStore.js`
 
 **Step 1: Create minimal FeatureStore class**
@@ -133,40 +137,40 @@ Create `src/core/FeatureStore.js`:
  * Stores features in memory (will migrate to Harper tables later)
  */
 export class FeatureStore {
-  constructor() {
-    // In-memory storage: { entity_id: { feature_name: value } }
-    this.features = new Map();
-  }
+	constructor() {
+		// In-memory storage: { entity_id: { feature_name: value } }
+		this.features = new Map();
+	}
 
-  /**
-   * Write features for an entity
-   * @param {string} entityId - The entity identifier
-   * @param {Object} features - Feature name-value pairs
-   * @param {Date} [timestamp] - Optional timestamp (unused in minimal version)
-   */
-  async writeFeatures(entityId, features, timestamp) {
-    this.features.set(entityId, { ...features });
-  }
+	/**
+	 * Write features for an entity
+	 * @param {string} entityId - The entity identifier
+	 * @param {Object} features - Feature name-value pairs
+	 * @param {Date} [timestamp] - Optional timestamp (unused in minimal version)
+	 */
+	async writeFeatures(entityId, features, timestamp) {
+		this.features.set(entityId, { ...features });
+	}
 
-  /**
-   * Get features for an entity
-   * @param {string} entityId - The entity identifier
-   * @param {string[]} featureNames - List of feature names to retrieve
-   * @returns {Object} Feature name-value pairs
-   */
-  async getFeatures(entityId, featureNames) {
-    const allFeatures = this.features.get(entityId) || {};
+	/**
+	 * Get features for an entity
+	 * @param {string} entityId - The entity identifier
+	 * @param {string[]} featureNames - List of feature names to retrieve
+	 * @returns {Object} Feature name-value pairs
+	 */
+	async getFeatures(entityId, featureNames) {
+		const allFeatures = this.features.get(entityId) || {};
 
-    // Return only requested features
-    const result = {};
-    for (const name of featureNames) {
-      if (name in allFeatures) {
-        result[name] = allFeatures[name];
-      }
-    }
+		// Return only requested features
+		const result = {};
+		for (const name of featureNames) {
+			if (name in allFeatures) {
+				result[name] = allFeatures[name];
+			}
+		}
 
-    return result;
-  }
+		return result;
+	}
 }
 ```
 
@@ -188,6 +192,7 @@ git commit -m "feat: implement minimal FeatureStore with in-memory storage"
 ## Task 4: Model Registry - Write Test
 
 **Files:**
+
 - Create: `tests/ModelRegistry.test.js`
 
 **Step 1: Write failing test for registerModel**
@@ -200,61 +205,61 @@ import assert from 'node:assert';
 import { ModelRegistry } from '../src/core/ModelRegistry.js';
 
 describe('ModelRegistry', () => {
-  test('should register and retrieve a model', async () => {
-    const registry = new ModelRegistry();
+	test('should register and retrieve a model', async () => {
+		const registry = new ModelRegistry();
 
-    // Register model
-    const registration = {
-      modelId: 'test-model',
-      version: 'v1',
-      framework: 'tensorflow',
-      artifactUri: '/tmp/models/test-model-v1',
-      metadata: {
-        accuracy: 0.85,
-        description: 'Test binary classifier'
-      }
-    };
+		// Register model
+		const registration = {
+			modelId: 'test-model',
+			version: 'v1',
+			framework: 'tensorflow',
+			artifactUri: '/tmp/models/test-model-v1',
+			metadata: {
+				accuracy: 0.85,
+				description: 'Test binary classifier',
+			},
+		};
 
-    const registered = await registry.registerModel(registration);
+		const registered = await registry.registerModel(registration);
 
-    // Verify registration returned
-    assert.strictEqual(registered.modelId, 'test-model');
-    assert.strictEqual(registered.version, 'v1');
+		// Verify registration returned
+		assert.strictEqual(registered.modelId, 'test-model');
+		assert.strictEqual(registered.version, 'v1');
 
-    // Retrieve model
-    const retrieved = await registry.getModel('test-model', 'v1');
+		// Retrieve model
+		const retrieved = await registry.getModel('test-model', 'v1');
 
-    // Verify retrieval
-    assert.strictEqual(retrieved.modelId, 'test-model');
-    assert.strictEqual(retrieved.version, 'v1');
-    assert.strictEqual(retrieved.framework, 'tensorflow');
-    assert.strictEqual(retrieved.metadata.accuracy, 0.85);
-  });
+		// Verify retrieval
+		assert.strictEqual(retrieved.modelId, 'test-model');
+		assert.strictEqual(retrieved.version, 'v1');
+		assert.strictEqual(retrieved.framework, 'tensorflow');
+		assert.strictEqual(retrieved.metadata.accuracy, 0.85);
+	});
 
-  test('should get latest version when version not specified', async () => {
-    const registry = new ModelRegistry();
+	test('should get latest version when version not specified', async () => {
+		const registry = new ModelRegistry();
 
-    // Register two versions
-    await registry.registerModel({
-      modelId: 'test-model',
-      version: 'v1',
-      framework: 'tensorflow',
-      artifactUri: '/tmp/models/test-model-v1',
-      metadata: {}
-    });
+		// Register two versions
+		await registry.registerModel({
+			modelId: 'test-model',
+			version: 'v1',
+			framework: 'tensorflow',
+			artifactUri: '/tmp/models/test-model-v1',
+			metadata: {},
+		});
 
-    await registry.registerModel({
-      modelId: 'test-model',
-      version: 'v2',
-      framework: 'tensorflow',
-      artifactUri: '/tmp/models/test-model-v2',
-      metadata: {}
-    });
+		await registry.registerModel({
+			modelId: 'test-model',
+			version: 'v2',
+			framework: 'tensorflow',
+			artifactUri: '/tmp/models/test-model-v2',
+			metadata: {},
+		});
 
-    // Get without version should return latest
-    const latest = await registry.getModel('test-model');
-    assert.strictEqual(latest.version, 'v2');
-  });
+		// Get without version should return latest
+		const latest = await registry.getModel('test-model');
+		assert.strictEqual(latest.version, 'v2');
+	});
 });
 ```
 
@@ -276,6 +281,7 @@ git commit -m "test: add failing test for ModelRegistry register/retrieve"
 ## Task 5: Model Registry - Minimal Implementation
 
 **Files:**
+
 - Create: `src/core/ModelRegistry.js`
 
 **Step 1: Create minimal ModelRegistry class**
@@ -288,75 +294,75 @@ Create `src/core/ModelRegistry.js`:
  * Stores model metadata in memory (will migrate to Harper tables later)
  */
 export class ModelRegistry {
-  constructor() {
-    // In-memory storage: { modelId: { version: registeredModel } }
-    this.models = new Map();
-  }
+	constructor() {
+		// In-memory storage: { modelId: { version: registeredModel } }
+		this.models = new Map();
+	}
 
-  /**
-   * Register a new model
-   * @param {Object} registration - Model registration data
-   * @returns {Object} Registered model with timestamp
-   */
-  async registerModel(registration) {
-    const { modelId, version } = registration;
+	/**
+	 * Register a new model
+	 * @param {Object} registration - Model registration data
+	 * @returns {Object} Registered model with timestamp
+	 */
+	async registerModel(registration) {
+		const { modelId, version } = registration;
 
-    // Get or create model versions map
-    if (!this.models.has(modelId)) {
-      this.models.set(modelId, new Map());
-    }
+		// Get or create model versions map
+		if (!this.models.has(modelId)) {
+			this.models.set(modelId, new Map());
+		}
 
-    const versions = this.models.get(modelId);
+		const versions = this.models.get(modelId);
 
-    // Create registered model record
-    const registered = {
-      ...registration,
-      registeredAt: new Date(),
-      stage: 'development'
-    };
+		// Create registered model record
+		const registered = {
+			...registration,
+			registeredAt: new Date(),
+			stage: 'development',
+		};
 
-    // Store version
-    versions.set(version, registered);
+		// Store version
+		versions.set(version, registered);
 
-    return registered;
-  }
+		return registered;
+	}
 
-  /**
-   * Get a model by ID and optional version
-   * @param {string} modelId - The model identifier
-   * @param {string} [version] - Optional version (defaults to latest)
-   * @returns {Object} Registered model or null
-   */
-  async getModel(modelId, version) {
-    const versions = this.models.get(modelId);
+	/**
+	 * Get a model by ID and optional version
+	 * @param {string} modelId - The model identifier
+	 * @param {string} [version] - Optional version (defaults to latest)
+	 * @returns {Object} Registered model or null
+	 */
+	async getModel(modelId, version) {
+		const versions = this.models.get(modelId);
 
-    if (!versions || versions.size === 0) {
-      return null;
-    }
+		if (!versions || versions.size === 0) {
+			return null;
+		}
 
-    // If version specified, return that version
-    if (version) {
-      return versions.get(version) || null;
-    }
+		// If version specified, return that version
+		if (version) {
+			return versions.get(version) || null;
+		}
 
-    // Otherwise, return latest version (last registered)
-    const allVersions = Array.from(versions.values());
-    return allVersions[allVersions.length - 1];
-  }
+		// Otherwise, return latest version (last registered)
+		const allVersions = Array.from(versions.values());
+		return allVersions[allVersions.length - 1];
+	}
 
-  /**
-   * List all models
-   * @returns {Object[]} Array of registered models
-   */
-  async listModels() {
-    const result = [];
-    for (const versions of this.models.values()) {
-      for (const model of versions.values()) {
-        result.push(model);
-      }
-    }
-    return result;
-  }
+	/**
+	 * List all models
+	 * @returns {Object[]} Array of registered models
+	 */
+	async listModels() {
+		const result = [];
+		for (const versions of this.models.values()) {
+			for (const model of versions.values()) {
+				result.push(model);
+			}
+		}
+		return result;
+	}
 }
 ```
 
@@ -378,6 +384,7 @@ git commit -m "feat: implement minimal ModelRegistry with in-memory storage"
 ## Task 6: Training Provider - Write Test
 
 **Files:**
+
 - Create: `tests/TrainingProvider.test.js`
 
 **Step 1: Write failing test for binary classification training**
@@ -391,45 +398,45 @@ import { TrainingProvider } from '../src/core/TrainingProvider.js';
 import { ModelRegistry } from '../src/core/ModelRegistry.js';
 
 describe('TrainingProvider', () => {
-  test('should train a simple binary classifier', async () => {
-    const trainer = new TrainingProvider();
-    const registry = new ModelRegistry();
+	test('should train a simple binary classifier', async () => {
+		const trainer = new TrainingProvider();
+		const registry = new ModelRegistry();
 
-    // Inject registry into trainer
-    trainer.setRegistry(registry);
+		// Inject registry into trainer
+		trainer.setRegistry(registry);
 
-    // Simple XOR-like training data
-    const trainingData = [
-      { features: { x: 0, y: 0 }, label: 0 },
-      { features: { x: 0, y: 1 }, label: 1 },
-      { features: { x: 1, y: 0 }, label: 1 },
-      { features: { x: 1, y: 1 }, label: 0 },
-      // Duplicate for more training samples
-      { features: { x: 0, y: 0 }, label: 0 },
-      { features: { x: 0, y: 1 }, label: 1 },
-      { features: { x: 1, y: 0 }, label: 1 },
-      { features: { x: 1, y: 1 }, label: 0 },
-    ];
+		// Simple XOR-like training data
+		const trainingData = [
+			{ features: { x: 0, y: 0 }, label: 0 },
+			{ features: { x: 0, y: 1 }, label: 1 },
+			{ features: { x: 1, y: 0 }, label: 1 },
+			{ features: { x: 1, y: 1 }, label: 0 },
+			// Duplicate for more training samples
+			{ features: { x: 0, y: 0 }, label: 0 },
+			{ features: { x: 0, y: 1 }, label: 1 },
+			{ features: { x: 1, y: 0 }, label: 1 },
+			{ features: { x: 1, y: 1 }, label: 0 },
+		];
 
-    // Train
-    const job = await trainer.train({
-      modelId: 'test-xor',
-      trainingData,
-      featureColumns: ['x', 'y'],
-      labelColumn: 'label'
-    });
+		// Train
+		const job = await trainer.train({
+			modelId: 'test-xor',
+			trainingData,
+			featureColumns: ['x', 'y'],
+			labelColumn: 'label',
+		});
 
-    // Verify job completed
-    assert.strictEqual(job.status, 'completed');
-    assert.ok(job.metrics.accuracy, 'should have accuracy metric');
-    assert.ok(job.metrics.loss, 'should have loss metric');
-    assert.ok(job.modelVersion, 'should have model version');
+		// Verify job completed
+		assert.strictEqual(job.status, 'completed');
+		assert.ok(job.metrics.accuracy, 'should have accuracy metric');
+		assert.ok(job.metrics.loss, 'should have loss metric');
+		assert.ok(job.modelVersion, 'should have model version');
 
-    // Verify model was registered
-    const model = await registry.getModel('test-xor', job.modelVersion);
-    assert.ok(model, 'model should be registered');
-    assert.strictEqual(model.framework, 'tensorflow');
-  });
+		// Verify model was registered
+		const model = await registry.getModel('test-xor', job.modelVersion);
+		assert.ok(model, 'model should be registered');
+		assert.strictEqual(model.framework, 'tensorflow');
+	});
 });
 ```
 
@@ -451,6 +458,7 @@ git commit -m "test: add failing test for TrainingProvider binary classification
 ## Task 7: Training Provider - Minimal Implementation
 
 **Files:**
+
 - Create: `src/core/TrainingProvider.js`
 
 **Step 1: Create minimal TrainingProvider class**
@@ -466,117 +474,114 @@ import { v4 as uuidv4 } from 'uuid';
  * Trains simple binary classifiers using TensorFlow.js
  */
 export class TrainingProvider {
-  constructor() {
-    this.registry = null;
-  }
+	constructor() {
+		this.registry = null;
+	}
 
-  /**
-   * Set the model registry for storing trained models
-   */
-  setRegistry(registry) {
-    this.registry = registry;
-  }
+	/**
+	 * Set the model registry for storing trained models
+	 */
+	setRegistry(registry) {
+		this.registry = registry;
+	}
 
-  /**
-   * Train a binary classifier
-   * @param {Object} config - Training configuration
-   * @returns {Object} Training job result
-   */
-  async train(config) {
-    const { modelId, trainingData, featureColumns, labelColumn } = config;
+	/**
+	 * Train a binary classifier
+	 * @param {Object} config - Training configuration
+	 * @returns {Object} Training job result
+	 */
+	async train(config) {
+		const { modelId, trainingData, featureColumns, labelColumn } = config;
 
-    const jobId = uuidv4();
-    const startTime = new Date();
+		const jobId = uuidv4();
+		const startTime = new Date();
 
-    try {
-      // Extract features and labels
-      const features = trainingData.map(row =>
-        featureColumns.map(col => row.features[col])
-      );
-      const labels = trainingData.map(row => row[labelColumn]);
+		try {
+			// Extract features and labels
+			const features = trainingData.map((row) => featureColumns.map((col) => row.features[col]));
+			const labels = trainingData.map((row) => row[labelColumn]);
 
-      // Convert to tensors
-      const xs = tf.tensor2d(features);
-      const ys = tf.tensor2d(labels.map(l => [l]));
+			// Convert to tensors
+			const xs = tf.tensor2d(features);
+			const ys = tf.tensor2d(labels.map((l) => [l]));
 
-      // Create simple sequential model
-      const model = tf.sequential({
-        layers: [
-          tf.layers.dense({ inputShape: [featureColumns.length], units: 8, activation: 'relu' }),
-          tf.layers.dense({ units: 4, activation: 'relu' }),
-          tf.layers.dense({ units: 1, activation: 'sigmoid' })
-        ]
-      });
+			// Create simple sequential model
+			const model = tf.sequential({
+				layers: [
+					tf.layers.dense({ inputShape: [featureColumns.length], units: 8, activation: 'relu' }),
+					tf.layers.dense({ units: 4, activation: 'relu' }),
+					tf.layers.dense({ units: 1, activation: 'sigmoid' }),
+				],
+			});
 
-      // Compile model
-      model.compile({
-        optimizer: tf.train.adam(0.01),
-        loss: 'binaryCrossentropy',
-        metrics: ['accuracy']
-      });
+			// Compile model
+			model.compile({
+				optimizer: tf.train.adam(0.01),
+				loss: 'binaryCrossentropy',
+				metrics: ['accuracy'],
+			});
 
-      // Train model
-      const history = await model.fit(xs, ys, {
-        epochs: 50,
-        batchSize: 4,
-        verbose: 0
-      });
+			// Train model
+			const history = await model.fit(xs, ys, {
+				epochs: 50,
+				batchSize: 4,
+				verbose: 0,
+			});
 
-      // Get final metrics
-      const finalMetrics = history.history;
-      const accuracy = finalMetrics.acc[finalMetrics.acc.length - 1];
-      const loss = finalMetrics.loss[finalMetrics.loss.length - 1];
+			// Get final metrics
+			const finalMetrics = history.history;
+			const accuracy = finalMetrics.acc[finalMetrics.acc.length - 1];
+			const loss = finalMetrics.loss[finalMetrics.loss.length - 1];
 
-      // Save model to temporary location
-      const modelVersion = `v${Date.now()}`;
-      const artifactPath = `/tmp/models/${modelId}/${modelVersion}`;
-      await model.save(`file://${artifactPath}`);
+			// Save model to temporary location
+			const modelVersion = `v${Date.now()}`;
+			const artifactPath = `/tmp/models/${modelId}/${modelVersion}`;
+			await model.save(`file://${artifactPath}`);
 
-      // Register model if registry available
-      if (this.registry) {
-        await this.registry.registerModel({
-          modelId,
-          version: modelVersion,
-          framework: 'tensorflow',
-          artifactUri: artifactPath,
-          metadata: {
-            featureColumns,
-            labelColumn,
-            trainingJobId: jobId
-          }
-        });
-      }
+			// Register model if registry available
+			if (this.registry) {
+				await this.registry.registerModel({
+					modelId,
+					version: modelVersion,
+					framework: 'tensorflow',
+					artifactUri: artifactPath,
+					metadata: {
+						featureColumns,
+						labelColumn,
+						trainingJobId: jobId,
+					},
+				});
+			}
 
-      // Cleanup tensors
-      xs.dispose();
-      ys.dispose();
-      model.dispose();
+			// Cleanup tensors
+			xs.dispose();
+			ys.dispose();
+			model.dispose();
 
-      // Return job result
-      return {
-        jobId,
-        modelId,
-        modelVersion,
-        status: 'completed',
-        startTime,
-        endTime: new Date(),
-        metrics: {
-          accuracy,
-          loss
-        }
-      };
-
-    } catch (error) {
-      return {
-        jobId,
-        modelId,
-        status: 'failed',
-        startTime,
-        endTime: new Date(),
-        error: error.message
-      };
-    }
-  }
+			// Return job result
+			return {
+				jobId,
+				modelId,
+				modelVersion,
+				status: 'completed',
+				startTime,
+				endTime: new Date(),
+				metrics: {
+					accuracy,
+					loss,
+				},
+			};
+		} catch (error) {
+			return {
+				jobId,
+				modelId,
+				status: 'failed',
+				startTime,
+				endTime: new Date(),
+				error: error.message,
+			};
+		}
+	}
 }
 ```
 
@@ -600,6 +605,7 @@ git commit -m "feat: implement minimal TrainingProvider with TensorFlow.js binar
 ## Task 8: Monitoring Backend - Write Test
 
 **Files:**
+
 - Create: `tests/MonitoringBackend.test.js`
 
 **Step 1: Write failing test for recordInference**
@@ -612,72 +618,72 @@ import assert from 'node:assert';
 import { MonitoringBackend } from '../src/core/MonitoringBackend.js';
 
 describe('MonitoringBackend', () => {
-  test('should record and query inference events', async () => {
-    const monitoring = new MonitoringBackend();
+	test('should record and query inference events', async () => {
+		const monitoring = new MonitoringBackend();
 
-    // Record inference event
-    const event = {
-      timestamp: new Date(),
-      modelId: 'test-model',
-      modelVersion: 'v1',
-      requestId: 'req-123',
-      features: { x: 1.5, y: 2.5 },
-      prediction: 1,
-      confidence: 0.92,
-      latencyMs: 45
-    };
+		// Record inference event
+		const event = {
+			timestamp: new Date(),
+			modelId: 'test-model',
+			modelVersion: 'v1',
+			requestId: 'req-123',
+			features: { x: 1.5, y: 2.5 },
+			prediction: 1,
+			confidence: 0.92,
+			latencyMs: 45,
+		};
 
-    await monitoring.recordInference(event);
+		await monitoring.recordInference(event);
 
-    // Query recent events
-    const events = await monitoring.queryEvents({
-      modelId: 'test-model',
-      startTime: new Date(Date.now() - 1000)
-    });
+		// Query recent events
+		const events = await monitoring.queryEvents({
+			modelId: 'test-model',
+			startTime: new Date(Date.now() - 1000),
+		});
 
-    // Verify
-    assert.strictEqual(events.length, 1);
-    assert.strictEqual(events[0].requestId, 'req-123');
-    assert.strictEqual(events[0].confidence, 0.92);
-    assert.strictEqual(events[0].latencyMs, 45);
-  });
+		// Verify
+		assert.strictEqual(events.length, 1);
+		assert.strictEqual(events[0].requestId, 'req-123');
+		assert.strictEqual(events[0].confidence, 0.92);
+		assert.strictEqual(events[0].latencyMs, 45);
+	});
 
-  test('should filter events by time range', async () => {
-    const monitoring = new MonitoringBackend();
+	test('should filter events by time range', async () => {
+		const monitoring = new MonitoringBackend();
 
-    const now = Date.now();
+		const now = Date.now();
 
-    // Record events at different times
-    await monitoring.recordInference({
-      timestamp: new Date(now - 2000),
-      modelId: 'test-model',
-      modelVersion: 'v1',
-      requestId: 'req-old',
-      prediction: 0,
-      confidence: 0.8,
-      latencyMs: 40
-    });
+		// Record events at different times
+		await monitoring.recordInference({
+			timestamp: new Date(now - 2000),
+			modelId: 'test-model',
+			modelVersion: 'v1',
+			requestId: 'req-old',
+			prediction: 0,
+			confidence: 0.8,
+			latencyMs: 40,
+		});
 
-    await monitoring.recordInference({
-      timestamp: new Date(now - 500),
-      modelId: 'test-model',
-      modelVersion: 'v1',
-      requestId: 'req-recent',
-      prediction: 1,
-      confidence: 0.9,
-      latencyMs: 42
-    });
+		await monitoring.recordInference({
+			timestamp: new Date(now - 500),
+			modelId: 'test-model',
+			modelVersion: 'v1',
+			requestId: 'req-recent',
+			prediction: 1,
+			confidence: 0.9,
+			latencyMs: 42,
+		});
 
-    // Query only recent events (last 1 second)
-    const recentEvents = await monitoring.queryEvents({
-      modelId: 'test-model',
-      startTime: new Date(now - 1000)
-    });
+		// Query only recent events (last 1 second)
+		const recentEvents = await monitoring.queryEvents({
+			modelId: 'test-model',
+			startTime: new Date(now - 1000),
+		});
 
-    // Should only get the recent event
-    assert.strictEqual(recentEvents.length, 1);
-    assert.strictEqual(recentEvents[0].requestId, 'req-recent');
-  });
+		// Should only get the recent event
+		assert.strictEqual(recentEvents.length, 1);
+		assert.strictEqual(recentEvents[0].requestId, 'req-recent');
+	});
 });
 ```
 
@@ -699,6 +705,7 @@ git commit -m "test: add failing test for MonitoringBackend record/query"
 ## Task 9: Monitoring Backend - Minimal Implementation
 
 **Files:**
+
 - Create: `src/core/MonitoringBackend.js`
 
 **Step 1: Create minimal MonitoringBackend class**
@@ -711,76 +718,76 @@ Create `src/core/MonitoringBackend.js`:
  * Stores inference events in memory (will migrate to Harper tables later)
  */
 export class MonitoringBackend {
-  constructor() {
-    // In-memory storage: array of events
-    this.events = [];
-  }
+	constructor() {
+		// In-memory storage: array of events
+		this.events = [];
+	}
 
-  /**
-   * Record an inference event
-   * @param {Object} event - Inference event data
-   */
-  async recordInference(event) {
-    this.events.push({
-      ...event,
-      timestamp: event.timestamp || new Date()
-    });
-  }
+	/**
+	 * Record an inference event
+	 * @param {Object} event - Inference event data
+	 */
+	async recordInference(event) {
+		this.events.push({
+			...event,
+			timestamp: event.timestamp || new Date(),
+		});
+	}
 
-  /**
-   * Query inference events
-   * @param {Object} query - Query parameters
-   * @returns {Object[]} Filtered events
-   */
-  async queryEvents(query) {
-    const { modelId, startTime, endTime } = query;
+	/**
+	 * Query inference events
+	 * @param {Object} query - Query parameters
+	 * @returns {Object[]} Filtered events
+	 */
+	async queryEvents(query) {
+		const { modelId, startTime, endTime } = query;
 
-    let filtered = this.events;
+		let filtered = this.events;
 
-    // Filter by model ID
-    if (modelId) {
-      filtered = filtered.filter(e => e.modelId === modelId);
-    }
+		// Filter by model ID
+		if (modelId) {
+			filtered = filtered.filter((e) => e.modelId === modelId);
+		}
 
-    // Filter by start time
-    if (startTime) {
-      filtered = filtered.filter(e => e.timestamp >= startTime);
-    }
+		// Filter by start time
+		if (startTime) {
+			filtered = filtered.filter((e) => e.timestamp >= startTime);
+		}
 
-    // Filter by end time
-    if (endTime) {
-      filtered = filtered.filter(e => e.timestamp <= endTime);
-    }
+		// Filter by end time
+		if (endTime) {
+			filtered = filtered.filter((e) => e.timestamp <= endTime);
+		}
 
-    // Sort by timestamp descending (most recent first)
-    return filtered.sort((a, b) => b.timestamp - a.timestamp);
-  }
+		// Sort by timestamp descending (most recent first)
+		return filtered.sort((a, b) => b.timestamp - a.timestamp);
+	}
 
-  /**
-   * Get summary metrics for a model
-   * @param {string} modelId - The model identifier
-   * @returns {Object} Summary metrics
-   */
-  async getMetrics(modelId) {
-    const events = await this.queryEvents({ modelId });
+	/**
+	 * Get summary metrics for a model
+	 * @param {string} modelId - The model identifier
+	 * @returns {Object} Summary metrics
+	 */
+	async getMetrics(modelId) {
+		const events = await this.queryEvents({ modelId });
 
-    if (events.length === 0) {
-      return {
-        count: 0,
-        avgConfidence: 0,
-        avgLatency: 0
-      };
-    }
+		if (events.length === 0) {
+			return {
+				count: 0,
+				avgConfidence: 0,
+				avgLatency: 0,
+			};
+		}
 
-    const totalConfidence = events.reduce((sum, e) => sum + (e.confidence || 0), 0);
-    const totalLatency = events.reduce((sum, e) => sum + (e.latencyMs || 0), 0);
+		const totalConfidence = events.reduce((sum, e) => sum + (e.confidence || 0), 0);
+		const totalLatency = events.reduce((sum, e) => sum + (e.latencyMs || 0), 0);
 
-    return {
-      count: events.length,
-      avgConfidence: totalConfidence / events.length,
-      avgLatency: totalLatency / events.length
-    };
-  }
+		return {
+			count: events.length,
+			avgConfidence: totalConfidence / events.length,
+			avgLatency: totalLatency / events.length,
+		};
+	}
 }
 ```
 
@@ -802,6 +809,7 @@ git commit -m "feat: implement minimal MonitoringBackend with in-memory event st
 ## Task 10: Integration - Wire Components Together
 
 **Files:**
+
 - Create: `src/core/index.js`
 - Modify: `src/resources.js`
 
@@ -821,12 +829,7 @@ export { MonitoringBackend } from './MonitoringBackend.js';
 Modify `src/resources.js` - add at top of file after existing imports:
 
 ```javascript
-import {
-  FeatureStore,
-  TrainingProvider,
-  ModelRegistry,
-  MonitoringBackend
-} from './core/index.js';
+import { FeatureStore, TrainingProvider, ModelRegistry, MonitoringBackend } from './core/index.js';
 
 // Initialize shared instances
 const featureStore = new FeatureStore();
@@ -856,6 +859,7 @@ git commit -m "feat: wire core components together in resources"
 ## Task 11: REST API - Data Upload Endpoint
 
 **Files:**
+
 - Modify: `src/resources.js`
 - Create: `tests/api/data-upload.test.js`
 
@@ -868,23 +872,23 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert';
 
 describe('Data Upload API', () => {
-  test('should accept and store training data', async () => {
-    // This test will be manual for now (requires running Harper)
-    // Full API integration tests will come later
+	test('should accept and store training data', async () => {
+		// This test will be manual for now (requires running Harper)
+		// Full API integration tests will come later
 
-    const data = {
-      rows: [
-        { features: { x: 1.0, y: 2.0 }, label: 1 },
-        { features: { x: 2.0, y: 3.0 }, label: 0 }
-      ]
-    };
+		const data = {
+			rows: [
+				{ features: { x: 1.0, y: 2.0 }, label: 1 },
+				{ features: { x: 2.0, y: 3.0 }, label: 0 },
+			],
+		};
 
-    // For now, just verify data structure is valid
-    assert.ok(Array.isArray(data.rows));
-    assert.ok(data.rows.length > 0);
-    assert.ok(data.rows[0].features);
-    assert.ok('label' in data.rows[0]);
-  });
+		// For now, just verify data structure is valid
+		assert.ok(Array.isArray(data.rows));
+		assert.ok(data.rows.length > 0);
+		assert.ok(data.rows[0].features);
+		assert.ok('label' in data.rows[0]);
+	});
 });
 ```
 
@@ -897,32 +901,32 @@ Add to `src/resources.js`:
 const trainingDataStore = new Map();
 
 export class DataUpload extends Resource {
-  constructor() {
-    super();
-    this.rest = {
-      POST: this.uploadData.bind(this)
-    };
-  }
+	constructor() {
+		super();
+		this.rest = {
+			POST: this.uploadData.bind(this),
+		};
+	}
 
-  async uploadData(request) {
-    const { rows } = await request.json();
+	async uploadData(request) {
+		const { rows } = await request.json();
 
-    if (!Array.isArray(rows) || rows.length === 0) {
-      return Response.json({ error: 'Invalid data: rows must be non-empty array' }, { status: 400 });
-    }
+		if (!Array.isArray(rows) || rows.length === 0) {
+			return Response.json({ error: 'Invalid data: rows must be non-empty array' }, { status: 400 });
+		}
 
-    // Generate dataset ID
-    const datasetId = `dataset-${Date.now()}`;
+		// Generate dataset ID
+		const datasetId = `dataset-${Date.now()}`;
 
-    // Store data
-    trainingDataStore.set(datasetId, rows);
+		// Store data
+		trainingDataStore.set(datasetId, rows);
 
-    return Response.json({
-      datasetId,
-      rowCount: rows.length,
-      message: 'Training data uploaded successfully'
-    });
-  }
+		return Response.json({
+			datasetId,
+			rowCount: rows.length,
+			message: 'Training data uploaded successfully',
+		});
+	}
 }
 ```
 
@@ -944,6 +948,7 @@ git commit -m "feat: add data upload REST API endpoint"
 ## Task 12: REST API - Train Endpoint
 
 **Files:**
+
 - Modify: `src/resources.js`
 
 **Step 1: Add train resource to resources.js**
@@ -952,66 +957,69 @@ Add to `src/resources.js`:
 
 ```javascript
 export class Train extends Resource {
-  constructor() {
-    super();
-    this.rest = {
-      POST: this.trainModel.bind(this)
-    };
-  }
+	constructor() {
+		super();
+		this.rest = {
+			POST: this.trainModel.bind(this),
+		};
+	}
 
-  async trainModel(request) {
-    const { modelId, datasetId, labelColumn } = await request.json();
+	async trainModel(request) {
+		const { modelId, datasetId, labelColumn } = await request.json();
 
-    if (!modelId) {
-      return Response.json({ error: 'modelId required' }, { status: 400 });
-    }
+		if (!modelId) {
+			return Response.json({ error: 'modelId required' }, { status: 400 });
+		}
 
-    // Get training data (from upload or generate sample)
-    let trainingData;
+		// Get training data (from upload or generate sample)
+		let trainingData;
 
-    if (datasetId && trainingDataStore.has(datasetId)) {
-      trainingData = trainingDataStore.get(datasetId);
-    } else {
-      // Generate sample XOR data for testing
-      trainingData = [
-        { features: { x: 0, y: 0 }, label: 0 },
-        { features: { x: 0, y: 1 }, label: 1 },
-        { features: { x: 1, y: 0 }, label: 1 },
-        { features: { x: 1, y: 1 }, label: 0 },
-        { features: { x: 0, y: 0 }, label: 0 },
-        { features: { x: 0, y: 1 }, label: 1 },
-        { features: { x: 1, y: 0 }, label: 1 },
-        { features: { x: 1, y: 1 }, label: 0 },
-      ];
-    }
+		if (datasetId && trainingDataStore.has(datasetId)) {
+			trainingData = trainingDataStore.get(datasetId);
+		} else {
+			// Generate sample XOR data for testing
+			trainingData = [
+				{ features: { x: 0, y: 0 }, label: 0 },
+				{ features: { x: 0, y: 1 }, label: 1 },
+				{ features: { x: 1, y: 0 }, label: 1 },
+				{ features: { x: 1, y: 1 }, label: 0 },
+				{ features: { x: 0, y: 0 }, label: 0 },
+				{ features: { x: 0, y: 1 }, label: 1 },
+				{ features: { x: 1, y: 0 }, label: 1 },
+				{ features: { x: 1, y: 1 }, label: 0 },
+			];
+		}
 
-    // Detect feature columns from first row
-    const featureColumns = Object.keys(trainingData[0].features);
-    const label = labelColumn || 'label';
+		// Detect feature columns from first row
+		const featureColumns = Object.keys(trainingData[0].features);
+		const label = labelColumn || 'label';
 
-    // Train model
-    const job = await trainingProvider.train({
-      modelId,
-      trainingData,
-      featureColumns,
-      labelColumn: label
-    });
+		// Train model
+		const job = await trainingProvider.train({
+			modelId,
+			trainingData,
+			featureColumns,
+			labelColumn: label,
+		});
 
-    if (job.status === 'failed') {
-      return Response.json({
-        error: 'Training failed',
-        details: job.error
-      }, { status: 500 });
-    }
+		if (job.status === 'failed') {
+			return Response.json(
+				{
+					error: 'Training failed',
+					details: job.error,
+				},
+				{ status: 500 }
+			);
+		}
 
-    return Response.json({
-      modelId: job.modelId,
-      version: job.modelVersion,
-      accuracy: job.metrics.accuracy,
-      loss: job.metrics.loss,
-      status: job.status
-    });
-  }
+		return Response.json({
+			modelId: job.modelId,
+			version: job.modelVersion,
+			accuracy: job.metrics.accuracy,
+			loss: job.metrics.loss,
+			status: job.status,
+		});
+	}
 }
 ```
 
@@ -1020,6 +1028,7 @@ export class Train extends Resource {
 Run: `npm run dev`
 
 In another terminal:
+
 ```bash
 curl -X POST http://localhost:9926/train \
   -H "Content-Type: application/json" \
@@ -1042,6 +1051,7 @@ git commit -m "feat: add train REST API endpoint"
 ## Task 13: REST API - Predict Endpoint
 
 **Files:**
+
 - Modify: `src/resources.js`
 - Modify: `src/PersonalizationEngine.js` (extend to support generic models)
 
@@ -1054,75 +1064,86 @@ Add to `src/resources.js`:
 const loadedModels = new Map();
 
 export class Predict extends Resource {
-  constructor() {
-    super();
-    this.rest = {
-      POST: this.predict.bind(this)
-    };
-  }
+	constructor() {
+		super();
+		this.rest = {
+			POST: this.predict.bind(this),
+		};
+	}
 
-  async predict(request) {
-    const { modelId, version, features } = await request.json();
+	async predict(request) {
+		const { modelId, version, features } = await request.json();
 
-    if (!modelId || !features) {
-      return Response.json({
-        error: 'modelId and features required'
-      }, { status: 400 });
-    }
+		if (!modelId || !features) {
+			return Response.json(
+				{
+					error: 'modelId and features required',
+				},
+				{ status: 400 }
+			);
+		}
 
-    try {
-      // Get model from registry
-      const modelMeta = await modelRegistry.getModel(modelId, version);
+		try {
+			// Get model from registry
+			const modelMeta = await modelRegistry.getModel(modelId, version);
 
-      if (!modelMeta) {
-        return Response.json({
-          error: 'Model not found'
-        }, { status: 404 });
-      }
+			if (!modelMeta) {
+				return Response.json(
+					{
+						error: 'Model not found',
+					},
+					{ status: 404 }
+				);
+			}
 
-      // Load model if not already loaded
-      const modelKey = `${modelId}:${modelMeta.version}`;
+			// Load model if not already loaded
+			const modelKey = `${modelId}:${modelMeta.version}`;
 
-      if (!loadedModels.has(modelKey)) {
-        // For now, return mock prediction since we need TensorFlow.js model loading
-        // This will be implemented properly in next task
-        return Response.json({
-          error: 'Model loading not yet implemented',
-          modelId,
-          version: modelMeta.version
-        }, { status: 501 });
-      }
+			if (!loadedModels.has(modelKey)) {
+				// For now, return mock prediction since we need TensorFlow.js model loading
+				// This will be implemented properly in next task
+				return Response.json(
+					{
+						error: 'Model loading not yet implemented',
+						modelId,
+						version: modelMeta.version,
+					},
+					{ status: 501 }
+				);
+			}
 
-      // Make prediction (placeholder)
-      const prediction = 1; // Mock
-      const confidence = 0.92; // Mock
+			// Make prediction (placeholder)
+			const prediction = 1; // Mock
+			const confidence = 0.92; // Mock
 
-      // Record telemetry
-      const startTime = Date.now();
-      await monitoring.recordInference({
-        timestamp: new Date(),
-        modelId,
-        modelVersion: modelMeta.version,
-        requestId: `req-${Date.now()}`,
-        features,
-        prediction,
-        confidence,
-        latencyMs: Date.now() - startTime
-      });
+			// Record telemetry
+			const startTime = Date.now();
+			await monitoring.recordInference({
+				timestamp: new Date(),
+				modelId,
+				modelVersion: modelMeta.version,
+				requestId: `req-${Date.now()}`,
+				features,
+				prediction,
+				confidence,
+				latencyMs: Date.now() - startTime,
+			});
 
-      return Response.json({
-        prediction,
-        confidence,
-        modelVersion: modelMeta.version
-      });
-
-    } catch (error) {
-      return Response.json({
-        error: 'Prediction failed',
-        details: error.message
-      }, { status: 500 });
-    }
-  }
+			return Response.json({
+				prediction,
+				confidence,
+				modelVersion: modelMeta.version,
+			});
+		} catch (error) {
+			return Response.json(
+				{
+					error: 'Prediction failed',
+					details: error.message,
+				},
+				{ status: 500 }
+			);
+		}
+	}
 }
 ```
 
@@ -1138,6 +1159,7 @@ git commit -m "feat: add predict REST API endpoint (model loading TODO)"
 ## Task 14: REST API - Monitoring Endpoint
 
 **Files:**
+
 - Modify: `src/resources.js`
 
 **Step 1: Add monitoring resource**
@@ -1146,43 +1168,46 @@ Add to `src/resources.js`:
 
 ```javascript
 export class Monitoring extends Resource {
-  constructor() {
-    super();
-    this.rest = {
-      recent: this.getRecentEvents.bind(this),
-      metrics: this.getMetrics.bind(this)
-    };
-  }
+	constructor() {
+		super();
+		this.rest = {
+			recent: this.getRecentEvents.bind(this),
+			metrics: this.getMetrics.bind(this),
+		};
+	}
 
-  async getRecentEvents(request) {
-    const url = new URL(request.url);
-    const modelId = url.searchParams.get('model_id');
-    const limit = parseInt(url.searchParams.get('limit') || '10');
+	async getRecentEvents(request) {
+		const url = new URL(request.url);
+		const modelId = url.searchParams.get('model_id');
+		const limit = parseInt(url.searchParams.get('limit') || '10');
 
-    const events = await monitoring.queryEvents({
-      modelId,
-      startTime: new Date(Date.now() - 3600000) // Last hour
-    });
+		const events = await monitoring.queryEvents({
+			modelId,
+			startTime: new Date(Date.now() - 3600000), // Last hour
+		});
 
-    return Response.json({
-      events: events.slice(0, limit)
-    });
-  }
+		return Response.json({
+			events: events.slice(0, limit),
+		});
+	}
 
-  async getMetrics(request) {
-    const url = new URL(request.url);
-    const modelId = url.searchParams.get('model_id');
+	async getMetrics(request) {
+		const url = new URL(request.url);
+		const modelId = url.searchParams.get('model_id');
 
-    if (!modelId) {
-      return Response.json({
-        error: 'model_id parameter required'
-      }, { status: 400 });
-    }
+		if (!modelId) {
+			return Response.json(
+				{
+					error: 'model_id parameter required',
+				},
+				{ status: 400 }
+			);
+		}
 
-    const metrics = await monitoring.getMetrics(modelId);
+		const metrics = await monitoring.getMetrics(modelId);
 
-    return Response.json(metrics);
-  }
+		return Response.json(metrics);
+	}
 }
 ```
 
@@ -1191,6 +1216,7 @@ export class Monitoring extends Resource {
 Run: `npm run dev`
 
 In another terminal:
+
 ```bash
 # Get recent events
 curl http://localhost:9926/monitoring/recent
@@ -1215,6 +1241,7 @@ git commit -m "feat: add monitoring REST API endpoints"
 ## Task 15: End-to-End Test
 
 **Files:**
+
 - Create: `tests/e2e/complete-flow.test.js`
 - Create: `demo-walkthrough.sh`
 
@@ -1231,69 +1258,69 @@ import { ModelRegistry } from '../../src/core/ModelRegistry.js';
 import { MonitoringBackend } from '../../src/core/MonitoringBackend.js';
 
 describe('End-to-End MLOps Flow', () => {
-  test('should complete full pipeline: data -> train -> register -> monitor', async () => {
-    // Initialize components
-    const registry = new ModelRegistry();
-    const trainer = new TrainingProvider();
-    trainer.setRegistry(registry);
-    const monitoring = new MonitoringBackend();
+	test('should complete full pipeline: data -> train -> register -> monitor', async () => {
+		// Initialize components
+		const registry = new ModelRegistry();
+		const trainer = new TrainingProvider();
+		trainer.setRegistry(registry);
+		const monitoring = new MonitoringBackend();
 
-    // 1. Prepare training data
-    const trainingData = [
-      { features: { x: 0, y: 0 }, label: 0 },
-      { features: { x: 0, y: 1 }, label: 1 },
-      { features: { x: 1, y: 0 }, label: 1 },
-      { features: { x: 1, y: 1 }, label: 0 },
-      { features: { x: 0, y: 0 }, label: 0 },
-      { features: { x: 0, y: 1 }, label: 1 },
-      { features: { x: 1, y: 0 }, label: 1 },
-      { features: { x: 1, y: 1 }, label: 0 },
-    ];
+		// 1. Prepare training data
+		const trainingData = [
+			{ features: { x: 0, y: 0 }, label: 0 },
+			{ features: { x: 0, y: 1 }, label: 1 },
+			{ features: { x: 1, y: 0 }, label: 1 },
+			{ features: { x: 1, y: 1 }, label: 0 },
+			{ features: { x: 0, y: 0 }, label: 0 },
+			{ features: { x: 0, y: 1 }, label: 1 },
+			{ features: { x: 1, y: 0 }, label: 1 },
+			{ features: { x: 1, y: 1 }, label: 0 },
+		];
 
-    // 2. Train model
-    const trainResult = await trainer.train({
-      modelId: 'e2e-test',
-      trainingData,
-      featureColumns: ['x', 'y'],
-      labelColumn: 'label'
-    });
+		// 2. Train model
+		const trainResult = await trainer.train({
+			modelId: 'e2e-test',
+			trainingData,
+			featureColumns: ['x', 'y'],
+			labelColumn: 'label',
+		});
 
-    assert.strictEqual(trainResult.status, 'completed');
-    assert.ok(trainResult.modelVersion);
+		assert.strictEqual(trainResult.status, 'completed');
+		assert.ok(trainResult.modelVersion);
 
-    // 3. Verify model registered
-    const model = await registry.getModel('e2e-test');
-    assert.ok(model);
-    assert.strictEqual(model.modelId, 'e2e-test');
+		// 3. Verify model registered
+		const model = await registry.getModel('e2e-test');
+		assert.ok(model);
+		assert.strictEqual(model.modelId, 'e2e-test');
 
-    // 4. Simulate inference and monitoring
-    await monitoring.recordInference({
-      timestamp: new Date(),
-      modelId: 'e2e-test',
-      modelVersion: model.version,
-      requestId: 'test-req-1',
-      features: { x: 0.5, y: 0.5 },
-      prediction: 1,
-      confidence: 0.85,
-      latencyMs: 42
-    });
+		// 4. Simulate inference and monitoring
+		await monitoring.recordInference({
+			timestamp: new Date(),
+			modelId: 'e2e-test',
+			modelVersion: model.version,
+			requestId: 'test-req-1',
+			features: { x: 0.5, y: 0.5 },
+			prediction: 1,
+			confidence: 0.85,
+			latencyMs: 42,
+		});
 
-    // 5. Query telemetry
-    const events = await monitoring.queryEvents({
-      modelId: 'e2e-test',
-      startTime: new Date(Date.now() - 1000)
-    });
+		// 5. Query telemetry
+		const events = await monitoring.queryEvents({
+			modelId: 'e2e-test',
+			startTime: new Date(Date.now() - 1000),
+		});
 
-    assert.strictEqual(events.length, 1);
-    assert.strictEqual(events[0].modelId, 'e2e-test');
+		assert.strictEqual(events.length, 1);
+		assert.strictEqual(events[0].modelId, 'e2e-test');
 
-    // 6. Get metrics
-    const metrics = await monitoring.getMetrics('e2e-test');
-    assert.strictEqual(metrics.count, 1);
-    assert.strictEqual(metrics.avgConfidence, 0.85);
+		// 6. Get metrics
+		const metrics = await monitoring.getMetrics('e2e-test');
+		assert.strictEqual(metrics.count, 1);
+		assert.strictEqual(metrics.avgConfidence, 0.85);
 
-    console.log('✅ End-to-end flow completed successfully');
-  });
+		console.log('✅ End-to-end flow completed successfully');
+	});
 });
 ```
 
@@ -1346,6 +1373,7 @@ echo "✅ Demo complete!"
 ```
 
 Make executable:
+
 ```bash
 chmod +x demo-walkthrough.sh
 ```
@@ -1362,6 +1390,7 @@ git commit -m "test: add end-to-end test and demo walkthrough script"
 ## Task 16: Documentation Update
 
 **Files:**
+
 - Create: `docs/walking-skeleton-status.md`
 - Modify: `README.md`
 
@@ -1369,7 +1398,7 @@ git commit -m "test: add end-to-end test and demo walkthrough script"
 
 Create `docs/walking-skeleton-status.md`:
 
-```markdown
+````markdown
 # Walking Skeleton Status
 
 **Status**: ✅ Complete - All core components implemented and tested
@@ -1379,12 +1408,14 @@ Create `docs/walking-skeleton-status.md`:
 ## What's Working
 
 ### Core Components
+
 - ✅ **FeatureStore**: In-memory feature storage with write/read
 - ✅ **TrainingProvider**: Binary classification with TensorFlow.js
 - ✅ **ModelRegistry**: Model versioning and metadata storage
 - ✅ **MonitoringBackend**: Inference event tracking and metrics
 
 ### REST API Endpoints
+
 - ✅ `POST /data/upload` - Upload training data
 - ✅ `POST /train` - Train binary classifier
 - ✅ `POST /predict` - Make predictions (model loading partial)
@@ -1392,6 +1423,7 @@ Create `docs/walking-skeleton-status.md`:
 - ✅ `GET /monitoring/metrics` - Get model metrics
 
 ### Tests
+
 - ✅ 8 unit tests passing
 - ✅ End-to-end flow test passing
 - ✅ Manual API tests via demo script
@@ -1399,6 +1431,7 @@ Create `docs/walking-skeleton-status.md`:
 ## Current Limitations
 
 ### Intentional (Minimal Implementation)
+
 - In-memory storage (no Harper tables yet)
 - No persistence across restarts
 - Single model type (binary classification)
@@ -1407,6 +1440,7 @@ Create `docs/walking-skeleton-status.md`:
 - No input validation beyond basics
 
 ### Next Steps (Not in Walking Skeleton Scope)
+
 - Migrate to Harper table storage
 - Implement actual model loading for predictions
 - Add more model types
@@ -1417,16 +1451,20 @@ Create `docs/walking-skeleton-status.md`:
 ## How to Use
 
 ### Run Tests
+
 ```bash
 npm run test:unit
 ```
+````
 
 ### Start Harper
+
 ```bash
 npm run dev
 ```
 
 ### Run Demo
+
 ```bash
 ./demo-walkthrough.sh
 ```
@@ -1434,6 +1472,7 @@ npm run dev
 ### Manual Testing
 
 Train a model:
+
 ```bash
 curl -X POST http://localhost:9926/train \
   -H "Content-Type: application/json" \
@@ -1441,6 +1480,7 @@ curl -X POST http://localhost:9926/train \
 ```
 
 Check metrics:
+
 ```bash
 curl "http://localhost:9926/monitoring/metrics?model_id=test"
 ```
@@ -1465,7 +1505,8 @@ Harper Instance
 - Binary classification training: ✅
 - Monitoring record/query: ✅
 - End-to-end pipeline: ✅
-```
+
+````
 
 **Step 2: Update README.md**
 
@@ -1488,15 +1529,16 @@ The walking skeleton implements a minimal end-to-end MLOps pipeline:
 npm run test:unit      # Run unit tests
 npm run dev            # Start Harper
 ./demo-walkthrough.sh  # Run demo (in another terminal)
-```
-```
+````
+
+````
 
 **Step 3: Commit documentation**
 
 ```bash
 git add docs/walking-skeleton-status.md README.md
 git commit -m "docs: add walking skeleton status and update README"
-```
+````
 
 ---
 

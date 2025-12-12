@@ -5,6 +5,7 @@ This guide explains how to compare equivalent models across different backends (
 ## Overview
 
 The benchmarking system allows you to:
+
 - Compare performance of equivalent models across backends
 - Measure latency metrics (avg, p50, p95, p99, min, max)
 - Track error rates and success counts
@@ -62,41 +63,41 @@ The response includes detailed metrics:
 
 ```json
 {
-  "comparisonId": "uuid-here",
-  "taskType": "text-embedding",
-  "equivalenceGroup": "universal-sentence-encoder",
-  "modelIds": ["use-onnx:v1", "use-tfjs:v1"],
-  "winner": {
-    "modelId": "use-onnx:v1",
-    "framework": "onnx",
-    "avgLatency": 12.5
-  },
-  "results": {
-    "use-onnx:v1": {
-      "avgLatency": 12.5,
-      "p50Latency": 11.0,
-      "p95Latency": 18.2,
-      "p99Latency": 22.1,
-      "minLatency": 9.5,
-      "maxLatency": 25.0,
-      "errorRate": 0.0,
-      "successCount": 100,
-      "errorCount": 0
-    },
-    "use-tfjs:v1": {
-      "avgLatency": 35.8,
-      "p50Latency": 33.0,
-      "p95Latency": 52.1,
-      "p99Latency": 65.3,
-      "minLatency": 28.0,
-      "maxLatency": 70.0,
-      "errorRate": 0.0,
-      "successCount": 100,
-      "errorCount": 0
-    }
-  },
-  "timestamp": 1702512000000,
-  "completedAt": 1702512060000
+	"comparisonId": "uuid-here",
+	"taskType": "text-embedding",
+	"equivalenceGroup": "universal-sentence-encoder",
+	"modelIds": ["use-onnx:v1", "use-tfjs:v1"],
+	"winner": {
+		"modelId": "use-onnx:v1",
+		"framework": "onnx",
+		"avgLatency": 12.5
+	},
+	"results": {
+		"use-onnx:v1": {
+			"avgLatency": 12.5,
+			"p50Latency": 11.0,
+			"p95Latency": 18.2,
+			"p99Latency": 22.1,
+			"minLatency": 9.5,
+			"maxLatency": 25.0,
+			"errorRate": 0.0,
+			"successCount": 100,
+			"errorCount": 0
+		},
+		"use-tfjs:v1": {
+			"avgLatency": 35.8,
+			"p50Latency": 33.0,
+			"p95Latency": 52.1,
+			"p99Latency": 65.3,
+			"minLatency": 28.0,
+			"maxLatency": 70.0,
+			"errorRate": 0.0,
+			"successCount": 100,
+			"errorCount": 0
+		}
+	},
+	"timestamp": 1702512000000,
+	"completedAt": 1702512060000
 }
 ```
 
@@ -114,11 +115,11 @@ See [MODEL_METADATA.md](./MODEL_METADATA.md) for detailed documentation on metad
 
 ```json
 {
-  "taskType": "text-embedding",
-  "equivalenceGroup": "universal-sentence-encoder",
-  "outputDimensions": [512],
-  "description": "USE optimized for ONNX Runtime",
-  "tags": ["nlp", "semantic-similarity"]
+	"taskType": "text-embedding",
+	"equivalenceGroup": "universal-sentence-encoder",
+	"outputDimensions": [512],
+	"description": "USE optimized for ONNX Runtime",
+	"tags": ["nlp", "semantic-similarity"]
 }
 ```
 
@@ -142,6 +143,7 @@ See [MODEL_METADATA.md](./MODEL_METADATA.md) for detailed documentation on metad
 ### Winner Selection
 
 The winner is determined by:
+
 1. Filter out models with 100% error rate
 2. Select model with **lowest avgLatency** among remaining models
 
@@ -155,15 +157,12 @@ Run a benchmark comparison between equivalent models.
 
 ```json
 {
-  "taskType": "text-embedding",
-  "equivalenceGroup": "universal-sentence-encoder",
-  "testData": [
-    {"texts": ["sample 1"]},
-    {"texts": ["sample 2"]}
-  ],
-  "iterations": 100,
-  "runBy": "optional-identifier",
-  "notes": "optional-description"
+	"taskType": "text-embedding",
+	"equivalenceGroup": "universal-sentence-encoder",
+	"testData": [{ "texts": ["sample 1"] }, { "texts": ["sample 2"] }],
+	"iterations": 100,
+	"runBy": "optional-identifier",
+	"notes": "optional-description"
 }
 ```
 
@@ -203,17 +202,17 @@ curl "http://localhost:9926/benchmark/history?taskType=text-embedding&equivalenc
 
 ```json
 {
-  "count": 5,
-  "results": [
-    {
-      "id": "uuid-1",
-      "taskType": "text-embedding",
-      "equivalenceGroup": "universal-sentence-encoder",
-      "iterations": 100,
-      "timestamp": 1702512000000,
-      "...": "..."
-    }
-  ]
+	"count": 5,
+	"results": [
+		{
+			"id": "uuid-1",
+			"taskType": "text-embedding",
+			"equivalenceGroup": "universal-sentence-encoder",
+			"iterations": 100,
+			"timestamp": 1702512000000,
+			"...": "..."
+		}
+	]
 }
 ```
 
@@ -248,9 +247,9 @@ await inferenceEngine.initialize();
 
 // Use winning model
 const engine = new PersonalizationEngine({
-  inferenceEngine,
-  modelId: 'use-onnx',
-  version: 'v1'
+	inferenceEngine,
+	modelId: 'use-onnx',
+	version: 'v1',
 });
 
 await engine.initialize();
@@ -267,16 +266,13 @@ Choose test data that reflects production workloads:
 ```javascript
 // Good: Real-world product descriptions
 const testData = [
-  {"texts": ["Waterproof camping tent for 4 people"]},
-  {"texts": ["Lightweight hiking boots with ankle support"]},
-  {"texts": ["Insulated sleeping bag rated for -10°C"]}
+	{ texts: ['Waterproof camping tent for 4 people'] },
+	{ texts: ['Lightweight hiking boots with ankle support'] },
+	{ texts: ['Insulated sleeping bag rated for -10°C'] },
 ];
 
 // Bad: Trivial test data
-const testData = [
-  {"texts": ["test"]},
-  {"texts": ["abc"]}
-];
+const testData = [{ texts: ['test'] }, { texts: ['abc'] }];
 ```
 
 ### 2. Run Sufficient Iterations
@@ -285,7 +281,7 @@ Use at least 50-100 iterations for stable metrics:
 
 ```json
 {
-  "iterations": 100
+	"iterations": 100
 }
 ```
 
@@ -309,7 +305,7 @@ Models with >0% error rate may have issues:
 
 ```javascript
 if (results['model:v1'].errorRate > 0.05) {
-  console.warn('Model has >5% error rate, investigate');
+	console.warn('Model has >5% error rate, investigate');
 }
 ```
 
@@ -319,8 +315,8 @@ Use `runBy` and `notes` fields:
 
 ```json
 {
-  "runBy": "mlops-team",
-  "notes": "Comparing ONNX vs TF.js after optimization, load: medium, temp: 60°C"
+	"runBy": "mlops-team",
+	"notes": "Comparing ONNX vs TF.js after optimization, load: medium, temp: 60°C"
 }
 ```
 
@@ -331,6 +327,7 @@ Use `runBy` and `notes` fields:
 **Cause:** Less than 2 models with matching `taskType` and `equivalenceGroup`.
 
 **Solution:**
+
 1. Verify metadata of uploaded models
 2. Ensure at least 2 models exist with matching metadata
 3. Check model IDs returned in error message
@@ -345,6 +342,7 @@ curl http://localhost:9926/Model
 **Cause:** Models have different `outputDimensions` in metadata.
 
 **Solution:**
+
 1. Verify `outputDimensions` match exactly: `[512]` != `[512, 1]`
 2. Update model metadata if incorrect
 3. Only compare models with identical output shapes
@@ -354,6 +352,7 @@ curl http://localhost:9926/Model
 **Cause:** Model loading issues, invalid input format, or backend errors.
 
 **Solution:**
+
 1. Check model files are valid
 2. Verify test data matches model input schema
 3. Review server logs for detailed error messages
@@ -363,6 +362,7 @@ curl http://localhost:9926/Model
 **Cause:** System load, background processes, or thermal throttling.
 
 **Solution:**
+
 1. Run benchmarks multiple times
 2. Benchmark during consistent load conditions
 3. Monitor system resources (CPU, memory, temperature)
@@ -377,24 +377,24 @@ See [examples/benchmark-comparison.js](../examples/benchmark-comparison.js) for 
 
 ```javascript
 async function selectBestModel(taskType, equivalenceGroup) {
-  const response = await fetch('/benchmark/compare', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      taskType,
-      equivalenceGroup,
-      testData: generateTestData(),
-      iterations: 100
-    })
-  });
+	const response = await fetch('/benchmark/compare', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			taskType,
+			equivalenceGroup,
+			testData: generateTestData(),
+			iterations: 100,
+		}),
+	});
 
-  const result = await response.json();
+	const result = await response.json();
 
-  // Auto-deploy winner
-  const { modelId, framework, avgLatency } = result.winner;
-  console.log(`Deploying ${modelId} (${framework}): ${avgLatency}ms`);
+	// Auto-deploy winner
+	const { modelId, framework, avgLatency } = result.winner;
+	console.log(`Deploying ${modelId} (${framework}): ${avgLatency}ms`);
 
-  return result.winner;
+	return result.winner;
 }
 ```
 
@@ -402,19 +402,17 @@ async function selectBestModel(taskType, equivalenceGroup) {
 
 ```javascript
 async function analyzePerformanceTrends(equivalenceGroup) {
-  const response = await fetch(
-    `/benchmark/history?equivalenceGroup=${equivalenceGroup}`
-  );
+	const response = await fetch(`/benchmark/history?equivalenceGroup=${equivalenceGroup}`);
 
-  const { results } = await response.json();
+	const { results } = await response.json();
 
-  // Analyze trends over time
-  const trends = results.map(r => ({
-    timestamp: r.timestamp,
-    winner: JSON.parse(r.results)[r.winner.modelId].avgLatency
-  }));
+	// Analyze trends over time
+	const trends = results.map((r) => ({
+		timestamp: r.timestamp,
+		winner: JSON.parse(r.results)[r.winner.modelId].avgLatency,
+	}));
 
-  console.log('Performance trends:', trends);
+	console.log('Performance trends:', trends);
 }
 ```
 

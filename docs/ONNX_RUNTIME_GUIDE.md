@@ -315,64 +315,62 @@ curl -X POST http://localhost:9926/predict \
 ```javascript
 // Upload a model using Harper's native endpoint
 async function uploadModel(modelId, version, framework, modelBlobBase64) {
-  const response = await fetch('http://localhost:9926/Model', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      id: `${modelId}:${version}`,
-      modelId,
-      version,
-      framework,
-      stage: 'development',
-      modelBlob: modelBlobBase64,
-      inputSchema: JSON.stringify({
-        inputs: [{ name: 'input', shape: [1, 10] }]
-      }),
-      outputSchema: JSON.stringify({
-        outputs: [{ name: 'output', shape: [1, 2] }]
-      })
-    })
-  });
+	const response = await fetch('http://localhost:9926/Model', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			id: `${modelId}:${version}`,
+			modelId,
+			version,
+			framework,
+			stage: 'development',
+			modelBlob: modelBlobBase64,
+			inputSchema: JSON.stringify({
+				inputs: [{ name: 'input', shape: [1, 10] }],
+			}),
+			outputSchema: JSON.stringify({
+				outputs: [{ name: 'output', shape: [1, 2] }],
+			}),
+		}),
+	});
 
-  return response.json();
+	return response.json();
 }
 
 // Run prediction
 async function predict(modelId, features) {
-  const response = await fetch('http://localhost:9926/predict', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      modelId,
-      features,
-      userId: 'user-123'
-    })
-  });
+	const response = await fetch('http://localhost:9926/predict', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			modelId,
+			features,
+			userId: 'user-123',
+		}),
+	});
 
-  return response.json();
+	return response.json();
 }
 
 // Record feedback using Harper's native endpoint
 async function recordFeedback(inferenceId, correct) {
-  const response = await fetch(`http://localhost:9926/InferenceEvent/${inferenceId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      actualOutcome: JSON.stringify({ class: 1 }),
-      feedbackTimestamp: Date.now(),
-      correct
-    })
-  });
+	const response = await fetch(`http://localhost:9926/InferenceEvent/${inferenceId}`, {
+		method: 'PUT',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			actualOutcome: JSON.stringify({ class: 1 }),
+			feedbackTimestamp: Date.now(),
+			correct,
+		}),
+	});
 
-  return response.json();
+	return response.json();
 }
 
 // Get metrics
 async function getMetrics(modelId) {
-  const response = await fetch(
-    `http://localhost:9926/monitoring/metrics?modelId=${modelId}`
-  );
-  return response.json();
+	const response = await fetch(`http://localhost:9926/monitoring/metrics?modelId=${modelId}`);
+	return response.json();
 }
 ```
 
@@ -471,64 +469,64 @@ curl -X POST http://localhost:9926/predict \
 ```javascript
 // Register Ollama chat model
 async function registerOllamaModel() {
-  const response = await fetch('http://localhost:9926/Model', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      id: 'mistral:v1',
-      modelId: 'mistral',
-      version: 'v1',
-      framework: 'ollama',
-      stage: 'development',
-      modelBlob: JSON.stringify({
-        modelName: 'mistral',
-        mode: 'chat'
-      }),
-      inputSchema: JSON.stringify({
-        inputs: [{ name: 'messages', type: 'array' }]
-      }),
-      outputSchema: JSON.stringify({
-        outputs: [{ name: 'response', type: 'string' }]
-      })
-    })
-  });
-  return response.json();
+	const response = await fetch('http://localhost:9926/Model', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			id: 'mistral:v1',
+			modelId: 'mistral',
+			version: 'v1',
+			framework: 'ollama',
+			stage: 'development',
+			modelBlob: JSON.stringify({
+				modelName: 'mistral',
+				mode: 'chat',
+			}),
+			inputSchema: JSON.stringify({
+				inputs: [{ name: 'messages', type: 'array' }],
+			}),
+			outputSchema: JSON.stringify({
+				outputs: [{ name: 'response', type: 'string' }],
+			}),
+		}),
+	});
+	return response.json();
 }
 
 // Chat with local LLM
 async function chatWithLLM(prompt) {
-  const response = await fetch('http://localhost:9926/predict', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      modelId: 'mistral',
-      features: {
-        messages: [
-          { role: 'system', content: 'You are a helpful AI assistant.' },
-          { role: 'user', content: prompt }
-        ]
-      },
-      userId: 'user-123'
-    })
-  });
+	const response = await fetch('http://localhost:9926/predict', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			modelId: 'mistral',
+			features: {
+				messages: [
+					{ role: 'system', content: 'You are a helpful AI assistant.' },
+					{ role: 'user', content: prompt },
+				],
+			},
+			userId: 'user-123',
+		}),
+	});
 
-  const result = await response.json();
-  return result.prediction.response;
+	const result = await response.json();
+	return result.prediction.response;
 }
 
 // Generate embeddings
 async function generateEmbeddings(text) {
-  const response = await fetch('http://localhost:9926/predict', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      modelId: 'llama2-embed',
-      features: { prompt: text }
-    })
-  });
+	const response = await fetch('http://localhost:9926/predict', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			modelId: 'llama2-embed',
+			features: { prompt: text },
+		}),
+	});
 
-  const result = await response.json();
-  return result.prediction.embeddings;
+	const result = await response.json();
+	return result.prediction.embeddings;
 }
 
 // Example usage
@@ -546,12 +544,13 @@ The `modelBlob` field accepts JSON configuration:
 
 ```json
 {
-  "modelName": "llama2",    // Required: Ollama model name
-  "mode": "chat"            // Required: "chat" or "embeddings"
+	"modelName": "llama2", // Required: Ollama model name
+	"mode": "chat" // Required: "chat" or "embeddings"
 }
 ```
 
 Or simply pass the model name as a string (defaults to chat mode):
+
 ```json
 "modelBlob": "llama2"
 ```
@@ -559,6 +558,7 @@ Or simply pass the model name as a string (defaults to chat mode):
 ### Supported Models
 
 Any model available in Ollama can be used:
+
 - **Chat Models**: llama2, mistral, codellama, vicuna, phi, neural-chat, etc.
 - **Embedding Models**: Any model can generate embeddings via the `/api/embeddings` endpoint
 
@@ -593,11 +593,13 @@ Available environment variables:
 The Ollama backend follows this configuration hierarchy (highest to lowest priority):
 
 1. **Model Configuration**: modelBlob specifies exact model name
+
    ```json
    "modelBlob": "{\"modelName\": \"mistral\", \"mode\": \"chat\"}"
    ```
 
 2. **Environment Variable**: `OLLAMA_DEFAULT_MODEL` from `.env` file
+
    ```env
    OLLAMA_DEFAULT_MODEL=mistral
    ```
@@ -654,11 +656,13 @@ curl -X POST http://localhost:9926/Model \
 You can configure a custom Ollama host in three ways:
 
 **1. Via Environment Variable (Recommended):**
+
 ```env
 OLLAMA_HOST=http://custom-host:8080
 ```
 
 **2. Via Constructor (Programmatic):**
+
 ```javascript
 import { OllamaBackend } from './backends/OllamaBackend.js';
 
@@ -666,6 +670,7 @@ const backend = new OllamaBackend('http://custom-host:8080');
 ```
 
 **3. Using Default:**
+
 ```javascript
 // Uses process.env.OLLAMA_HOST or defaults to http://localhost:11434
 const backend = new OllamaBackend();

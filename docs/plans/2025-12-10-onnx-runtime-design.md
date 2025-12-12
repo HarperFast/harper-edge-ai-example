@@ -30,11 +30,13 @@ Extend Harper Edge AI Example to support both TensorFlow.js and ONNX Runtime in 
 ### Two Parallel ML Systems
 
 **Existing (TensorFlow.js):**
+
 - Universal Sentence Encoder for semantic similarity
 - `/personalize` endpoint for product matching
 - PersonalizationEngine.js (enhanced to use unified InferenceEngine)
 
 **New (ONNX Runtime):**
+
 - Generic model inference for uploaded custom models
 - MLOps components (FeatureStore, ModelRegistry, InferenceEngine, MonitoringBackend)
 - REST API: `/model/upload`, `/predict`, `/monitoring/*`, `/feedback`
@@ -56,18 +58,22 @@ Extend Harper Edge AI Example to support both TensorFlow.js and ONNX Runtime in 
 **Purpose:** Single interface for all model inference, automatically routes to correct backend.
 
 **Backends:**
+
 - `OnnxRuntimeBackend`: Loads ONNX models using onnxruntime-node
 - `TensorFlowBackend`: Loads TensorFlow.js models
 
 **API:**
+
 - `loadModel(modelId, version)`: Fetch from registry, load into appropriate backend, cache
 - `predict(modelId, inputs)`: Run inference using cached model
 
 **Caching:**
+
 - In-memory Map with LRU eviction
 - Same cache strategy for both backends
 
 **Backend Selection:**
+
 - Reads `framework` field from ModelRegistry
 - Routes to OnnxRuntimeBackend or TensorFlowBackend automatically
 
@@ -76,6 +82,7 @@ Extend Harper Edge AI Example to support both TensorFlow.js and ONNX Runtime in 
 **Purpose:** Store all models (ONNX + TensorFlow) as blobs in Harper tables.
 
 **Schema:**
+
 - `id`: Primary key (format: `${modelId}:${version}`)
 - `modelId`: User-provided identifier (indexed)
 - `version`: Version tag (indexed)
@@ -88,6 +95,7 @@ Extend Harper Edge AI Example to support both TensorFlow.js and ONNX Runtime in 
 - `stage`: "development" | "staging" | "production" (indexed)
 
 **API:**
+
 - `registerModel(registration)`: Store model blob + metadata
 - `getModel(modelId, version)`: Retrieve model metadata + blob
 - `listModels()`: List all registered models
@@ -100,6 +108,7 @@ Extend Harper Edge AI Example to support both TensorFlow.js and ONNX Runtime in 
 **Key Change:** Now uses InferenceEngine internally instead of directly calling TensorFlow.js.
 
 **Functionality:**
+
 - Build query from user context
 - Get embeddings via `inferenceEngine.predict('sentence-encoder', texts)`
 - Calculate cosine similarity
@@ -112,10 +121,12 @@ Extend Harper Edge AI Example to support both TensorFlow.js and ONNX Runtime in 
 **Purpose:** Store entity features for inference.
 
 **MVP Implementation:**
+
 - In-memory Map: `{ entityId: { featureName: value } }`
 - Migrate to Harper tables in future iteration
 
 **API:**
+
 - `writeFeatures(entityId, features, timestamp?)`: Store features
 - `getFeatures(entityId, featureNames)`: Retrieve specific features
 
@@ -124,6 +135,7 @@ Extend Harper Edge AI Example to support both TensorFlow.js and ONNX Runtime in 
 **Purpose:** Record complete inference pipeline with feedback loop.
 
 **Schema (inference_events table):**
+
 - `id`: Primary key (inferenceId UUID)
 - `timestamp`: When inference happened (indexed)
 - `modelId`, `modelVersion`, `framework`: Which model was used (indexed)
@@ -138,12 +150,14 @@ Extend Harper Edge AI Example to support both TensorFlow.js and ONNX Runtime in 
 - `correct`: Did prediction match outcome? - nullable (boolean)
 
 **API:**
+
 - `recordInference(event)`: Capture prediction at inference time
 - `recordFeedback(inferenceId, outcome)`: Add ground truth later
 - `queryEvents(filters)`: Query events with/without feedback
 - `getMetrics(modelId, timeRange?)`: Aggregate metrics (count, avgLatency, avgConfidence, accuracy)
 
 **Use Cases:**
+
 - Detect when model accuracy drops (drift detection foundation)
 - Build retraining datasets from production data
 - A/B test different models
@@ -152,11 +166,13 @@ Extend Harper Edge AI Example to support both TensorFlow.js and ONNX Runtime in 
 ## Data Flows
 
 ### Upload Flow
+
 1. User uploads ONNX/TensorFlow model file via `POST /model/upload`
 2. ModelRegistry stores blob + metadata in Harper table
 3. Returns success with modelId/version
 
 ### Inference Flow
+
 1. Request to `POST /predict` with modelId + features
 2. InferenceEngine checks in-memory cache
    - Cache hit: use loaded model
@@ -166,6 +182,7 @@ Extend Harper Edge AI Example to support both TensorFlow.js and ONNX Runtime in 
 5. Return prediction + inferenceId to client
 
 ### Feedback Flow
+
 1. Client sends `POST /feedback` with inferenceId + actualOutcome
 2. MonitoringBackend updates inference event record
 3. Marks `correct` flag based on outcome
@@ -173,6 +190,7 @@ Extend Harper Edge AI Example to support both TensorFlow.js and ONNX Runtime in 
 5. **No automated action for MVP** - just data collection for future drift detection
 
 ### Personalization Flow (Enhanced)
+
 1. Request to `POST /personalize` with products + userContext
 2. PersonalizationEngine → InferenceEngine.predict('sentence-encoder', texts)
 3. InferenceEngine routes to TensorFlow backend (or ONNX if model swapped)
@@ -185,26 +203,31 @@ Extend Harper Edge AI Example to support both TensorFlow.js and ONNX Runtime in 
 ### Model Management
 
 **POST /model/upload**
+
 - Upload ONNX or TensorFlow model
 - Body: multipart/form-data with `{ modelId, version, framework, file, inputSchema, outputSchema, metadata }`
 - Returns: `{ modelId, version, uploadedAt }`
 
 **GET /model/:modelId/:version**
+
 - Get model metadata (not the blob)
 - Returns: model registry record
 
 **GET /model/:modelId/versions**
+
 - List all versions of a model
 - Returns: array of versions with metadata
 
 ### Inference
 
 **POST /predict**
+
 - Generic prediction endpoint
 - Body: `{ modelId, version?, features, userId?, sessionId? }`
 - Returns: `{ inferenceId, prediction, confidence, modelVersion, latencyMs }`
 
 **POST /personalize** (existing, enhanced)
+
 - Semantic product ranking
 - Body: `{ products, userContext, modelId? }`
 - Returns: products with `personalizedScore` added
@@ -212,15 +235,18 @@ Extend Harper Edge AI Example to support both TensorFlow.js and ONNX Runtime in 
 ### Observability
 
 **POST /feedback**
+
 - Record actual outcome for an inference
 - Body: `{ inferenceId, outcome, correct? }`
 - Returns: `{ success: true }`
 
 **GET /monitoring/events?modelId=&startTime=&endTime=&limit=**
+
 - Query inference events
 - Returns: `{ events: [...] }`
 
 **GET /monitoring/metrics?modelId=&timeRange=**
+
 - Aggregate metrics
 - Returns: `{ count, avgLatency, avgConfidence, accuracy }`
 
@@ -231,56 +257,54 @@ Extend Harper Edge AI Example to support both TensorFlow.js and ONNX Runtime in 
 ```graphql
 # Database for Harper Edge AI Example with MLOps
 type Model @table(database: "harper-edge-ai-example") @export {
-  # Composite key as single field: "${modelId}:${version}"
-  id: ID @primaryKey
+	# Composite key as single field: "${modelId}:${version}"
+	id: ID @primaryKey
 
-  # Model metadata
-  modelId: String @indexed
-  version: String @indexed
-  framework: String @indexed  # "onnx" | "tensorflow" | "tfjs-graph"
-  stage: String @indexed      # "development" | "staging" | "production"
+	# Model metadata
+	modelId: String @indexed
+	version: String @indexed
+	framework: String @indexed # "onnx" | "tensorflow" | "tfjs-graph"
+	stage: String @indexed # "development" | "staging" | "production"
+	# Model binary data (use Blob for large ONNX/TF models)
+	modelBlob: Blob
 
-  # Model binary data (use Blob for large ONNX/TF models)
-  modelBlob: Blob
+	# Schema definitions (JSON stringified)
+	inputSchema: String
+	outputSchema: String
+	metadata: String
 
-  # Schema definitions (JSON stringified)
-  inputSchema: String
-  outputSchema: String
-  metadata: String
-
-  # Timestamps
-  uploadedAt: Long @createdTime
+	# Timestamps
+	uploadedAt: Long @createdTime
 }
 
 type InferenceEvent @table(database: "harper-edge-ai-example") @export {
-  # Primary key - UUID for each inference
-  id: ID @primaryKey  # This will be the inferenceId
+	# Primary key - UUID for each inference
+	id: ID @primaryKey # This will be the inferenceId
+	# Model information
+	modelId: String @indexed
+	modelVersion: String @indexed
+	framework: String @indexed
 
-  # Model information
-  modelId: String @indexed
-  modelVersion: String @indexed
-  framework: String @indexed
+	# Request tracking
+	requestId: String @indexed
+	userId: String @indexed
+	sessionId: String @indexed
 
-  # Request tracking
-  requestId: String @indexed
-  userId: String @indexed
-  sessionId: String @indexed
+	# Inference data (JSON stringified)
+	featuresIn: String
+	prediction: String
+	confidence: Float
 
-  # Inference data (JSON stringified)
-  featuresIn: String
-  prediction: String
-  confidence: Float
+	# Performance
+	latencyMs: Int
 
-  # Performance
-  latencyMs: Int
+	# Feedback loop (nullable until feedback received)
+	actualOutcome: String
+	feedbackTimestamp: Long
+	correct: Boolean
 
-  # Feedback loop (nullable until feedback received)
-  actualOutcome: String
-  feedbackTimestamp: Long
-  correct: Boolean
-
-  # Timestamps
-  timestamp: Long @createdTime @indexed
+	# Timestamps
+	timestamp: Long @createdTime @indexed
 }
 ```
 
@@ -288,12 +312,12 @@ type InferenceEvent @table(database: "harper-edge-ai-example") @export {
 
 ```json
 {
-  "dependencies": {
-    "@tensorflow/tfjs-node": "^4.22.0",
-    "@tensorflow-models/universal-sentence-encoder": "^1.3.3",
-    "onnxruntime-node": "^1.20.0",
-    "uuid": "^11.0.3"
-  }
+	"dependencies": {
+		"@tensorflow/tfjs-node": "^4.22.0",
+		"@tensorflow-models/universal-sentence-encoder": "^1.3.3",
+		"onnxruntime-node": "^1.20.0",
+		"uuid": "^11.0.3"
+	}
 }
 ```
 
@@ -308,6 +332,7 @@ type InferenceEvent @table(database: "harper-edge-ai-example") @export {
 ## Testing Strategy
 
 ### Test Models
+
 - Download small ONNX models from Hugging Face/ONNX Model Zoo
 - Cache in `tests/fixtures/onnx-models/`
 - Examples:
@@ -316,18 +341,22 @@ type InferenceEvent @table(database: "harper-edge-ai-example") @export {
 - Fallback: Generate minimal ONNX model programmatically
 
 ### Unit Tests
+
 1. **ModelRegistry**: Store/retrieve model blob from Harper table, query by modelId/version/framework
 2. **InferenceEngine**: Load ONNX/TensorFlow models, caching (LRU), backend selection
 3. **MonitoringBackend**: Record events, query with filters, metrics aggregation, feedback
 4. **FeatureStore**: Write/read features (in-memory)
 
 ### Integration Tests
+
 1. End-to-end ONNX flow: upload → predict → feedback
 2. End-to-end TensorFlow flow: upload → predict → feedback
 3. Personalization with both backends: swap sentence encoder, verify same API
 
 ### Postman Collection
+
 Create `postman/Harper-Edge-AI-MLOps.postman_collection.json`:
+
 - **Model Management** folder: upload, get metadata, list versions
 - **Inference** folder: predict, personalize
 - **Observability** folder: feedback, query events, metrics
@@ -335,6 +364,7 @@ Create `postman/Harper-Edge-AI-MLOps.postman_collection.json`:
 - Pre-populated example requests with test data
 
 ### Test Scripts
+
 ```bash
 npm run test:unit          # Unit tests
 npm run test:integration   # Integration tests
@@ -344,26 +374,31 @@ npm run test:all          # Both
 ## Implementation Notes
 
 ### Model Loading from Blobs
+
 - ONNX Runtime Node.js: Can load models from `Buffer`
 - TensorFlow.js: Can load models from `ArrayBuffer`
 - Both backends read from ModelRegistry blob and instantiate in-memory
 
 ### Composite Keys
+
 - Harper doesn't support multi-column primary keys
 - Use format: `${modelId}:${version}` as single `id` field
 - Helper functions: `buildModelKey(modelId, version)`, `parseModelKey(id)`
 
 ### JSON Storage
+
 - Store complex objects (inputSchema, outputSchema, metadata, featuresIn, prediction, actualOutcome) as JSON-stringified strings
 - Parse on read, stringify on write
 
 ### Cache Eviction
+
 - LRU cache with configurable max size (default: 10 models)
 - Evict least recently used when cache full
 
 ## Success Criteria
 
 Walking skeleton is successful when:
+
 1. ✅ Can upload ONNX model and store in Harper tables
 2. ✅ Can upload TensorFlow model and store in Harper tables
 3. ✅ `/predict` endpoint works with both ONNX and TensorFlow models
