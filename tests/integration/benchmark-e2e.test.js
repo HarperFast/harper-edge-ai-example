@@ -1,12 +1,12 @@
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert';
 import { tables } from '@harperdb/harperdb';
+import { createBenchmarkTestContext } from '../helpers/test-context.js';
 import {
   createMockBenchmarkModels,
   createMockInferenceEngine,
-  cleanupBenchmarkResults,
-  cleanupTestModels,
   generateTestData,
+  assertModelMetrics,
 } from '../helpers/benchmark-helpers.js';
 
 /**
@@ -18,32 +18,30 @@ import {
  * 4. Use winning model for personalization
  */
 describe('Benchmark E2E Workflow', () => {
+  let ctx;
   let modelsTable;
   let resultsTable;
-  let cleanupModelKeys = [];
-  let cleanupResultIds = [];
 
   before(async () => {
+    ctx = createBenchmarkTestContext();
+    await ctx.setup();
     modelsTable = tables.get('Model');
     resultsTable = tables.get('BenchmarkResult');
   });
 
   after(async () => {
-    await cleanupBenchmarkResults(cleanupResultIds);
-    await cleanupTestModels(cleanupModelKeys);
+    await ctx.teardown();
   });
 
   test('complete workflow: upload → benchmark → use winner', async () => {
     // STEP 1: Upload models with equivalent metadata
-    console.log('Step 1: Creating equivalent models...');
-
     const models = await createMockBenchmarkModels({
       taskType: 'text-embedding',
       equivalenceGroup: 'e2e-test-models',
       outputDimensions: [512],
       count: 3, // Create 3 models to compare
     });
-    cleanupModelKeys.push(...models.map((m) => m.id));
+    ctx.trackModel(...models.map((m) => m.id));
 
     assert.equal(models.length, 3, 'Should create 3 models');
 
@@ -57,10 +55,7 @@ describe('Benchmark E2E Workflow', () => {
       assert.equal(metadata.equivalenceGroup, 'e2e-test-models');
     }
 
-    console.log('✓ Models created successfully');
-
     // STEP 2: Run benchmark comparison
-    console.log('Step 2: Running benchmark comparison...');
 
     const { BenchmarkEngine } = await import(
       '../../src/core/BenchmarkEngine.js'
@@ -102,12 +97,9 @@ describe('Benchmark E2E Workflow', () => {
       }
     );
 
-    cleanupResultIds.push(benchmarkResult.comparisonId);
-
-    console.log('✓ Benchmark completed');
+    ctx.trackResult(benchmarkResult.comparisonId);
 
     // STEP 3: Verify benchmark results
-    console.log('Step 3: Verifying benchmark results...');
 
     assert.ok(benchmarkResult.comparisonId, 'Should have comparison ID');
     assert.equal(benchmarkResult.modelIds.length, 3, 'Should compare 3 models');
@@ -121,26 +113,11 @@ describe('Benchmark E2E Workflow', () => {
       'test-model-0 should be the winner (lowest latency)'
     );
 
-    // Verify metrics for all models
+    // Verify metrics for all models using helper
     for (const modelId of benchmarkResult.modelIds) {
       const metrics = benchmarkResult.results[modelId];
-
-      assert.ok(
-        metrics.avgLatency > 0,
-        `${modelId} should have avgLatency > 0`
-      );
-      assert.ok(
-        metrics.p50Latency >= 0,
-        `${modelId} should have p50Latency >= 0`
-      );
-      assert.ok(
-        metrics.p95Latency >= 0,
-        `${modelId} should have p95Latency >= 0`
-      );
-      assert.ok(
-        metrics.errorRate >= 0 && metrics.errorRate <= 1,
-        `${modelId} errorRate should be between 0 and 1`
-      );
+      assertModelMetrics(metrics);
+      assert.ok(metrics.avgLatency > 0, `${modelId} should have avgLatency > 0`);
       assert.equal(
         metrics.successCount + metrics.errorCount,
         10,
@@ -162,10 +139,7 @@ describe('Benchmark E2E Workflow', () => {
       'Model 1 should be faster than Model 2'
     );
 
-    console.log('✓ Benchmark results verified');
-
     // STEP 4: Verify result is stored in Harper table
-    console.log('Step 4: Verifying stored benchmark result...');
 
     const storedResult = await resultsTable.get(benchmarkResult.comparisonId);
 
@@ -184,10 +158,7 @@ describe('Benchmark E2E Workflow', () => {
     assert.ok(storedResults['test-model-1:v1']);
     assert.ok(storedResults['test-model-2:v1']);
 
-    console.log('✓ Stored result verified');
-
     // STEP 5: Query historical results
-    console.log('Step 5: Querying historical results...');
 
     const history = await benchmarkEngine.getHistoricalResults({
       taskType: 'text-embedding',
@@ -203,10 +174,7 @@ describe('Benchmark E2E Workflow', () => {
     const found = history.find((r) => r.id === benchmarkResult.comparisonId);
     assert.ok(found, 'Should find our benchmark in history');
 
-    console.log('✓ Historical results verified');
-
     // STEP 6: Use winning model with PersonalizationEngine
-    console.log('Step 6: Using winning model for personalization...');
 
     const { PersonalizationEngine } = await import(
       '../../src/PersonalizationEngine.js'
@@ -265,19 +233,14 @@ describe('Benchmark E2E Workflow', () => {
       );
     }
 
-    console.log('✓ Personalization with winning model verified');
-
     // STEP 7: Verify model info
     const modelInfo = personalizationEngine.getLoadedModels();
     assert.equal(modelInfo.length, 1);
     assert.equal(modelInfo[0].name, `${winnerModelId}:${winnerVersion}`);
     assert.equal(modelInfo[0].mode, 'inference-engine');
-
-    console.log('✓ E2E workflow completed successfully');
   });
 
   test('benchmark with model failures should exclude failed models from winner', async () => {
-    console.log('Testing benchmark with failures...');
 
     // Create 3 models
     const models = await createMockBenchmarkModels({
@@ -286,7 +249,7 @@ describe('Benchmark E2E Workflow', () => {
       outputDimensions: [512],
       count: 3,
     });
-    cleanupModelKeys.push(...models.map((m) => m.id));
+    ctx.trackModel(...models.map((m) => m.id));
 
     // Create mock engine where model-1 always fails
     const mockInferenceEngine = {
@@ -315,7 +278,7 @@ describe('Benchmark E2E Workflow', () => {
       equivalenceGroup: 'failure-test',
     });
 
-    cleanupResultIds.push(result.comparisonId);
+    ctx.trackResult(result.comparisonId);
 
     // Verify model-1 has 100% error rate
     assert.equal(result.results['test-model-1:v1'].errorRate, 1.0);
@@ -326,12 +289,9 @@ describe('Benchmark E2E Workflow', () => {
 
     // Verify winner is model-0 (lowest latency among successful models)
     assert.equal(result.winner.modelId, 'test-model-0:v1');
-
-    console.log('✓ Failure handling verified');
   });
 
   test('should support different output dimensions', async () => {
-    console.log('Testing different output dimensions...');
 
     // Create models with 768-dimensional outputs (e.g., BERT)
     const models = await createMockBenchmarkModels({
@@ -340,7 +300,7 @@ describe('Benchmark E2E Workflow', () => {
       outputDimensions: [768],
       count: 2,
     });
-    cleanupModelKeys.push(...models.map((m) => m.id));
+    ctx.trackModel(...models.map((m) => m.id));
 
     const mockInferenceEngine = {
       predict: async (modelId, version, input) => {
@@ -362,11 +322,9 @@ describe('Benchmark E2E Workflow', () => {
       equivalenceGroup: 'bert-test',
     });
 
-    cleanupResultIds.push(result.comparisonId);
+    ctx.trackResult(result.comparisonId);
 
     assert.ok(result.winner);
     assert.equal(result.modelIds.length, 2);
-
-    console.log('✓ Different dimensions supported');
   });
 });

@@ -1,27 +1,26 @@
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert';
 import { tables } from '@harperdb/harperdb';
+import { createBenchmarkTestContext } from '../helpers/test-context.js';
 import {
   createMockBenchmarkModels,
-  cleanupBenchmarkResults,
-  cleanupTestModels,
   generateTestData,
 } from '../helpers/benchmark-helpers.js';
 
 describe('Benchmark API Integration', () => {
+  let ctx;
   let modelsTable;
   let resultsTable;
-  let cleanupModelKeys = [];
-  let cleanupResultIds = [];
 
   before(async () => {
+    ctx = createBenchmarkTestContext();
+    await ctx.setup();
     modelsTable = tables.get('Model');
     resultsTable = tables.get('BenchmarkResult');
   });
 
   after(async () => {
-    await cleanupBenchmarkResults(cleanupResultIds);
-    await cleanupTestModels(cleanupModelKeys);
+    await ctx.teardown();
   });
 
   describe('POST /benchmark/compare', () => {
@@ -33,7 +32,7 @@ describe('Benchmark API Integration', () => {
         outputDimensions: [512],
         count: 2,
       });
-      cleanupModelKeys.push(...models.map((m) => m.id));
+      ctx.trackModel(...models.map((m) => m.id));
 
       // Make API request (simulated)
       const testData = generateTestData('text-embedding', 3);
@@ -88,7 +87,7 @@ describe('Benchmark API Integration', () => {
         outputDimensions: [512],
         count: 1,
       });
-      cleanupModelKeys.push(...model.map((m) => m.id));
+      ctx.trackModel(...model.map((m) => m.id));
 
       const { BenchmarkEngine } = await import(
         '../../src/core/BenchmarkEngine.js'
@@ -132,8 +131,8 @@ describe('Benchmark API Integration', () => {
         count: 1,
       });
 
-      cleanupModelKeys.push(...model1.map((m) => m.id));
-      cleanupModelKeys.push(...model2.map((m) => m.id));
+      ctx.trackModel(...model1.map((m) => m.id));
+      ctx.trackModel(...model2.map((m) => m.id));
 
       const { BenchmarkEngine } = await import(
         '../../src/core/BenchmarkEngine.js'
@@ -172,7 +171,7 @@ describe('Benchmark API Integration', () => {
         outputDimensions: [512],
         count: 2,
       });
-      cleanupModelKeys.push(...models.map((m) => m.id));
+      ctx.trackModel(...models.map((m) => m.id));
 
       const { BenchmarkEngine } = await import(
         '../../src/core/BenchmarkEngine.js'
@@ -193,7 +192,7 @@ describe('Benchmark API Integration', () => {
         notes: 'Testing storage',
       });
 
-      cleanupResultIds.push(result.comparisonId);
+      ctx.trackResult(result.comparisonId);
 
       // Verify it's in the table
       const stored = await resultsTable.get(result.comparisonId);
@@ -229,7 +228,7 @@ describe('Benchmark API Integration', () => {
         outputDimensions: [512],
         count: 2,
       });
-      cleanupModelKeys.push(...models.map((m) => m.id));
+      ctx.trackModel(...models.map((m) => m.id));
 
       const { BenchmarkEngine } = await import(
         '../../src/core/BenchmarkEngine.js'
@@ -248,7 +247,7 @@ describe('Benchmark API Integration', () => {
         equivalenceGroup: 'history-test',
       });
 
-      cleanupResultIds.push(result.comparisonId);
+      ctx.trackResult(result.comparisonId);
 
       // Query history
       const history = await benchmarkEngine.getHistoricalResults({
@@ -271,7 +270,7 @@ describe('Benchmark API Integration', () => {
         outputDimensions: [512],
         count: 2,
       });
-      cleanupModelKeys.push(...embeddingModels.map((m) => m.id));
+      ctx.trackModel(...embeddingModels.map((m) => m.id));
 
       const { BenchmarkEngine } = await import(
         '../../src/core/BenchmarkEngine.js'
@@ -294,7 +293,7 @@ describe('Benchmark API Integration', () => {
         }
       );
 
-      cleanupResultIds.push(result.comparisonId);
+      ctx.trackResult(result.comparisonId);
 
       // Query by taskType
       const history = await benchmarkEngine.getHistoricalResults({
@@ -336,7 +335,7 @@ describe('Benchmark API Integration', () => {
         outputDimensions: [512],
         count: 2,
       });
-      cleanupModelKeys.push(...models.map((m) => m.id));
+      ctx.trackModel(...models.map((m) => m.id));
 
       const { BenchmarkEngine } = await import(
         '../../src/core/BenchmarkEngine.js'
@@ -367,7 +366,7 @@ describe('Benchmark API Integration', () => {
         outputDimensions: [512],
         count: 2,
       });
-      cleanupModelKeys.push(...models.map((m) => m.id));
+      ctx.trackModel(...models.map((m) => m.id));
 
       const { BenchmarkEngine } = await import(
         '../../src/core/BenchmarkEngine.js'

@@ -17,10 +17,12 @@
  */
 
 import * as readline from 'readline';
+import { generateTestData } from '../src/core/utils/testDataFactory.js';
+import { log } from './lib/cli-utils.js';
 
 const BASE_URL = process.env.HARPER_URL || 'http://localhost:9926';
 
-// Color codes for terminal output
+// Keep colors object for table formatting
 const colors = {
   reset: '\x1b[0m',
   bright: '\x1b[1m',
@@ -33,25 +35,14 @@ const colors = {
   magenta: '\x1b[35m',
 };
 
-function log(message, color = 'reset') {
-  console.log(`${colors[color]}${message}${colors.reset}`);
-}
-
-/**
- * Create readline interface for user input
- */
-function createInterface() {
-  return readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-}
-
 /**
  * Prompt user for input
  */
 function prompt(question) {
-  const rl = createInterface();
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
   return new Promise((resolve) => {
     rl.question(question, (answer) => {
       rl.close();
@@ -71,8 +62,8 @@ async function checkHarper() {
     }
     return true;
   } catch (error) {
-    log('✗ Harper is not running. Please start Harper first.', 'red');
-    log('  Run: npm run dev', 'yellow');
+    log.error('Harper is not running. Please start Harper first.');
+    log.warn('  Run: npm run dev');
     return false;
   }
 }
@@ -157,7 +148,7 @@ async function selectBenchmarkGroup(groups) {
   const groupKeys = Object.keys(groups);
 
   if (groupKeys.length === 0) {
-    log('No models found. Please run: node scripts/preload-models.js', 'red');
+    log.error('No models found. Please run: node scripts/preload-models.js');
     return null;
   }
 
@@ -195,81 +186,7 @@ async function getIterations() {
   return iterations;
 }
 
-/**
- * Generate test data for embeddings
- */
-function generateEmbeddingTestData() {
-  return [
-    { prompt: 'trail running shoes lightweight breathable mesh upper' },
-    { prompt: 'waterproof hiking boots winter insulated ankle support' },
-    { prompt: 'camping tent 4 person family double wall weatherproof' },
-    { prompt: 'sleeping bag 20 degree down fill mummy style' },
-    { prompt: 'portable camping stove propane fuel compact design' },
-    { prompt: 'backpacking water filter gravity system safe drinking' },
-    { prompt: 'LED camping lantern rechargeable battery bright portable' },
-    { prompt: 'camping hammock lightweight nylon tree straps included' },
-    { prompt: 'trekking poles adjustable aluminum lightweight collapsible' },
-    { prompt: 'camping cookware set non-stick pots pans utensils' },
-  ];
-}
-
-/**
- * Generate test data for classification
- */
-function generateClassificationTestData() {
-  return [
-    { prompt: 'This product is way too expensive for what you get. Not worth it at all.' },
-    { prompt: 'Great value for the money! Would definitely buy again at this price.' },
-    { prompt: 'Quality is excellent, price is reasonable for premium materials used.' },
-    { prompt: 'I would pay more for better quality. This feels cheap.' },
-    { prompt: 'Perfect price point for everyday use. Not fancy but does the job.' },
-    { prompt: 'Overpriced considering there are cheaper alternatives with same features.' },
-    { prompt: 'You get what you pay for. Premium price, premium quality.' },
-    { prompt: 'I only buy on sale. Full price is ridiculous for this.' },
-    { prompt: 'Worth every penny! The craftsmanship justifies the higher cost.' },
-    { prompt: 'Too pricey for casual buyers but professionals will appreciate it.' },
-  ];
-}
-
-/**
- * Generate test data for vision
- */
-function generateVisionTestData() {
-  return [
-    {
-      prompt: 'Describe this product image and provide relevant tags',
-      image: '/path/to/product1.jpg', // Placeholder
-      note: 'Vision models require actual image files'
-    },
-    {
-      prompt: 'What are the key features visible in this product photo?',
-      image: '/path/to/product2.jpg',
-      note: 'Vision models require actual image files'
-    },
-    {
-      prompt: 'Generate product tags based on this image',
-      image: '/path/to/product3.jpg',
-      note: 'Vision models require actual image files'
-    },
-  ];
-}
-
-/**
- * Generate appropriate test data for task type
- */
-function generateTestData(taskType) {
-  switch (taskType) {
-    case 'text-embedding':
-      return generateEmbeddingTestData();
-    case 'classification':
-      return generateClassificationTestData();
-    case 'image-tagging':
-      return generateVisionTestData();
-    default:
-      log(`Warning: Unknown task type "${taskType}", using generic data`, 'yellow');
-      return [{ prompt: 'test input' }];
-  }
-}
+// Test data generation now imported from testDataFactory
 
 /**
  * Run benchmark via API
@@ -279,7 +196,7 @@ async function runBenchmark(group, iterations) {
   log('Running Benchmark...', 'bright');
   log('='.repeat(60) + '\n', 'bright');
 
-  const testData = generateTestData(group.taskType);
+  const testData = generateTestData(group.taskType, 10);
 
   log(`Task Type: ${group.taskType}`, 'cyan');
   log(`Equivalence Group: ${group.equivalenceGroup}`, 'cyan');
@@ -321,15 +238,8 @@ async function runBenchmark(group, iterations) {
   }
 }
 
-/**
- * Format latency value
- */
-function formatLatency(ms) {
-  if (ms >= 1000) {
-    return `${(ms / 1000).toFixed(2)}s`;
-  }
-  return `${ms.toFixed(2)}ms`;
-}
+// Format latency: inline where needed since it's a simple one-liner
+const formatLatency = (ms) => ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${ms.toFixed(2)}ms`;
 
 /**
  * Display results in formatted table
@@ -499,4 +409,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   main();
 }
 
-export { runBenchmark, generateTestData, displayResults };
+export { runBenchmark, displayResults };

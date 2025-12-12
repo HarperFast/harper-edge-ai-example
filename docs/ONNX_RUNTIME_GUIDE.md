@@ -378,20 +378,7 @@ async function getMetrics(modelId) {
 
 ## Performance Comparison
 
-To compare TensorFlow.js vs ONNX Runtime:
-
-1. Train same model in both frameworks
-2. Upload both versions to ModelRegistry
-3. Run predictions with both
-4. Query metrics to compare latency and resource usage
-
-```bash
-# Check ONNX metrics
-curl "http://localhost:9926/monitoring/metrics?modelId=model-onnx"
-
-# Check TensorFlow metrics
-curl "http://localhost:9926/monitoring/metrics?modelId=model-tf"
-```
+For model comparison across backends, see [BENCHMARKING.md](BENCHMARKING.md).
 
 ## Ollama Local LLM Support
 

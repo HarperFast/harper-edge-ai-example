@@ -23,26 +23,12 @@
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { log } from './lib/cli-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PROJECT_ROOT = join(__dirname, '..');
 const MODELS_DIR = join(PROJECT_ROOT, 'models', 'test');
-
-// Color codes for terminal output
-const colors = {
-  reset: '\x1b[0m',
-  bright: '\x1b[1m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  red: '\x1b[31m',
-  cyan: '\x1b[36m',
-};
-
-function log(message, color = 'reset') {
-  console.log(`${colors[color]}${message}${colors.reset}`);
-}
 
 /**
  * Ensure models directory exists
@@ -50,7 +36,7 @@ function log(message, color = 'reset') {
 function ensureModelsDir() {
   if (!existsSync(MODELS_DIR)) {
     mkdirSync(MODELS_DIR, { recursive: true });
-    log(`✓ Created directory: ${MODELS_DIR}`, 'green');
+    log.success(`Created directory: ${MODELS_DIR}`);
   }
 }
 
@@ -396,9 +382,7 @@ const metadata = {
  * Main execution
  */
 function main() {
-  log('\n' + '='.repeat(60), 'bright');
-  log('Harper Edge AI - Generate Test ONNX Models', 'bright');
-  log('='.repeat(60) + '\n', 'bright');
+  log.section('Harper Edge AI - Generate Test ONNX Models');
 
   try {
     // Ensure directory exists
@@ -408,45 +392,43 @@ function main() {
     const pythonScript = generatePythonScript();
     const scriptPath = join(MODELS_DIR, 'generate_test_models.py');
     writeFileSync(scriptPath, pythonScript);
-    log(`✓ Created Python script: ${scriptPath}`, 'green');
+    log.success(`Created Python script: ${scriptPath}`);
 
     // Generate README
     const readme = generateReadme();
     const readmePath = join(MODELS_DIR, 'README.md');
     writeFileSync(readmePath, readme);
-    log(`✓ Created README: ${readmePath}`, 'green');
+    log.success(`Created README: ${readmePath}`);
 
     // Instructions
-    log('\n' + '='.repeat(60), 'bright');
-    log('Next Steps', 'bright');
-    log('='.repeat(60) + '\n', 'bright');
+    log.section('Next Steps');
 
-    log('To generate the ONNX models:', 'cyan');
-    log('');
-    log('1. Install Python dependencies:', 'yellow');
-    log('   pip install onnx numpy onnxruntime', 'dim');
-    log('');
-    log('2. Run the Python script:', 'yellow');
-    log(`   cd ${MODELS_DIR}`, 'dim');
-    log('   python3 generate_test_models.py', 'dim');
-    log('');
-    log('Or download real models:', 'yellow');
-    log('   See models/test/README.md for instructions', 'dim');
-    log('');
+    log.info('To generate the ONNX models:');
+    console.log('');
+    log.warn('1. Install Python dependencies:');
+    console.log('   pip install onnx numpy onnxruntime');
+    console.log('');
+    log.warn('2. Run the Python script:');
+    console.log(`   cd ${MODELS_DIR}`);
+    console.log('   python3 generate_test_models.py');
+    console.log('');
+    log.warn('Or download real models:');
+    console.log('   See models/test/README.md for instructions');
+    console.log('');
 
-    log('Files created:', 'cyan');
-    log(`  • ${scriptPath}`, 'dim');
-    log(`  • ${readmePath}`, 'dim');
-    log('');
+    log.info('Files created:');
+    console.log(`  • ${scriptPath}`);
+    console.log(`  • ${readmePath}`);
+    console.log('');
 
-    log('✓ Script generation complete!', 'green');
-    log('');
+    log.success('Script generation complete!');
+    console.log('');
 
     process.exit(0);
   } catch (error) {
-    log(`\n✗ Failed: ${error.message}`, 'red');
+    log.error(`\nFailed: ${error.message}`);
     if (error.stack) {
-      log(error.stack, 'dim');
+      console.log(error.stack);
     }
     process.exit(1);
   }

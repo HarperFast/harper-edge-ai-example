@@ -16,21 +16,22 @@
  *   - ONNX models in models/test/ directory
  */
 
+import { log } from './lib/cli-utils.js';
+
 const BASE_URL = process.env.HARPER_URL || 'http://localhost:9926';
 
-// Color codes for terminal output
-const colors = {
-  reset: '\x1b[0m',
-  bright: '\x1b[1m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  red: '\x1b[31m',
-  cyan: '\x1b[36m',
-};
-
-function log(message, color = 'reset') {
-  console.log(`${colors[color]}${message}${colors.reset}`);
+/**
+ * Factory function to create model definition
+ */
+function createModelDef(id, framework, metadata, modelBlob = {}) {
+  return {
+    modelId: id,
+    version: 'v1',
+    framework,
+    stage: 'development',
+    metadata,
+    modelBlob
+  };
 }
 
 /**
@@ -42,11 +43,11 @@ async function checkHarper() {
     if (!response.ok) {
       throw new Error('Harper not responding');
     }
-    log('✓ Harper is running', 'green');
+    log.success('Harper is running');
     return true;
   } catch (error) {
-    log('✗ Harper is not running. Please start Harper first.', 'red');
-    log('  Run: npm run dev', 'yellow');
+    log.error('Harper is not running. Please start Harper first.');
+    log.warn('  Run: npm run dev');
     return false;
   }
 }
@@ -56,7 +57,7 @@ async function checkHarper() {
  */
 async function cleanModels() {
   try {
-    log('\nCleaning existing models...', 'yellow');
+    log.warn('\nCleaning existing models...');
 
     // Get all models using GraphQL
     const query = `
@@ -92,15 +93,15 @@ async function cleanModels() {
           body: JSON.stringify({ query: deleteQuery }),
         });
 
-        log(`  Deleted: ${model.modelId}:${model.version}`, 'cyan');
+        log.info(`  Deleted: ${model.modelId}:${model.version}`);
       }
 
-      log(`✓ Cleaned ${result.data.Model.length} models`, 'green');
+      log.success(`Cleaned ${result.data.Model.length} models`);
     } else {
-      log('  No models to clean', 'cyan');
+      log.info('  No models to clean');
     }
   } catch (error) {
-    log(`✗ Failed to clean models: ${error.message}`, 'red');
+    log.error(`Failed to clean models: ${error.message}`);
     throw error;
   }
 }
@@ -129,8 +130,8 @@ async function createModel(modelData) {
       version,
       framework,
       stage: stage || 'development',
-      metadata: JSON.stringify(metadata),
-      modelBlob: modelBlob || JSON.stringify({ modelName: modelId }),
+      metadata: typeof metadata === 'string' ? metadata : JSON.stringify(metadata),
+      modelBlob: typeof modelBlob === 'string' ? modelBlob : (modelBlob || JSON.stringify({ modelName: modelId })),
     };
 
     const response = await fetch(`${BASE_URL}`, {
@@ -145,187 +146,87 @@ async function createModel(modelData) {
       throw new Error(result.errors[0].message);
     }
 
-    log(`  ✓ ${modelId}:${version} (${framework})`, 'green');
+    log.success(`  ${modelId}:${version} (${framework})`);
     return result.data.insertModel;
   } catch (error) {
-    log(`  ✗ Failed to create ${modelId}:${version}: ${error.message}`, 'red');
+    log.error(`  Failed to create ${modelId}:${version}: ${error.message}`);
     throw error;
   }
 }
 
 /**
- * Model definitions for each task type and backend
+ * Model definitions organized by task type
  */
 const MODEL_DEFINITIONS = {
-  // Product Recommendations - Text Embeddings
   embeddings: [
-    {
-      modelId: 'nomic-embed-text',
-      version: 'v1',
-      framework: 'ollama',
-      stage: 'development',
-      metadata: {
-        taskType: 'text-embedding',
-        equivalenceGroup: 'product-recommender',
-        outputDimensions: [768],
-        description: 'Nomic embedding model for product recommendations',
-        useCase: 'Product search and recommendation based on semantic similarity',
-        backend: 'ollama',
-      },
-      modelBlob: JSON.stringify({
-        modelName: 'nomic-embed-text',
-        mode: 'embeddings',
-      }),
-    },
-    {
-      modelId: 'mxbai-embed-large',
-      version: 'v1',
-      framework: 'ollama',
-      stage: 'development',
-      metadata: {
-        taskType: 'text-embedding',
-        equivalenceGroup: 'product-recommender',
-        outputDimensions: [1024],
-        description: 'MixedBread.ai large embedding model',
-        useCase: 'High-quality product embeddings for recommendation',
-        backend: 'ollama',
-      },
-      modelBlob: JSON.stringify({
-        modelName: 'mxbai-embed-large',
-        mode: 'embeddings',
-      }),
-    },
-    {
-      modelId: 'universal-sentence-encoder',
-      version: 'v1',
-      framework: 'tensorflow',
-      stage: 'development',
-      metadata: {
-        taskType: 'text-embedding',
-        equivalenceGroup: 'product-recommender',
-        outputDimensions: [512],
-        description: 'Google Universal Sentence Encoder',
-        useCase: 'Product semantic search with TensorFlow',
-        backend: 'tensorflow',
-      },
-      modelBlob: JSON.stringify({
-        modelName: 'universal-sentence-encoder',
-        modelPath: '@tensorflow-models/universal-sentence-encoder',
-      }),
-    },
-    {
-      modelId: 'all-MiniLM-L6-v2',
-      version: 'v1',
-      framework: 'onnx',
-      stage: 'development',
-      metadata: {
-        taskType: 'text-embedding',
-        equivalenceGroup: 'product-recommender',
-        outputDimensions: [384],
-        description: 'Sentence Transformers MiniLM model (ONNX)',
-        useCase: 'Fast product embeddings with ONNX Runtime',
-        backend: 'onnx',
-        downloadUrl: 'https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2',
-        note: 'Convert using optimum: optimum-cli export onnx --model sentence-transformers/all-MiniLM-L6-v2 all-MiniLM-L6-v2/',
-      },
-      modelBlob: JSON.stringify({
-        modelPath: 'models/test/all-MiniLM-L6-v2.onnx',
-        note: 'Placeholder - model file needs to be downloaded and converted',
-      }),
-    },
+    createModelDef('nomic-embed-text', 'ollama', {
+      taskType: 'text-embedding',
+      equivalenceGroup: 'product-recommender',
+      outputDimensions: [768],
+      description: 'Nomic embedding model for product recommendations',
+      backend: 'ollama'
+    }, { modelName: 'nomic-embed-text', mode: 'embeddings' }),
+
+    createModelDef('mxbai-embed-large', 'ollama', {
+      taskType: 'text-embedding',
+      equivalenceGroup: 'product-recommender',
+      outputDimensions: [1024],
+      description: 'MxBai large embedding model',
+      backend: 'ollama'
+    }, { modelName: 'mxbai-embed-large', mode: 'embeddings' }),
+
+    createModelDef('universal-sentence-encoder', 'tensorflow', {
+      taskType: 'text-embedding',
+      equivalenceGroup: 'product-recommender',
+      outputDimensions: [512],
+      description: 'Universal Sentence Encoder (TensorFlow.js)',
+      backend: 'tensorflow'
+    }, 'universal-sentence-encoder'),
+
+    createModelDef('all-MiniLM-L6-v2', 'onnx', {
+      taskType: 'text-embedding',
+      equivalenceGroup: 'product-recommender',
+      outputDimensions: [384],
+      description: 'Sentence-BERT MiniLM model (ONNX)',
+      backend: 'onnx'
+    })
   ],
 
-  // Price Sensitivity - Text Classification
   classification: [
-    {
-      modelId: 'llama2-classifier',
-      version: 'v1',
-      framework: 'ollama',
-      stage: 'development',
-      metadata: {
-        taskType: 'classification',
-        equivalenceGroup: 'price-classifier',
-        outputDimensions: [1],
-        description: 'Llama2 for price sensitivity classification',
-        useCase: 'Analyze customer price sensitivity from reviews and feedback',
-        backend: 'ollama',
-        classes: ['price-sensitive', 'value-focused', 'premium-willing'],
-      },
-      modelBlob: JSON.stringify({
-        modelName: 'llama2',
-        mode: 'chat',
-        systemPrompt:
-          'You are a classifier that analyzes text to determine price sensitivity. Respond with one of: price-sensitive, value-focused, premium-willing',
-      }),
-    },
-    {
-      modelId: 'mistral-classifier',
-      version: 'v1',
-      framework: 'ollama',
-      stage: 'development',
-      metadata: {
-        taskType: 'classification',
-        equivalenceGroup: 'price-classifier',
-        outputDimensions: [1],
-        description: 'Mistral for price sensitivity classification',
-        useCase: 'Fast price sensitivity analysis with Mistral',
-        backend: 'ollama',
-        classes: ['price-sensitive', 'value-focused', 'premium-willing'],
-      },
-      modelBlob: JSON.stringify({
-        modelName: 'mistral',
-        mode: 'chat',
-        systemPrompt:
-          'You are a classifier that analyzes text to determine price sensitivity. Respond with one of: price-sensitive, value-focused, premium-willing',
-      }),
-    },
+    createModelDef('llama2-classifier', 'ollama', {
+      taskType: 'classification',
+      equivalenceGroup: 'price-classifier',
+      outputDimensions: [1],
+      description: 'Llama2 for price sensitivity classification',
+      backend: 'ollama'
+    }, { modelName: 'llama2', mode: 'chat' }),
+
+    createModelDef('mistral-classifier', 'ollama', {
+      taskType: 'classification',
+      equivalenceGroup: 'price-classifier',
+      outputDimensions: [1],
+      description: 'Mistral for price sensitivity classification',
+      backend: 'ollama'
+    }, { modelName: 'mistral', mode: 'chat' })
   ],
 
-  // Image Tagging - Vision
   vision: [
-    {
-      modelId: 'llava',
-      version: 'v1',
-      framework: 'ollama',
-      stage: 'development',
-      metadata: {
-        taskType: 'image-tagging',
-        equivalenceGroup: 'image-tagger',
-        outputDimensions: [1],
-        description: 'LLaVA vision model for product image tagging',
-        useCase: 'Automatic tagging of product images for search and categorization',
-        backend: 'ollama',
-        capabilities: ['image-understanding', 'tagging', 'description'],
-      },
-      modelBlob: JSON.stringify({
-        modelName: 'llava',
-        mode: 'chat',
-        systemPrompt:
-          'You are a product image tagger. Analyze images and provide relevant tags for e-commerce products.',
-      }),
-    },
-    {
-      modelId: 'bakllava',
-      version: 'v1',
-      framework: 'ollama',
-      stage: 'development',
-      metadata: {
-        taskType: 'image-tagging',
-        equivalenceGroup: 'image-tagger',
-        outputDimensions: [1],
-        description: 'BakLLaVA vision model for product image analysis',
-        useCase: 'Enhanced product image understanding and tagging',
-        backend: 'ollama',
-        capabilities: ['image-understanding', 'tagging', 'description'],
-      },
-      modelBlob: JSON.stringify({
-        modelName: 'bakllava',
-        mode: 'chat',
-        systemPrompt:
-          'You are a product image tagger. Analyze images and provide relevant tags for e-commerce products.',
-      }),
-    },
-  ],
+    createModelDef('llava', 'ollama', {
+      taskType: 'image-tagging',
+      equivalenceGroup: 'image-tagger',
+      outputDimensions: [1],
+      description: 'LLaVA vision model for image tagging',
+      backend: 'ollama'
+    }, { modelName: 'llava', mode: 'chat' }),
+
+    createModelDef('bakllava', 'ollama', {
+      taskType: 'image-tagging',
+      equivalenceGroup: 'image-tagger',
+      outputDimensions: [1],
+      description: 'BakLLaVA vision model for image tagging',
+      backend: 'ollama'
+    }, { modelName: 'bakllava', mode: 'chat' })
+  ]
 };
 
 /**
@@ -346,11 +247,11 @@ async function loadModels(taskType = 'all') {
 
   for (const type of typesToLoad) {
     if (!MODEL_DEFINITIONS[type]) {
-      log(`✗ Unknown task type: ${type}`, 'red');
+      log.error(`Unknown task type: ${type}`);
       continue;
     }
 
-    log(`\n${colors.bright}Loading ${type} models:${colors.reset}`, 'blue');
+    log.info(`\nLoading ${type} models:`);
 
     for (const modelDef of MODEL_DEFINITIONS[type]) {
       try {
@@ -374,51 +275,46 @@ async function loadModels(taskType = 'all') {
  * Print summary of loaded models
  */
 function printSummary(summary) {
-  log('\n' + '='.repeat(60), 'bright');
-  log('Model Loading Summary', 'bright');
-  log('='.repeat(60), 'bright');
+  log.section('Model Loading Summary');
 
   for (const [type, models] of Object.entries(summary)) {
     if (models.length === 0) continue;
 
-    log(`\n${type.toUpperCase()}:`, 'cyan');
+    log.info(`\n${type.toUpperCase()}:`);
     for (const model of models) {
-      log(
-        `  • ${model.modelId} (${model.framework}) - ${model.equivalenceGroup}`,
-        'reset'
+      console.log(
+        `  • ${model.modelId} (${model.framework}) - ${model.equivalenceGroup}`
       );
     }
   }
 
-  log('\n' + '='.repeat(60), 'bright');
+  console.log('\n' + '='.repeat(60));
 }
 
 /**
  * Print usage instructions
  */
 function printUsage() {
-  log('\nPreload Models Script', 'bright');
-  log('Usage:', 'cyan');
-  log('  node scripts/preload-models.js                    Load all models');
-  log('  node scripts/preload-models.js --clean            Clean then load');
-  log(
-    '  node scripts/preload-models.js --type embeddings  Load specific type'
-  );
-  log('\nTask Types:', 'cyan');
-  log('  embeddings      Product recommendation models');
-  log('  classification  Price sensitivity classifiers');
-  log('  vision          Image tagging models');
-  log('\nNotes:', 'yellow');
-  log('  • Ensure Harper is running: npm run dev');
-  log('  • Ensure Ollama is running with models pulled:');
-  log('    ollama pull nomic-embed-text');
-  log('    ollama pull mxbai-embed-large');
-  log('    ollama pull llama2');
-  log('    ollama pull mistral');
-  log('    ollama pull llava');
-  log('    ollama pull bakllava');
-  log('  • ONNX models require manual download/conversion');
-  log('');
+  console.log('\nPreload Models Script');
+  log.info('Usage:');
+  console.log('  node scripts/preload-models.js                    Load all models');
+  console.log('  node scripts/preload-models.js --clean            Clean then load');
+  console.log('  node scripts/preload-models.js --type embeddings  Load specific type');
+  log.info('\nTask Types:');
+  console.log('  embeddings      Product recommendation models');
+  console.log('  classification  Price sensitivity classifiers');
+  console.log('  vision          Image tagging models');
+  log.warn('\nNotes:');
+  console.log('  • Ensure Harper is running: npm run dev');
+  console.log('  • Ensure Ollama is running with models pulled:');
+  console.log('    ollama pull nomic-embed-text');
+  console.log('    ollama pull mxbai-embed-large');
+  console.log('    ollama pull llama2');
+  console.log('    ollama pull mistral');
+  console.log('    ollama pull llava');
+  console.log('    ollama pull bakllava');
+  console.log('  • ONNX models require manual download/conversion');
+  console.log('');
 }
 
 /**
@@ -438,9 +334,7 @@ async function main() {
   const typeIndex = args.indexOf('--type');
   const taskType = typeIndex >= 0 ? args[typeIndex + 1] : 'all';
 
-  log('\n' + '='.repeat(60), 'bright');
-  log('Harper Edge AI - Model Preload Script', 'bright');
-  log('='.repeat(60), 'bright');
+  log.section('Harper Edge AI - Model Preload Script');
 
   // Check Harper
   const harperRunning = await checkHarper();
@@ -460,15 +354,15 @@ async function main() {
     // Print summary
     printSummary(summary);
 
-    log(`\n✓ Successfully loaded ${totalLoaded} models`, 'green');
-    log('\nNext steps:', 'cyan');
-    log('  • Run benchmarks: node scripts/run-benchmark.js');
-    log('  • View models: Query Model table in Harper');
-    log('');
+    log.success(`\nSuccessfully loaded ${totalLoaded} models`);
+    log.info('\nNext steps:');
+    console.log('  • Run benchmarks: node scripts/run-benchmark.js');
+    console.log('  • View models: Query Model table in Harper');
+    console.log('');
 
     process.exit(0);
   } catch (error) {
-    log(`\n✗ Script failed: ${error.message}`, 'red');
+    log.error(`\nScript failed: ${error.message}`);
     process.exit(1);
   }
 }

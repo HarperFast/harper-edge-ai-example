@@ -42,11 +42,12 @@ export class OnnxBackend extends BaseBackend {
    * @returns {Object} Output tensors
    */
   async predict(modelKey, inputs) {
-    const session = this.sessions.get(modelKey);
-
-    if (!session) {
-      throw new Error(`Model ${modelKey} not loaded`);
+    // Validate model is loaded (sessions map is separate from base models map)
+    if (!this.sessions.has(modelKey)) {
+      throw new Error(`Model ${modelKey} not loaded in ${this.name} backend`);
     }
+
+    const session = this.sessions.get(modelKey);
 
     try {
       // Convert inputs to ONNX tensors

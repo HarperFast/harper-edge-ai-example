@@ -57,11 +57,7 @@ export class OllamaBackend extends BaseBackend {
    * @returns {Object} Output from Ollama
    */
   async predict(modelKey, inputs) {
-    const modelInfo = this.models.get(modelKey);
-
-    if (!modelInfo) {
-      throw new Error(`Model ${modelKey} not loaded`);
-    }
+    const modelInfo = this._validateLoaded(modelKey);
 
     try {
       const { modelName, mode } = modelInfo;

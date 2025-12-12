@@ -1,34 +1,32 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { tables } from '@harperdb/harperdb';
-import { BenchmarkEngine } from '../../src/core/BenchmarkEngine.js';
+import { createBenchmarkTestContext } from '../helpers/test-context.js';
 import {
   createMockModel,
   createMockInferenceEngine,
   createMockBenchmarkModels,
-  cleanupBenchmarkResults,
-  cleanupTestModels,
   generateTestData,
   assertValidLatencyMetrics,
   assertValidErrorMetrics,
+  assertBenchmarkResult,
+  assertModelMetrics,
 } from '../helpers/benchmark-helpers.js';
 
 describe('BenchmarkEngine', () => {
+  let ctx;
   let benchmarkEngine;
   let mockInferenceEngine;
-  let cleanupIds = [];
-  let cleanupModelKeys = [];
 
   beforeEach(async () => {
     mockInferenceEngine = createMockInferenceEngine({ latency: 10 });
-    benchmarkEngine = new BenchmarkEngine(mockInferenceEngine);
-    cleanupIds = [];
-    cleanupModelKeys = [];
+    ctx = createBenchmarkTestContext({ inferenceEngine: mockInferenceEngine });
+    await ctx.setup();
+    benchmarkEngine = ctx.engine;
   });
 
   afterEach(async () => {
-    await cleanupBenchmarkResults(cleanupIds);
-    await cleanupTestModels(cleanupModelKeys);
+    await ctx.teardown();
   });
 
   describe('constructor', () => {
@@ -52,7 +50,7 @@ describe('BenchmarkEngine', () => {
         outputDimensions: [512],
         count: 2,
       });
-      cleanupModelKeys.push(...models.map((m) => m.id));
+      ctx.trackModel(...models.map((m) => m.id));
 
       const found = await benchmarkEngine.findEquivalentModels(
         'text-embedding',
@@ -93,7 +91,7 @@ describe('BenchmarkEngine', () => {
           outputDimensions: [768],
         },
       });
-      cleanupModelKeys.push(model1.id, model2.id);
+      ctx.trackModel(model1.id, model2.id);
 
       const found = await benchmarkEngine.findEquivalentModels(
         'text-embedding',
@@ -111,7 +109,7 @@ describe('BenchmarkEngine', () => {
         outputDimensions: [512],
         count: 2,
       });
-      cleanupModelKeys.push(...models.map((m) => m.id));
+      ctx.trackModel(...models.map((m) => m.id));
 
       assert.doesNotThrow(() => {
         benchmarkEngine.validateModelsForComparison(models);
@@ -120,7 +118,7 @@ describe('BenchmarkEngine', () => {
 
     it('should throw error if less than 2 models', async () => {
       const models = await createMockBenchmarkModels({ count: 1 });
-      cleanupModelKeys.push(...models.map((m) => m.id));
+      ctx.trackModel(...models.map((m) => m.id));
 
       assert.throws(
         () => benchmarkEngine.validateModelsForComparison(models),
@@ -147,7 +145,7 @@ describe('BenchmarkEngine', () => {
           outputDimensions: [768],
         },
       });
-      cleanupModelKeys.push(model1.id, model2.id);
+      ctx.trackModel(model1.id, model2.id);
 
       assert.throws(
         () => benchmarkEngine.validateModelsForComparison([model1, model2]),
@@ -161,7 +159,7 @@ describe('BenchmarkEngine', () => {
         version: 'v1',
         metadata: {},
       });
-      cleanupModelKeys.push(model.id);
+      ctx.trackModel(model.id);
 
       assert.throws(
         () => benchmarkEngine.validateModelsForComparison([model, model]),
@@ -215,7 +213,7 @@ describe('BenchmarkEngine', () => {
         outputDimensions: [512],
         count: 2,
       });
-      cleanupModelKeys.push(...models.map((m) => m.id));
+      ctx.trackModel(...models.map((m) => m.id));
 
       const testData = generateTestData('text-embedding', 5);
       const options = {
@@ -230,18 +228,14 @@ describe('BenchmarkEngine', () => {
         options
       );
 
-      // Verify result structure
-      assert.ok(result.comparisonId);
-      assert.equal(result.taskType, 'text-embedding');
-      assert.equal(result.equivalenceGroup, 'test-model');
-      assert.ok(Array.isArray(result.modelIds));
-      assert.equal(result.modelIds.length, 2);
-      assert.ok(result.results);
-      assert.ok(result.winner);
-      assert.ok(result.timestamp);
-      assert.ok(result.completedAt);
+      // Verify result structure using helper
+      assertBenchmarkResult(result, {
+        taskType: 'text-embedding',
+        equivalenceGroup: 'test-model',
+        modelCount: 2
+      });
 
-      cleanupIds.push(result.comparisonId);
+      ctx.trackResult(result.comparisonId);
     });
 
     it('should compute correct latency metrics', async () => {
@@ -249,7 +243,7 @@ describe('BenchmarkEngine', () => {
         outputDimensions: [512],
         count: 2,
       });
-      cleanupModelKeys.push(...models.map((m) => m.id));
+      ctx.trackModel(...models.map((m) => m.id));
 
       const testData = generateTestData('text-embedding', 3);
       const result = await benchmarkEngine.compareBenchmark(models, testData, {
@@ -266,7 +260,7 @@ describe('BenchmarkEngine', () => {
         assertValidErrorMetrics(metrics, 20);
       }
 
-      cleanupIds.push(result.comparisonId);
+      ctx.trackResult(result.comparisonId);
     });
 
     it('should identify winner with lowest avgLatency', async () => {
@@ -292,7 +286,7 @@ describe('BenchmarkEngine', () => {
           outputDimensions: [512],
         },
       });
-      cleanupModelKeys.push(model1.id, model2.id);
+      ctx.trackModel(model1.id, model2.id);
 
       // Override predict to use different latencies
       mockInferenceEngine.predict = async (modelId, version, input) => {
@@ -318,7 +312,7 @@ describe('BenchmarkEngine', () => {
           result.results['slow-model:v1'].avgLatency
       );
 
-      cleanupIds.push(result.comparisonId);
+      ctx.trackResult(result.comparisonId);
     });
 
     it('should track error rate correctly', async () => {
@@ -326,7 +320,7 @@ describe('BenchmarkEngine', () => {
         outputDimensions: [512],
         count: 2,
       });
-      cleanupModelKeys.push(...models.map((m) => m.id));
+      ctx.trackModel(...models.map((m) => m.id));
 
       // Make every other prediction fail
       let callCount = 0;
@@ -354,7 +348,7 @@ describe('BenchmarkEngine', () => {
         assert.equal(metrics.errorRate, 0.5);
       }
 
-      cleanupIds.push(result.comparisonId);
+      ctx.trackResult(result.comparisonId);
     });
 
     it('should exclude models with 100% error rate from winner selection', async () => {
@@ -376,7 +370,7 @@ describe('BenchmarkEngine', () => {
           outputDimensions: [512],
         },
       });
-      cleanupModelKeys.push(model1.id, model2.id);
+      ctx.trackModel(model1.id, model2.id);
 
       mockInferenceEngine.predict = async (modelId, version, input) => {
         await new Promise((resolve) => setTimeout(resolve, 5));
@@ -400,7 +394,7 @@ describe('BenchmarkEngine', () => {
       assert.equal(result.winner.modelId, 'working-model:v1');
       assert.equal(result.results['broken-model:v1'].errorRate, 1.0);
 
-      cleanupIds.push(result.comparisonId);
+      ctx.trackResult(result.comparisonId);
     });
 
     it('should store result in BenchmarkResult table', async () => {
@@ -408,7 +402,7 @@ describe('BenchmarkEngine', () => {
         outputDimensions: [512],
         count: 2,
       });
-      cleanupModelKeys.push(...models.map((m) => m.id));
+      ctx.trackModel(...models.map((m) => m.id));
 
       const testData = generateTestData('text-embedding', 3);
       const result = await benchmarkEngine.compareBenchmark(models, testData, {
@@ -430,7 +424,7 @@ describe('BenchmarkEngine', () => {
       assert.equal(stored.notes, 'Test benchmark');
       assert.equal(stored.iterations, 5);
 
-      cleanupIds.push(result.comparisonId);
+      ctx.trackResult(result.comparisonId);
     });
 
     it('should include testDataSummary in stored result', async () => {
@@ -438,7 +432,7 @@ describe('BenchmarkEngine', () => {
         outputDimensions: [512],
         count: 2,
       });
-      cleanupModelKeys.push(...models.map((m) => m.id));
+      ctx.trackModel(...models.map((m) => m.id));
 
       const testData = generateTestData('text-embedding', 4);
       const result = await benchmarkEngine.compareBenchmark(models, testData, {
@@ -453,7 +447,7 @@ describe('BenchmarkEngine', () => {
       const summary = JSON.parse(stored.testDataSummary);
       assert.equal(summary.sampleCount, 4);
 
-      cleanupIds.push(result.comparisonId);
+      ctx.trackResult(result.comparisonId);
     });
   });
 
@@ -466,7 +460,7 @@ describe('BenchmarkEngine', () => {
         outputDimensions: [512],
         count: 2,
       });
-      cleanupModelKeys.push(...models.map((m) => m.id));
+      ctx.trackModel(...models.map((m) => m.id));
 
       const testData = generateTestData('text-embedding', 2);
       const result = await benchmarkEngine.compareBenchmark(models, testData, {
@@ -474,7 +468,7 @@ describe('BenchmarkEngine', () => {
         taskType: 'text-embedding',
         equivalenceGroup: 'test-group',
       });
-      cleanupIds.push(result.comparisonId);
+      ctx.trackResult(result.comparisonId);
 
       // Query historical results
       const historical = await benchmarkEngine.getHistoricalResults({
@@ -499,7 +493,7 @@ describe('BenchmarkEngine', () => {
         outputDimensions: [512],
         count: 2,
       });
-      cleanupModelKeys.push(...models.map((m) => m.id));
+      ctx.trackModel(...models.map((m) => m.id));
 
       const testData = generateTestData('text-embedding', 2);
       const result = await benchmarkEngine.compareBenchmark(models, testData, {
@@ -507,7 +501,7 @@ describe('BenchmarkEngine', () => {
         taskType: 'text-embedding',
         equivalenceGroup: 'specific-group',
       });
-      cleanupIds.push(result.comparisonId);
+      ctx.trackResult(result.comparisonId);
 
       const historical = await benchmarkEngine.getHistoricalResults({
         equivalenceGroup: 'specific-group',
@@ -545,7 +539,7 @@ describe('BenchmarkEngine', () => {
         outputDimensions: [512],
         count: 2,
       });
-      cleanupModelKeys.push(...models.map((m) => m.id));
+      ctx.trackModel(...models.map((m) => m.id));
 
       await assert.rejects(
         async () => {
@@ -564,7 +558,7 @@ describe('BenchmarkEngine', () => {
         outputDimensions: [512],
         count: 2,
       });
-      cleanupModelKeys.push(...models.map((m) => m.id));
+      ctx.trackModel(...models.map((m) => m.id));
 
       const testData = generateTestData('text-embedding', 2);
 
@@ -601,7 +595,7 @@ describe('BenchmarkEngine', () => {
           outputDimensions: [512],
         },
       });
-      cleanupModelKeys.push(model1.id, model2.id);
+      ctx.trackModel(model1.id, model2.id);
 
       const testData = generateTestData('text-embedding', 2);
       const result = await benchmarkEngine.compareBenchmark(
@@ -618,7 +612,7 @@ describe('BenchmarkEngine', () => {
       assert.ok(result.winner);
       assert.equal(result.modelIds.length, 2);
 
-      cleanupIds.push(result.comparisonId);
+      ctx.trackResult(result.comparisonId);
     });
   });
 });

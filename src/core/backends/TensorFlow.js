@@ -68,11 +68,7 @@ export class TensorFlowBackend extends BaseBackend {
    * @returns {Object} Output from model
    */
   async predict(modelKey, inputs) {
-    const modelInfo = this.models.get(modelKey);
-
-    if (!modelInfo) {
-      throw new Error(`Model ${modelKey} not loaded`);
-    }
+    const modelInfo = this._validateLoaded(modelKey);
 
     try {
       const { model, modelType } = modelInfo;

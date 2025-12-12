@@ -1,4 +1,5 @@
 import { tables } from '@harperdb/harperdb';
+import assert from 'node:assert';
 
 /**
  * Create a mock model for testing benchmarks
@@ -166,36 +167,8 @@ export async function cleanupTestModels(modelKeys) {
   }
 }
 
-/**
- * Generate test data for benchmarking
- * @param {string} taskType - Type of task
- * @param {number} count - Number of test samples
- * @returns {Array} Test data array
- */
-export function generateTestData(taskType = 'text-embedding', count = 5) {
-  switch (taskType) {
-    case 'text-embedding':
-      return Array.from({ length: count }, (_, i) => ({
-        texts: [`Test sentence ${i + 1}`],
-      }));
-
-    case 'image-classification':
-      return Array.from({ length: count }, (_, i) => ({
-        image: Buffer.alloc(224 * 224 * 3), // Mock image data
-        label: i,
-      }));
-
-    case 'sentiment-analysis':
-      return Array.from({ length: count }, (_, i) => ({
-        text: `Sample text for sentiment analysis ${i + 1}`,
-      }));
-
-    default:
-      return Array.from({ length: count }, (_, i) => ({
-        input: `test-${i + 1}`,
-      }));
-  }
-}
+// Re-export generateTestData from shared factory
+export { generateTestData } from '../../src/core/utils/testDataFactory.js';
 
 /**
  * Assert that latency metrics are valid
@@ -294,4 +267,61 @@ export async function waitForCondition(
   }
 
   throw new Error('Condition not met within timeout');
+}
+
+/**
+ * Assert benchmark result structure and optional values
+ */
+export function assertBenchmarkResult(result, expected = {}) {
+  assert.ok(result.comparisonId, 'Missing comparisonId');
+  assert.ok(result.timestamp, 'Missing timestamp');
+  assert.ok(result.completedAt, 'Missing completedAt');
+  assert.ok(Array.isArray(result.modelIds), 'modelIds should be array');
+  assert.ok(result.results, 'Missing results');
+
+  if (expected.taskType) {
+    assert.strictEqual(result.taskType, expected.taskType, 'taskType mismatch');
+  }
+
+  if (expected.equivalenceGroup) {
+    assert.strictEqual(result.equivalenceGroup, expected.equivalenceGroup, 'equivalenceGroup mismatch');
+  }
+
+  if (expected.modelCount !== undefined) {
+    assert.strictEqual(result.modelIds.length, expected.modelCount, 'model count mismatch');
+  }
+
+  if (!expected.allowNoWinner) {
+    assert.ok(result.winner, 'Missing winner');
+    assert.ok(result.winner.modelId, 'Winner missing modelId');
+    assert.ok(result.winner.framework, 'Winner missing framework');
+    assert.ok(typeof result.winner.avgLatency === 'number', 'Winner missing avgLatency');
+  }
+}
+
+/**
+ * Assert model metrics structure
+ */
+export function assertModelMetrics(metrics) {
+  assert.ok(typeof metrics.avgLatency === 'number', 'Missing avgLatency');
+  assert.ok(typeof metrics.p50Latency === 'number', 'Missing p50Latency');
+  assert.ok(typeof metrics.p95Latency === 'number', 'Missing p95Latency');
+  assert.ok(typeof metrics.p99Latency === 'number', 'Missing p99Latency');
+  assert.ok(typeof metrics.minLatency === 'number', 'Missing minLatency');
+  assert.ok(typeof metrics.maxLatency === 'number', 'Missing maxLatency');
+  assert.ok(typeof metrics.errorRate === 'number', 'Missing errorRate');
+  assert.ok(typeof metrics.successCount === 'number', 'Missing successCount');
+  assert.ok(typeof metrics.errorCount === 'number', 'Missing errorCount');
+}
+
+/**
+ * Assert API error response
+ */
+export function assertErrorResponse(response, expectedStatus = 400, expectedMessage = null) {
+  assert.strictEqual(response.status, expectedStatus, `Expected status ${expectedStatus}`);
+  assert.ok(response.error, 'Missing error field');
+
+  if (expectedMessage) {
+    assert.match(response.error, expectedMessage, 'Error message mismatch');
+  }
 }

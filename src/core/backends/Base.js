@@ -61,4 +61,36 @@ export class BaseBackend {
     }
     this.models.clear();
   }
+
+  /**
+   * Validate that model is loaded
+   * @param {string} modelKey - Model key
+   * @throws {Error} If model not loaded
+   * @returns {*} The loaded model
+   */
+  _validateLoaded(modelKey) {
+    if (!this.isLoaded(modelKey)) {
+      throw new Error(`Model ${modelKey} not loaded in ${this.name} backend`);
+    }
+    return this.models.get(modelKey);
+  }
+
+  /**
+   * Safe error wrapper for abstract methods
+   * @param {string} method - Method name
+   */
+  _notImplemented(method) {
+    throw new Error(`${method} must be implemented by ${this.name} backend`);
+  }
+
+  /**
+   * Log backend operation
+   * @param {string} operation - Operation name
+   * @param {string} modelKey - Model key
+   */
+  _log(operation, modelKey) {
+    if (process.env.DEBUG === 'true') {
+      console.log(`[${this.name}] ${operation}: ${modelKey}`);
+    }
+  }
 }

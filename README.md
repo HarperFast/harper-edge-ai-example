@@ -137,46 +137,21 @@ npm run test:integration  # Integration tests (requires Harper running)
 npm run test:all          # All tests including TensorFlow.js model test
 ```
 
-### Benchmarking (New)
+### Cross-Backend Model Comparison
 
-Compare performance of equivalent models across ONNX, TensorFlow, and Ollama backends:
+Benchmark equivalent models across ONNX, TensorFlow, and Ollama backends:
 
 ```bash
-# Upload equivalent models with matching metadata
-curl -X POST http://localhost:9926/Model \
-  -H "Content-Type: application/json" \
-  -d '{
-    "id": "use-onnx:v1",
-    "modelId": "use-onnx",
-    "version": "v1",
-    "framework": "onnx",
-    "stage": "production",
-    "metadata": "{\"taskType\":\"text-embedding\",\"equivalenceGroup\":\"universal-sentence-encoder\",\"outputDimensions\":[512]}"
-  }'
-
-# Run benchmark comparison
-curl -X POST http://localhost:9926/benchmark/compare \
-  -H "Content-Type: application/json" \
-  -d '{
-    "taskType": "text-embedding",
-    "equivalenceGroup": "universal-sentence-encoder",
-    "testData": [
-      {"texts": ["Hello world"]},
-      {"texts": ["Machine learning"]}
-    ],
-    "iterations": 100
-  }'
-
-# Use winning model for personalization
-curl -X POST "http://localhost:9926/personalize?modelId=use-onnx&version=v1" \
-  -H "Content-Type": application/json" \
-  -d '{"products": [...], "userContext": {...}}'
-
-# Query benchmark history
-curl "http://localhost:9926/benchmark/history?taskType=text-embedding"
+# Quick start
+npm run preload-models
+npm run benchmark
 ```
 
-See [BENCHMARKING.md](docs/BENCHMARKING.md) for complete benchmarking guide and [MODEL_METADATA.md](docs/MODEL_METADATA.md) for metadata conventions.
+**See [docs/BENCHMARKING.md](docs/BENCHMARKING.md) for complete documentation including:**
+- Detailed API reference
+- Model metadata conventions
+- Usage examples and best practices
+- Integration patterns
 
 ### API Documentation
 

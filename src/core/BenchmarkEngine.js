@@ -72,36 +72,23 @@ export class BenchmarkEngine {
    */
   validateModelsForComparison(models) {
     if (!models || models.length < 2) {
+      throw new Error('At least 2 models are required for comparison');
+    }
+
+    // Extract and validate dimensions for all models
+    const dimensions = models.map(m => {
+      const meta = m.parsedMetadata || this._parseMetadata(m, true);
+      if (!meta.outputDimensions) {
+        throw new Error(`Model ${m.id} is missing outputDimensions in metadata`);
+      }
+      return JSON.stringify(meta.outputDimensions);
+    });
+
+    // Verify all dimensions match
+    if (new Set(dimensions).size > 1) {
       throw new Error(
-        'At least 2 models are required for comparison'
+        `Output dimensions do not match: ${dimensions.join(' vs ')}`
       );
-    }
-
-    // Parse metadata and extract outputDimensions
-    const dimensionsArray = [];
-
-    for (const model of models) {
-      const metadata =
-        model.parsedMetadata || this._parseMetadata(model, true);
-
-      if (!metadata.outputDimensions) {
-        throw new Error(
-          `Model ${model.id} is missing outputDimensions in metadata`
-        );
-      }
-
-      dimensionsArray.push(metadata.outputDimensions);
-    }
-
-    // Verify all dimensions match (deep equality)
-    const firstDimensions = JSON.stringify(dimensionsArray[0]);
-
-    for (let i = 1; i < dimensionsArray.length; i++) {
-      if (JSON.stringify(dimensionsArray[i]) !== firstDimensions) {
-        throw new Error(
-          `Output dimensions do not match. Model ${models[0].id} has ${firstDimensions} but model ${models[i].id} has ${JSON.stringify(dimensionsArray[i])}`
-        );
-      }
     }
   }
 
