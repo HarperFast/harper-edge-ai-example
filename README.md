@@ -386,3 +386,24 @@ Each product receives a `personalizedScore` between 0 and 1, where higher scores
 | `npm start`      | Run Harper in production mode  |
 | `npm run verify` | Check Node.js environment      |
 | `npm run clean`  | Remove node_modules            |
+
+## Future Enhancements
+
+### Transformers.js Backend
+Consider adding a [Transformers.js](https://huggingface.co/docs/transformers.js) backend for client-side and edge inference:
+
+**Benefits:**
+- Run transformers models directly in Node.js or browsers without Python
+- WASM-based execution for cross-platform compatibility
+- Native support for popular models from Hugging Face Hub
+- Automatic model caching and quantization
+- Smaller footprint than ONNX Runtime for certain models
+
+**Use Cases:**
+- Text embeddings (sentence-transformers, all-MiniLM-L6-v2)
+- Text classification
+- Named entity recognition
+- Question answering
+- Zero-shot classification
+
+Would complement existing ONNX and TensorFlow.js backends for a complete edge AI solution.
