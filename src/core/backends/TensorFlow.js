@@ -5,8 +5,31 @@ import { parseModelBlob } from '../utils/modelConfig.js';
 import { BaseBackend } from './Base.js';
 
 /**
- * TensorFlow Backend - Load and run TensorFlow.js models
- * Supports Universal Sentence Encoder and other TensorFlow.js models
+ * TensorFlow.js Backend - Load and run TensorFlow.js models in Node.js
+ *
+ * Supports:
+ * - Universal Sentence Encoder for text embeddings
+ * - Custom TensorFlow.js models (SavedModel format)
+ * - Automatic GPU/CPU backend selection
+ *
+ * Model Loading:
+ * - Loads from TensorFlow Hub URLs or local paths
+ * - Caches models in memory for reuse
+ * - Supports model metadata configuration
+ *
+ * Output Format:
+ * - embeddings: Array of embedding arrays (supports batching)
+ * - embedding: First embedding for convenience
+ *
+ * @extends BaseBackend
+ * @see {@link https://www.tensorflow.org/js} - TensorFlow.js documentation
+ * @see {@link https://tfhub.dev/google/universal-sentence-encoder/4} - USE model
+ *
+ * @example
+ * const backend = new TensorFlowBackend();
+ * await backend.loadModel('use:v1', 'universal-sentence-encoder');
+ * const result = await backend.predict('use:v1', {texts: ['hello']});
+ * // result.embedding = [0.1, 0.2, ...]
  */
 export class TensorFlowBackend extends BaseBackend {
 	constructor() {
@@ -56,7 +79,7 @@ export class TensorFlowBackend extends BaseBackend {
 			};
 		} catch (error) {
 			console.error('Failed to load TensorFlow model:', error);
-			throw new Error(`TensorFlow model loading failed: ${error.message}`);
+			throw new Error(`TensorFlow.js model loading failed: ${error.message}`);
 		}
 	}
 
@@ -80,13 +103,26 @@ export class TensorFlowBackend extends BaseBackend {
 			}
 		} catch (error) {
 			console.error('TensorFlow inference failed:', error);
-			throw new Error(`TensorFlow inference failed: ${error.message}`);
+			throw new Error(`TensorFlow.js inference failed: ${error.message}`);
 		}
 	}
 
 	/**
 	 * Generate embeddings using Universal Sentence Encoder
+	 *
+	 * Converts input text to 512-dimensional embeddings. Handles both single
+	 * text and array inputs. Automatically manages TensorFlow tensor lifecycle.
+	 *
 	 * @private
+	 * @async
+	 * @param {Object} model - Loaded USE model
+	 * @param {Object} inputs - Input data
+	 * @param {string[]|string} [inputs.texts] - Text array or single text
+	 * @param {string} [inputs.text] - Single text (alternative)
+	 * @returns {Promise<Object>} Embedding result
+	 * @returns {Array<Array<number>>} return.embeddings - Array of embedding vectors
+	 * @returns {Array<number>} return.embedding - First embedding vector
+	 * @throws {Error} If no text input provided
 	 */
 	async _embedTexts(model, inputs) {
 		// Support both single text and array of texts
@@ -107,8 +143,8 @@ export class TensorFlowBackend extends BaseBackend {
 		embeddings.dispose();
 
 		return {
-			embeddings: embeddingData,
-			shape: embeddings.shape,
+			embeddings: embeddingData, // Array of arrays for batch support
+			embedding: embeddingData[0], // Single embedding for consistency with other backends
 		};
 	}
 

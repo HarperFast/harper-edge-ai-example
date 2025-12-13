@@ -387,10 +387,54 @@ Each product receives a `personalizedScore` between 0 and 1, where higher scores
 | `npm run verify` | Check Node.js environment      |
 | `npm run clean`  | Remove node_modules            |
 
+## Documentation
+
+### Core Documentation
+- [Model Metadata Convention](docs/MODEL_METADATA.md) - Model metadata schema and conventions
+- [Benchmarking Guide](docs/BENCHMARKING.md) - Performance comparison and analysis
+- [Scripts Documentation](scripts/README.md) - Utility scripts reference
+- [Contributing Guidelines](CONTRIBUTING.md) - How to contribute to the project
+
+### API Documentation
+All core classes have comprehensive JSDoc documentation:
+- `InferenceEngine` - Framework-agnostic model orchestration with LRU caching
+- `BenchmarkEngine` - Performance comparison across backends with detailed metrics
+- `BaseBackend` - Abstract base class for implementing custom ML backends
+- Backend implementations: `OnnxBackend`, `TensorFlowBackend`, `TransformersBackend`, `OllamaBackend`
+
+View inline documentation in your IDE or generate API docs with JSDoc.
+
+## Project Structure
+
+```
+harper-edge-ai-example/
+├── src/
+│   ├── core/
+│   │   ├── backends/          # ML framework backends
+│   │   │   ├── Base.js       # Abstract base class
+│   │   │   ├── Onnx.js       # ONNX Runtime backend
+│   │   │   ├── TensorFlow.js # TensorFlow.js backend
+│   │   │   ├── Transformers.js # Transformers.js backend (Hugging Face)
+│   │   │   └── Ollama.js     # Ollama local LLM backend
+│   │   ├── InferenceEngine.js # Model orchestration and caching
+│   │   ├── BenchmarkEngine.js # Cross-backend performance comparison
+│   │   └── utils/            # Utility functions
+│   ├── resources.js          # Harper REST API endpoints
+│   └── PersonalizationEngine.js # Product personalization logic
+├── tests/
+│   ├── unit/                 # Unit tests
+│   ├── integration/          # Integration tests
+│   └── verify-tensorflow-output.js # Format verification script
+├── docs/                     # Documentation files
+├── scripts/                  # Utility scripts (preload, benchmark, etc.)
+├── examples/                 # Usage examples
+└── models/                   # Model files and test models
+```
+
 ## Future Enhancements
 
-### Transformers.js Backend
-Consider adding a [Transformers.js](https://huggingface.co/docs/transformers.js) backend for client-side and edge inference:
+### Additional Backends
+Consider adding more ML framework backends for complete edge AI coverage:
 
 **Benefits:**
 - Run transformers models directly in Node.js or browsers without Python

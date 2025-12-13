@@ -2,7 +2,49 @@ import { parseModelBlob } from '../utils/modelConfig.js';
 import { BaseBackend } from './Base.js';
 
 /**
- * Ollama Backend - Load and run local LLM models via Ollama HTTP API
+ * Ollama Backend - Local LLM inference via Ollama HTTP API
+ *
+ * Features:
+ * - Chat completion with local LLMs
+ * - Text embeddings generation
+ * - No external API calls or costs
+ * - Support for Llama 2, Mistral, CodeLlama, and more
+ *
+ * Modes:
+ * - embeddings: Generate dense vector representations
+ * - chat: Conversational text generation
+ *
+ * Configuration:
+ * - OLLAMA_HOST environment variable (default: http://localhost:11434)
+ * - OLLAMA_DEFAULT_MODEL environment variable (default: llama2)
+ *
+ * Prerequisites:
+ * - Ollama must be installed and running
+ * - Models must be pulled: `ollama pull llama2`
+ *
+ * @extends BaseBackend
+ * @see {@link https://ollama.ai/} - Ollama documentation
+ * @see {@link https://ollama.ai/library} - Available models
+ *
+ * @example
+ * // Embeddings mode
+ * const backend = new OllamaBackend();
+ * await backend.loadModel('embed:v1', {
+ *   modelName: 'nomic-embed-text',
+ *   mode: 'embeddings'
+ * });
+ * const result = await backend.predict('embed:v1', {text: 'hello'});
+ *
+ * @example
+ * // Chat mode
+ * await backend.loadModel('chat:v1', {
+ *   modelName: 'llama2',
+ *   mode: 'chat'
+ * });
+ * const result = await backend.predict('chat:v1', {
+ *   messages: [{role: 'user', content: 'Hello!'}]
+ * });
+ * console.log(result.response);
  */
 export class OllamaBackend extends BaseBackend {
 	constructor(baseUrl = process.env.OLLAMA_HOST || 'http://localhost:11434') {
