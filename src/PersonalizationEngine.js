@@ -1,16 +1,31 @@
 /**
- * Simplified PersonalizationEngine - Universal Sentence Encoder only
- * Single-tenant, single-model implementation for Harper Edge AI
+ * PersonalizationEngine - Product personalization using embeddings
+ *
+ * Uses InferenceEngine for backend-agnostic predictions
+ * - Supports ONNX, TensorFlow, and Ollama models
+ * - Enable model selection at runtime
+ *
+ * Example:
+ *   const engine = new PersonalizationEngine({
+ *     inferenceEngine: inferenceEngineInstance,
+ *     modelId: 'universal-sentence-encoder',
+ *     version: 'v1'
+ *   });
  */
 
-import '../models/polyfill.js'; // Load polyfill first to fix Node.js 18+ compatibility
-import '@tensorflow/tfjs-node'; // Import backend first
-import * as use from '@tensorflow-models/universal-sentence-encoder';
-
 export class PersonalizationEngine {
-	constructor(options = {}) {
-		this.options = options;
-		this.model = null;
+	constructor(options) {
+		if (!options?.inferenceEngine) {
+			throw new Error(
+				'PersonalizationEngine requires inferenceEngine. ' +
+					'Usage: new PersonalizationEngine({ inferenceEngine, modelId, version })'
+			);
+		}
+
+		this.inferenceEngine = options.inferenceEngine;
+		this.modelId = options.modelId || 'universal-sentence-encoder';
+		this.version = options.version || 'v1';
+
 		this.initialized = false;
 		this.stats = {
 			inferences: 0,
@@ -20,12 +35,12 @@ export class PersonalizationEngine {
 	}
 
 	async initialize() {
-		console.log('Initializing PersonalizationEngine with Universal Sentence Encoder...');
+		console.log('Initializing PersonalizationEngine...');
 
 		try {
-			this.model = await use.load();
+			// No model loading needed, InferenceEngine handles it
+			console.log(`PersonalizationEngine ready (model: ${this.modelId}:${this.version})`);
 			this.initialized = true;
-			console.log('Universal Sentence Encoder loaded successfully');
 			return true;
 		} catch (error) {
 			console.error('Failed to initialize PersonalizationEngine:', error);
@@ -37,21 +52,19 @@ export class PersonalizationEngine {
 	 * Calculate similarity between product descriptions and user preferences
 	 */
 	async calculateSimilarity(texts) {
-		if (!this.model || texts.length < 2) {
+		if (!this.initialized || texts.length < 2) {
 			return [];
 		}
 
 		const startTime = Date.now();
 
 		try {
-			const embeddings = await this.model.embed(texts);
-			const embeddingData = await embeddings.array();
+			// Use InferenceEngine for predictions
+			const embeddingData = await this.inferenceEngine.predict(this.modelId, this.version, { texts });
 
 			// Calculate cosine similarity between first text (query) and others
 			const queryEmbedding = embeddingData[0];
 			const similarities = embeddingData.slice(1).map((embedding) => this.cosineSimilarity(queryEmbedding, embedding));
-
-			embeddings.dispose();
 
 			this.recordMetrics(Date.now() - startTime, true);
 
@@ -81,7 +94,7 @@ export class PersonalizationEngine {
 			const userQuery = this.buildUserQuery(userContext);
 
 			// Get product descriptions
-			const productTexts = products.map((p) => `${p.name || ''} ${p.description || ''} ${p.category || ''}`);
+			const productTexts = products.map((p) => `${p.name || ''} ${p.description || ''} ${p.category || ''}`.trim());
 
 			// Calculate similarities
 			const texts = [userQuery, ...productTexts];
@@ -130,7 +143,7 @@ export class PersonalizationEngine {
 
 	// Public API
 	isReady() {
-		return this.initialized && this.model !== null;
+		return this.initialized;
 	}
 
 	getStats() {
@@ -140,7 +153,7 @@ export class PersonalizationEngine {
 	getLoadedModels() {
 		return [
 			{
-				name: 'universal-sentence-encoder',
+				name: `${this.modelId}:${this.version}`,
 				loaded: this.initialized,
 				status: this.isReady() ? 'ready' : 'not loaded',
 			},

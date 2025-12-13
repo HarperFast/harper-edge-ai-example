@@ -1,0 +1,15 @@
+[
+  {
+    "name": "all-MiniLM-L6-v2",
+    "filename": "all-MiniLM-L6-v2.onnx",
+    "taskType": "text-embedding",
+    "equivalenceGroup": "sentence-encoder",
+    "outputDimensions": [
+      384
+    ],
+    "description": "Sentence transformer model for semantic similarity",
+    "framework": "onnx",
+    "inputFormat": "tokenized text (input_ids, attention_mask)",
+    "useCase": "Text embeddings for semantic search and similarity"
+  }
+]

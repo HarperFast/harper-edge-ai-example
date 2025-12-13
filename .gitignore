@@ -56,6 +56,17 @@ coverage/
 # nyc test coverage
 .nyc_output/
 
+# Model files - Large binary files should not be committed
+# Use Git LFS or download separately if needed
+models/test/*.onnx
+models/test/*.bin
+models/test/*.pb
+models/test/*.safetensors
+models/**/*.onnx
+models/**/*.bin
+models/**/*.pb
+models/**/*.safetensors
+
 # TensorFlow.js model cache
 models/cached/
 *.tflite
@@ -65,5 +76,13 @@ models/cached/
 tmp/
 temp/
 
+# Debug and test scripts (root level only)
+/debug-*.js
+/test-*.js
+/quick-*.js
+
 # AI
 .claude/
+
+# Git worktrees
+.worktrees/

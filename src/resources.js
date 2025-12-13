@@ -4,46 +4,88 @@
 
 import { PersonalizationEngine } from './PersonalizationEngine.js';
 import { v4 as uuidv4 } from 'uuid';
+import {
+	InferenceEngine,
+	MonitoringBackend,
+	BenchmarkEngine
+} from './core/index.js';
 
 // Initialize personalization engine (shared across requests)
-let personalizationEngine = null;
+const personalizationEngineCache = new Map();
 
-async function getPersonalizationEngine() {
-	if (!personalizationEngine) {
-		personalizationEngine = new PersonalizationEngine();
-		await personalizationEngine.initialize();
+async function getPersonalizationEngine(modelId, version) {
+	const cacheKey = `${modelId}:${version}`;
+
+	if (!personalizationEngineCache.has(cacheKey)) {
+		const engine = new PersonalizationEngine({
+			inferenceEngine,
+			modelId,
+			version
+		});
+		await engine.initialize();
+		personalizationEngineCache.set(cacheKey, engine);
 	}
-	return personalizationEngine;
+
+	return personalizationEngineCache.get(cacheKey);
+}
+
+// Shared instances
+let monitoringBackend;
+let inferenceEngine;
+let benchmarkEngine;
+
+async function ensureInitialized() {
+	if (!inferenceEngine) {
+		inferenceEngine = new InferenceEngine();
+		await inferenceEngine.initialize();
+	}
+	if (!monitoringBackend) {
+		monitoringBackend = new MonitoringBackend();
+		await monitoringBackend.initialize();
+	}
+	if (!benchmarkEngine) {
+		benchmarkEngine = new BenchmarkEngine(inferenceEngine);
+	}
 }
 
 /**
  * Main resource for product personalization
+ * Supports model selection via query parameters: ?modelId=...&version=...
  */
 export class Personalize extends Resource {
-	/**
-	 * Personalize product recommendations using Universal Sentence Encoder
-	 */
-	async post(data) {
+	async post(data, request) {
 		const requestId = uuidv4();
 		const startTime = Date.now();
 
 		try {
+			// Parse query parameters for model selection
+			const url = new URL(request.url);
+			const modelId = url.searchParams.get('modelId');
+			const version = url.searchParams.get('version');
+
+			if (!modelId || !version) {
+				return {
+					error: 'modelId and version query parameters are required',
+					requestId
+				};
+			}
+
 			const { products, userContext } = data;
 
 			if (!products || !Array.isArray(products)) {
 				return {
 					error: 'Missing or invalid products array',
-					requestId,
+					requestId
 				};
 			}
 
-			// Get AI engine
-			const engine = await getPersonalizationEngine();
+			// Get AI engine with model selection
+			const engine = await getPersonalizationEngine(modelId, version);
 
 			if (!engine.isReady()) {
 				return {
 					error: 'AI engine not ready',
-					requestId,
+					requestId
 				};
 			}
 
@@ -57,14 +99,14 @@ export class Personalize extends Resource {
 				requestId,
 				products: sortedProducts,
 				personalized: true,
-				model: 'universal-sentence-encoder',
-				responseTime: Date.now() - startTime,
+				model: `${modelId}:${version}`,
+				responseTime: Date.now() - startTime
 			};
 		} catch (error) {
 			console.error('Personalization failed:', error);
 			return {
 				error: error.message,
-				requestId,
+				requestId
 			};
 		}
 	}
@@ -75,22 +117,229 @@ export class Personalize extends Resource {
  */
 export class Status extends Resource {
 	async get() {
+		return {
+			status: 'healthy',
+			uptime: process.uptime(),
+			memory: process.memoryUsage(),
+			components: {
+				inferenceEngine: 'ready',
+				monitoringBackend: 'ready',
+				benchmarkEngine: 'ready'
+			}
+		};
+	}
+}
+
+/**
+ * Predict resource - POST /predict
+ * Run inference with a loaded model
+ */
+export class Predict extends Resource {
+	async post(data) {
 		try {
-			const engine = await getPersonalizationEngine();
-			const models = engine.getLoadedModels();
-			const stats = engine.getStats();
+			await ensureInitialized();
+
+			const { modelId, version, features, userId, sessionId } = data;
+
+			// Validation
+			if (!modelId || !features) {
+				return {
+					error: 'modelId and features required'
+				};
+			}
+
+			// Fetch model from table
+			const id = `${modelId}:${version || 'v1'}`;
+
+			// Check if Model table is available
+			if (!tables.Model) {
+				return {
+					error: 'Model table not available. Check schema configuration.'
+				};
+			}
+
+			const model = await tables.Model.get(id);
+
+			if (!model) {
+				return {
+					error: `Model ${id} not found`
+				};
+			}
+
+			// Run inference
+			const result = await inferenceEngine.predict(modelId, features, version, model);
+
+			// Record to monitoring
+			const inferenceId = await monitoringBackend.recordInference({
+				modelId,
+				modelVersion: result.modelVersion,
+				framework: result.framework,
+				requestId: `req-${Date.now()}`,
+				userId: userId || null,
+				sessionId: sessionId || null,
+				featuresIn: JSON.stringify(features),
+				prediction: JSON.stringify(result.output),
+				confidence: result.confidence || null,
+				latencyMs: result.latencyMs
+			});
 
 			return {
-				status: engine.isReady() ? 'healthy' : 'initializing',
-				models,
-				stats,
-				uptime: process.uptime(),
-				memory: process.memoryUsage(),
+				inferenceId,
+				prediction: result.output,
+				confidence: result.confidence,
+				modelVersion: result.modelVersion,
+				latencyMs: result.latencyMs
 			};
 		} catch (error) {
+			console.error('Prediction failed:', error);
 			return {
-				status: 'unhealthy',
-				error: error.message,
+				error: error.message
+			};
+		}
+	}
+}
+
+/**
+ * Monitoring resource - GET /monitoring/metrics
+ * Compute aggregate metrics (use GET /InferenceEvent for raw events)
+ */
+export class Monitoring extends Resource {
+	async get(data, request) {
+		try {
+			await ensureInitialized();
+
+			if (!request || !request.url) {
+				return {
+					error: 'Invalid request'
+				};
+			}
+
+			const url = new URL(request.url);
+			const modelId = url.searchParams.get('modelId');
+
+			if (!modelId) {
+				return {
+					error: 'modelId parameter required'
+				};
+			}
+
+			// Time range
+			let startTime = url.searchParams.get('startTime');
+			let endTime = url.searchParams.get('endTime');
+
+			if (startTime) {
+				startTime = new Date(parseInt(startTime));
+			}
+			if (endTime) {
+				endTime = new Date(parseInt(endTime));
+			}
+
+			const metrics = await monitoringBackend.getMetrics(modelId, {
+				startTime,
+				endTime
+			});
+
+			return {
+				modelId,
+				...metrics
+			};
+		} catch (error) {
+			console.error('Get metrics failed:', error);
+			return {
+				error: error.message
+			};
+		}
+	}
+}
+
+/**
+ * Benchmark resource
+ * POST /benchmark/compare - Compare performance of equivalent models
+ * GET /benchmark/history - Get historical benchmark results
+ */
+export class Benchmark extends Resource {
+	async post(data) {
+		try {
+			await ensureInitialized();
+
+			const {
+				taskType,
+				equivalenceGroup,
+				testData,
+				iterations = 10,
+				runBy,
+				notes
+			} = data;
+
+			// Validation
+			if (!taskType || !equivalenceGroup) {
+				return {
+					error: 'taskType and equivalenceGroup are required'
+				};
+			}
+
+			if (!testData || !Array.isArray(testData) || testData.length === 0) {
+				return {
+					error: 'testData must be a non-empty array'
+				};
+			}
+
+			// Find equivalent models
+			const models = await benchmarkEngine.findEquivalentModels(
+				taskType,
+				equivalenceGroup
+			);
+
+			if (models.length < 2) {
+				return {
+					error: `Not enough models found. Found ${models.length} models with taskType="${taskType}" and equivalenceGroup="${equivalenceGroup}". At least 2 models are required.`
+				};
+			}
+
+			// Run benchmark
+			const result = await benchmarkEngine.compareBenchmark(
+				models,
+				testData,
+				{
+					iterations,
+					taskType,
+					equivalenceGroup,
+					runBy: runBy || 'api',
+					notes: notes || ''
+				}
+			);
+
+			return result;
+		} catch (error) {
+			console.error('Benchmark comparison failed:', error);
+			return {
+				error: error.message
+			};
+		}
+	}
+
+	async get(data, request) {
+		try {
+			await ensureInitialized();
+
+			const url = new URL(request.url);
+			const taskType = url.searchParams.get('taskType');
+			const equivalenceGroup = url.searchParams.get('equivalenceGroup');
+
+			const filters = {};
+			if (taskType) filters.taskType = taskType;
+			if (equivalenceGroup) filters.equivalenceGroup = equivalenceGroup;
+
+			const history = await benchmarkEngine.getHistoricalResults(filters);
+
+			return {
+				count: history.length,
+				results: history
+			};
+		} catch (error) {
+			console.error('Get benchmark history failed:', error);
+			return {
+				error: error.message
 			};
 		}
 	}

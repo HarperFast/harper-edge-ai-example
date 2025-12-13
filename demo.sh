@@ -1,10 +1,11 @@
 #!/bin/bash
 
-set -o pipefail 
+set -o pipefail
 
 # Colors for output
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
+YELLOW='\033[0;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
@@ -29,8 +30,8 @@ echo
 
 # Check if server is running
 echo "Checking server status..."
-if ! curl -s http://localhost:9925/health > /dev/null 2>&1; then
-  echo "❌ Server not running!"
+if ! curl -s http://localhost:9926/Status > /dev/null 2>&1; then
+  echo -e "${RED}❌ Server not running!${NC}"
   echo "Start it with: npm run dev"
   exit 1
 fi
@@ -43,75 +44,78 @@ echo "-------------------"
 curl -s http://localhost:9926/Status | jq
 echo
 
-# Personalize Products - Trail Running
-echo -e "${BLUE}2. Product Personalization (Trail Running):${NC}"
-echo "--------------------------------------------"
-curl -s -X POST http://localhost:9926/Personalize \
+# Check models loaded
+echo -e "${BLUE}2. Checking Loaded Models:${NC}"
+echo "---------------------------"
+MODEL_COUNT=$(curl -s "http://localhost:9926/Model/" | jq '. | length')
+if [ "$MODEL_COUNT" -eq 0 ]; then
+  echo -e "${YELLOW}⚠️  No models loaded. Run: npm run preload-models${NC}"
+  exit 1
+fi
+echo -e "${GREEN}✅ Found $MODEL_COUNT models${NC}"
+echo
+curl -s "http://localhost:9926/Model/?select(modelId,version,framework)" | jq
+echo
+
+# Predict - Text Embedding with ONNX
+echo -e "${BLUE}3. Text Embedding Prediction (ONNX):${NC}"
+echo "-------------------------------------"
+curl -s -X POST http://localhost:9926/Predict \
   -H "Content-Type: application/json" \
   -d '{
-    "products": [
-      {
-        "id": "trail-runner-pro",
-        "name": "Trail Runner Pro Shoes",
-        "description": "Lightweight running shoes for mountain trails",
-        "category": "footwear"
-      },
-      {
-        "id": "ultralight-backpack",
-        "name": "Ultralight Backpack 40L",
-        "description": "Minimalist pack for fast hiking",
-        "category": "packs"
-      },
-      {
-        "id": "rain-jacket",
-        "name": "Waterproof Rain Jacket",
-        "description": "Breathable shell for wet conditions",
-        "category": "outerwear"
-      }
-    ],
-    "userContext": {
-      "activityType": "trail-running",
-      "experienceLevel": "advanced",
-      "season": "spring"
-    }
+    "modelId": "all-MiniLM-L6-v2",
+    "version": "v1",
+    "features": {
+      "texts": ["lightweight running shoes for trail running"]
+    },
+    "userId": "demo-user",
+    "sessionId": "demo-session-1"
   }' | jq
 echo
 
-# Personalize Products - Winter Camping
-echo -e "${BLUE}3. Product Personalization (Winter Camping):${NC}"
-echo "---------------------------------------------"
-curl -s -X POST http://localhost:9926/Personalize \
+# Predict - Text Embedding with TensorFlow.js
+echo -e "${BLUE}4. Text Embedding Prediction (TensorFlow.js):${NC}"
+echo "-----------------------------------------------"
+curl -s -X POST http://localhost:9926/Predict \
   -H "Content-Type: application/json" \
   -d '{
-    "products": [
-      {
-        "id": "winter-tent",
-        "name": "4-Season Winter Tent",
-        "description": "Heavy-duty shelter for snow camping and extreme cold",
-        "category": "shelter"
-      },
-      {
-        "id": "sleeping-bag",
-        "name": "Down Sleeping Bag -20F",
-        "description": "Ultralight down insulation for winter conditions",
-        "category": "sleeping"
-      },
-      {
-        "id": "trail-runner-pro",
-        "name": "Trail Runner Pro Shoes",
-        "description": "Lightweight running shoes for mountain trails",
-        "category": "footwear"
-      }
-    ],
-    "userContext": {
-      "activityType": "winter-camping",
-      "experienceLevel": "beginner",
-      "season": "winter"
-    }
+    "modelId": "universal-sentence-encoder",
+    "version": "v1",
+    "features": {
+      "texts": ["waterproof hiking boots for winter camping"]
+    },
+    "userId": "demo-user",
+    "sessionId": "demo-session-2"
   }' | jq
+echo
+
+# Predict - Text Embedding with Ollama
+echo -e "${BLUE}5. Text Embedding Prediction (Ollama):${NC}"
+echo "---------------------------------------"
+curl -s -X POST http://localhost:9926/Predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "modelId": "nomic-embed-text",
+    "version": "v1",
+    "features": {
+      "texts": ["camping tent 4 person family weatherproof"]
+    },
+    "userId": "demo-user",
+    "sessionId": "demo-session-3"
+  }' | jq
+echo
+
+# Get metrics for a model
+echo -e "${BLUE}6. Model Inference Metrics:${NC}"
+echo "----------------------------"
+curl -s "http://localhost:9926/Monitoring?modelId=all-MiniLM-L6-v2" | jq
 echo
 
 echo -e "${GREEN}✅ Demo completed!${NC}"
 echo
-echo "Try your own requests:"
-echo "  curl -X POST http://localhost:9926/personalize -H 'Content-Type: application/json' -d '{...}'"
+echo -e "${YELLOW}Next steps:${NC}"
+echo "  • Run benchmarks: npm run benchmark:all"
+echo "  • View all models: curl http://localhost:9926/Model/ | jq"
+echo "  • View inference events: curl http://localhost:9926/InferenceEvent/ | jq"
+echo "  • Make predictions: curl -X POST http://localhost:9926/Predict -H 'Content-Type: application/json' -d '{...}'"
+echo
