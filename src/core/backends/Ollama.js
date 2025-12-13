@@ -13,19 +13,20 @@ export class OllamaBackend extends BaseBackend {
 	/**
 	 * Load Ollama model (stores model name and validates availability)
 	 * @param {string} modelKey - Cache key
-	 * @param {string|Buffer} modelBlob - Model name or configuration
+	 * @param {string|Buffer|Object} modelBlob - Model name or configuration
+	 * @param {Object} modelRecord - Model record from Harper (contains modelId, framework, etc.)
 	 * @returns {Object} Loaded model metadata
 	 */
-	async loadModel(modelKey, modelBlob) {
+	async loadModel(modelKey, modelBlob, modelRecord = null) {
 		try {
-			// Use shared parsing utility
+			// Use shared parsing utility - don't set default mode, let config determine it
 			const config = parseModelBlob(modelBlob, {
 				primaryKey: 'modelName',
-				mode: 'chat',
 			});
 
-			const modelName = config.modelName || config.model || process.env.OLLAMA_DEFAULT_MODEL || 'llama2';
-			const mode = config.mode || 'chat'; // 'chat' or 'embeddings'
+			// Use model name from config, or fall back to modelId from record, then env default
+			const modelName = config.modelName || config.model || modelRecord?.modelId || process.env.OLLAMA_DEFAULT_MODEL || 'llama2';
+			const mode = config.mode || 'embeddings'; // Default to embeddings for backward compatibility
 
 			// Validate model is available (optional - ping Ollama)
 			// For now, just store the config
@@ -129,10 +130,23 @@ export class OllamaBackend extends BaseBackend {
 	 * @private
 	 */
 	async _generateEmbeddings(modelName, inputs) {
-		const prompt = inputs.prompt || inputs.text || inputs.content;
+		// Handle different input formats
+		let prompt;
+
+		if (inputs.texts && Array.isArray(inputs.texts)) {
+			// Handle texts array format (common across backends)
+			// For now, process first text (Ollama doesn't support batch embeddings in single call)
+			prompt = inputs.texts[0];
+		} else if (inputs.prompt) {
+			prompt = inputs.prompt;
+		} else if (inputs.text) {
+			prompt = inputs.text;
+		} else if (inputs.content) {
+			prompt = inputs.content;
+		}
 
 		if (!prompt) {
-			throw new Error('Embeddings mode requires "prompt", "text", or "content" field');
+			throw new Error('Embeddings mode requires "texts" array, "prompt", "text", or "content" field');
 		}
 
 		const response = await fetch(`${this.baseUrl}/api/embeddings`, {
@@ -153,8 +167,9 @@ export class OllamaBackend extends BaseBackend {
 
 		const result = await response.json();
 
+		// Return in consistent format
 		return {
-			embeddings: result.embedding || result.embeddings || [],
+			embeddings: [result.embedding] || [], // Wrap in array for consistency with other backends
 			embedding: result.embedding,
 		};
 	}

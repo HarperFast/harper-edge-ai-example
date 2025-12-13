@@ -104,8 +104,8 @@ export class InferenceEngine {
 			}
 		}
 
-		// Load into backend
-		const loadResult = await backend.loadModel(cacheKey, modelData);
+		// Load into backend, pass model metadata for reference
+		const loadResult = await backend.loadModel(cacheKey, modelData, model);
 
 		// Store in cache
 		const metadata = {
