@@ -2,43 +2,48 @@
 	"type": "module",
 	"name": "harper-edge-ai-example",
 	"version": "1.0.0",
-	"description": "Minimal example demonstrating TensorFlow.js integration with Harper",
+	"description": "Harper Edge AI example with ONNX Runtime, TensorFlow.js, Transformers.js, and Ollama backends",
 	"main": "src/resources.js",
 	"scripts": {
 		"preinstall": "echo '\n📦 Installing dependencies (this may take 1-2 minutes)...\n'",
-		"postinstall": "echo '\n✅ Installation complete!\n\n📝 Next steps:\n   npm test          - Test the model\n   npm run dev       - Run with Harper\n'",
-		"test": "node --no-deprecation models/test-model.js",
+		"postinstall": "echo '\n✅ Installation complete!\n\n📝 Next steps:\n   npm run dev       - Start Harper server\n   npm run preload   - Load test models\n   npm run benchmark - Compare backends\n'",
+		"test": "node --test tests/unit/**/*.test.js",
 		"test:unit": "node --test tests/unit/**/*.test.js",
 		"test:integration": "node --test tests/integration/**/*.test.js",
-		"test:all": "npm run test && npm run test:unit && npm run test:integration",
+		"test:all": "npm run test:unit && npm run test:integration",
 		"dev": "harper dev .",
 		"start": "harper run .",
 		"clean": "rm -rf node_modules package-lock.json",
 		"verify": "node -e \"console.log('Node version:', process.version); console.log('✅ Environment OK')\"",
-		"pull-ollama-models": "node scripts/pull-ollama-models.js",
-		"preload-models": "node scripts/preload-models.js",
+		"preload": "node scripts/preload-models.js",
 		"benchmark": "node scripts/run-benchmark.js",
 		"benchmark:all": "node scripts/run-benchmark.js --all",
-		"generate-test-models": "node scripts/generate-test-models.js",
-		"benchmark-example": "node examples/benchmark-comparison.js"
+		"pull-ollama": "node scripts/pull-ollama-models.js",
+		"generate-test-models": "node scripts/generate-test-models.js"
 	},
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/HarperDB/harper-edge-ai-example.git"
 	},
 	"keywords": [
-		"tensorflow",
+		"harperdb",
 		"edge-ai",
 		"machine-learning",
-		"semantic-similarity",
-		"universal-sentence-encoder"
+		"mlops",
+		"onnx",
+		"tensorflow",
+		"transformers",
+		"ollama",
+		"embeddings",
+		"inference-engine"
 	],
 	"author": "HarperDB",
 	"license": "Apache-2.0",
 	"dependencies": {
 		"@tensorflow-models/universal-sentence-encoder": "^1.3.3",
 		"@tensorflow/tfjs-node": "^4.22.0",
-		"onnxruntime-node": "^1.20.0",
+		"@xenova/transformers": "^2.17.2",
+		"onnxruntime-node": "^1.20.1",
 		"uuid": "^11.0.3"
 	},
 	"engines": {

@@ -76,6 +76,11 @@ models/cached/
 tmp/
 temp/
 
+# Debug and test scripts (root level only)
+/debug-*.js
+/test-*.js
+/quick-*.js
+
 # AI
 .claude/
 

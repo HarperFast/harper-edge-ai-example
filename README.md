@@ -1,6 +1,6 @@
 # Harper Edge AI Example
 
-A demonstration project that implements product personalization using Harper and TensorFlow.js. This project uses the Universal Sentence Encoder to generate embeddings for product descriptions and user context, enabling semantic similarity-based recommendations.
+A unified MLOps platform for Harper demonstrating multi-backend ML inference with ONNX Runtime, TensorFlow.js, Transformers.js, and Ollama. Features automatic backend routing, model caching, performance benchmarking, and real-time inference monitoring.
 
 ## Quick Start
 
@@ -8,21 +8,26 @@ A demonstration project that implements product personalization using Harper and
 git clone https://github.com/HarperDB/harper-edge-ai-example.git
 cd harper-edge-ai-example
 npm install
-npm test
-npm run dev
+npm run dev              # Start Harper server
+npm run preload          # Load test models (optional)
+npm run benchmark        # Compare backends (optional)
 ```
 
-## ONNX Runtime Integration (New)
+## Multi-Backend ML Inference
 
-This project now supports TensorFlow.js, ONNX Runtime, and Ollama for model inference through a unified MLOps architecture.
+This project supports multiple ML backends through a unified InferenceEngine architecture:
 
 ### Features
 
-- **Unified InferenceEngine**: Automatically routes to correct backend (ONNX, TensorFlow, or Ollama) based on model framework
-- **Local LLM Support**: Run local language models via Ollama integration (llama2, mistral, codellama, etc.)
+- **ONNX Runtime**: Native ONNX model support with automatic tokenization
+- **TensorFlow.js**: Universal Sentence Encoder and TF.js models
+- **Transformers.js**: Hugging Face models via WASM (embeddings, classification, etc.)
+- **Ollama**: Local LLM inference (chat and embeddings modes)
+- **Unified InferenceEngine**: Automatic backend routing based on model framework
+- **LRU Caching**: Configurable model cache with automatic eviction
+- **Benchmarking**: Cross-backend performance comparison with detailed metrics
+- **Monitoring**: Track inference latency, confidence, and accuracy with feedback loop
 - **Harper Native CRUD**: Uses Harper's @export directive for automatic REST APIs
-- **Monitoring**: Track inference events, latency, confidence, and accuracy with feedback loop
-- **Minimal Code**: Reduced by 50% by leveraging Harper's built-in features
 
 ### Quick Start with ONNX
 
@@ -378,14 +383,22 @@ Each product receives a `personalizedScore` between 0 and 1, where higher scores
 
 ## Available Scripts
 
-| Command          | Description                    |
-| ---------------- | ------------------------------ |
-| `npm install`    | Install all dependencies       |
-| `npm test`       | Test the model standalone      |
-| `npm run dev`    | Run Harper in development mode |
-| `npm start`      | Run Harper in production mode  |
-| `npm run verify` | Check Node.js environment      |
-| `npm run clean`  | Remove node_modules            |
+| Command                     | Description                                 |
+| --------------------------- | ------------------------------------------- |
+| `npm install`               | Install all dependencies                    |
+| `npm test`                  | Run unit tests                              |
+| `npm run test:unit`         | Run unit tests only                         |
+| `npm run test:integration`  | Run integration tests only                  |
+| `npm run test:all`          | Run all tests                               |
+| `npm run dev`               | Run Harper in development mode              |
+| `npm start`                 | Run Harper in production mode               |
+| `npm run preload`           | Preload test models into Harper             |
+| `npm run benchmark`         | Compare equivalent models across backends   |
+| `npm run benchmark:all`     | Run comprehensive benchmark suite           |
+| `npm run pull-ollama`       | Pull Ollama models (requires Ollama)        |
+| `npm run generate-test-models` | Generate test ONNX models                |
+| `npm run verify`            | Check Node.js environment                   |
+| `npm run clean`             | Remove node_modules                         |
 
 ## Documentation
 
