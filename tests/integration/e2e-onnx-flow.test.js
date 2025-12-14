@@ -33,7 +33,7 @@ describe('End-to-End ONNX Flow', () => {
 
 		// Clean up inference events
 		const testEvents = [];
-		for await (const record of eventsTable.search({ modelId: 'test-e2e-onnx' })) {
+		for await (const record of eventsTable.search({ modelName: 'test-e2e-onnx' })) {
 			testEvents.push(record);
 		}
 		for (const event of testEvents) {
@@ -49,9 +49,8 @@ describe('End-to-End ONNX Flow', () => {
 		const modelKey = `test-e2e-onnx:v1`;
 
 		await modelsTable.put({
-			id: modelKey,
-			modelId: 'test-e2e-onnx',
-			version: 'v1',
+			modelName: 'test-e2e-onnx',
+			modelVersion: 'v1',
 			framework: 'onnx',
 			modelBlob,
 			inputSchema: JSON.stringify({ inputs: [{ name: 'data', shape: [1, 2] }] }),
@@ -64,8 +63,8 @@ describe('End-to-End ONNX Flow', () => {
 		// Verify model was stored using Harper native table.get()
 		const storedModel = await modelsTable.get(modelKey);
 		assert.ok(storedModel);
-		assert.strictEqual(storedModel.modelId, 'test-e2e-onnx');
-		assert.strictEqual(storedModel.version, 'v1');
+		assert.strictEqual(storedModel.modelName, 'test-e2e-onnx');
+		assert.strictEqual(storedModel.modelVersion, 'v1');
 
 		// 2. Run prediction
 		const input = new Float32Array([1.0, 2.0]);
@@ -77,7 +76,7 @@ describe('End-to-End ONNX Flow', () => {
 
 		// 3. Record inference using recordInference (which uses table.put internally)
 		inferenceId = await monitoring.recordInference({
-			modelId: 'test-e2e-onnx',
+			modelName: 'test-e2e-onnx',
 			modelVersion: 'v1',
 			framework: 'onnx',
 			requestId: 'test-req-1',
@@ -93,7 +92,7 @@ describe('End-to-End ONNX Flow', () => {
 
 		// 4. Query inference events using Harper native table.search()
 		const events = [];
-		for await (const record of eventsTable.search({ modelId: 'test-e2e-onnx' })) {
+		for await (const record of eventsTable.search({ modelName: 'test-e2e-onnx' })) {
 			events.push(record);
 		}
 
