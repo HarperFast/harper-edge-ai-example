@@ -5,8 +5,20 @@ import { v4 as uuidv4 } from 'uuid';
  * Users should use PUT /InferenceEvent/:id for feedback updates
  */
 export class MonitoringBackend {
+	/**
+	 * Create a new MonitoringBackend instance
+	 * @param {Object} [tablesParam] - Optional tables object (defaults to global tables)
+	 */
+	constructor(tablesParam = null) {
+		// Use provided tables or fall back to global tables (when running inside Harper)
+		this.tables = tablesParam || (typeof tables !== 'undefined' ? tables : null);
+		if (!this.tables) {
+			throw new Error('tables object is required (provide via constructor or global)');
+		}
+	}
+
 	async initialize() {
-		// No initialization needed - InferenceEvent is a global
+		// No initialization needed
 	}
 
 	/**
@@ -35,7 +47,7 @@ export class MonitoringBackend {
 			correct: null,
 		};
 
-		await tables.InferenceEvent.put(record);
+		await this.tables.InferenceEvent.put(record);
 
 		return inferenceId;
 	}
@@ -49,7 +61,7 @@ export class MonitoringBackend {
 	async getMetrics(modelName, options = {}) {
 		// Use Harper search directly
 		const results = [];
-		for await (const record of tables.InferenceEvent.search({ modelName })) {
+		for await (const record of this.tables.InferenceEvent.search({ modelName })) {
 			// Filter by time range if provided
 			if (options.startTime && record.timestamp < options.startTime.getTime()) {
 				continue;

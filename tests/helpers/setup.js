@@ -1,12 +1,16 @@
 import { InferenceEngine } from '../../src/core/InferenceEngine.js';
 import { MonitoringBackend } from '../../src/core/MonitoringBackend.js';
+import { createRestTables } from './rest-api.js';
+
+// Create REST API tables interface for tests running outside Harper process
+const tables = createRestTables();
 
 /**
  * Setup monitoring backend for tests
  * @returns {Promise<MonitoringBackend>} Initialized monitoring backend
  */
 export async function setupMonitoring() {
-	const monitoring = new MonitoringBackend();
+	const monitoring = new MonitoringBackend(tables);
 	await monitoring.initialize();
 	return monitoring;
 }

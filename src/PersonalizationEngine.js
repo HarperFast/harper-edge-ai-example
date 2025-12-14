@@ -8,8 +8,8 @@
  * Example:
  *   const engine = new PersonalizationEngine({
  *     inferenceEngine: inferenceEngineInstance,
- *     modelId: 'universal-sentence-encoder',
- *     version: 'v1'
+ *     modelName: 'universal-sentence-encoder',
+ *     modelVersion: 'v1'
  *   });
  */
 
@@ -18,13 +18,13 @@ export class PersonalizationEngine {
 		if (!options?.inferenceEngine) {
 			throw new Error(
 				'PersonalizationEngine requires inferenceEngine. ' +
-					'Usage: new PersonalizationEngine({ inferenceEngine, modelId, version })'
+					'Usage: new PersonalizationEngine({ inferenceEngine, modelName, modelVersion })'
 			);
 		}
 
 		this.inferenceEngine = options.inferenceEngine;
-		this.modelId = options.modelId || 'universal-sentence-encoder';
-		this.version = options.version || 'v1';
+		this.modelName = options.modelName || 'universal-sentence-encoder';
+		this.modelVersion = options.modelVersion || 'v1';
 
 		this.initialized = false;
 		this.stats = {
@@ -39,7 +39,7 @@ export class PersonalizationEngine {
 
 		try {
 			// No model loading needed, InferenceEngine handles it
-			console.log(`PersonalizationEngine ready (model: ${this.modelId}:${this.version})`);
+			console.log(`PersonalizationEngine ready (model: ${this.modelName}:${this.modelVersion})`);
 			this.initialized = true;
 			return true;
 		} catch (error) {
@@ -60,7 +60,7 @@ export class PersonalizationEngine {
 
 		try {
 			// Use InferenceEngine for predictions
-			const embeddingData = await this.inferenceEngine.predict(this.modelId, this.version, { texts });
+			const embeddingData = await this.inferenceEngine.predict(this.modelName, { texts }, this.modelVersion);
 
 			// Calculate cosine similarity between first text (query) and others
 			const queryEmbedding = embeddingData[0];
@@ -153,9 +153,10 @@ export class PersonalizationEngine {
 	getLoadedModels() {
 		return [
 			{
-				name: `${this.modelId}:${this.version}`,
+				name: `${this.modelName}:${this.modelVersion}`,
 				loaded: this.initialized,
 				status: this.isReady() ? 'ready' : 'not loaded',
+				mode: 'inference-engine',
 			},
 		];
 	}

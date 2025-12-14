@@ -4,6 +4,40 @@ import { OllamaBackend } from './backends/Ollama.js';
 import { TransformersBackend } from './backends/Transformers.js';
 
 /**
+ * Singleton backend instances shared across all InferenceEngine instances.
+ * This prevents ONNX Runtime environment conflicts when multiple engines are created.
+ */
+const SHARED_BACKENDS = {
+	onnx: null,
+	tensorflow: null,
+	transformers: null,
+	ollama: null,
+};
+
+/**
+ * Initialize shared backends (singleton pattern)
+ */
+function getOrCreateBackend(framework) {
+	if (!SHARED_BACKENDS[framework]) {
+		switch (framework) {
+			case 'onnx':
+				SHARED_BACKENDS.onnx = new OnnxBackend();
+				break;
+			case 'tensorflow':
+				SHARED_BACKENDS.tensorflow = new TensorFlowBackend();
+				break;
+			case 'transformers':
+				SHARED_BACKENDS.transformers = new TransformersBackend();
+				break;
+			case 'ollama':
+				SHARED_BACKENDS.ollama = new OllamaBackend();
+				break;
+		}
+	}
+	return SHARED_BACKENDS[framework];
+}
+
+/**
  * InferenceEngine - Framework-agnostic model loading and inference orchestration
  *
  * Automatically routes model operations to the appropriate backend (ONNX, TensorFlow.js,
@@ -49,7 +83,8 @@ export class InferenceEngine {
 	/**
 	 * Initialize all available backends
 	 *
-	 * Registers ONNX, TensorFlow.js, Transformers.js, and Ollama backends.
+	 * Uses shared singleton backend instances to prevent ONNX Runtime conflicts.
+	 * Multiple InferenceEngine instances share the same backend instances.
 	 * Must be called before any model operations.
 	 *
 	 * @async
@@ -58,11 +93,11 @@ export class InferenceEngine {
 	 * await engine.initialize();
 	 */
 	async initialize() {
-		// Initialize backends
-		this.backends.set('onnx', new OnnxBackend());
-		this.backends.set('tensorflow', new TensorFlowBackend());
-		this.backends.set('transformers', new TransformersBackend());
-		this.backends.set('ollama', new OllamaBackend());
+		// Use shared singleton backends to prevent ONNX Runtime environment conflicts
+		this.backends.set('onnx', getOrCreateBackend('onnx'));
+		this.backends.set('tensorflow', getOrCreateBackend('tensorflow'));
+		this.backends.set('transformers', getOrCreateBackend('transformers'));
+		this.backends.set('ollama', getOrCreateBackend('ollama'));
 	}
 
 	/**
@@ -296,12 +331,14 @@ export class InferenceEngine {
 	}
 
 	/**
-	 * Cleanup all loaded models and backends
+	 * Cleanup all loaded models
+	 *
+	 * NOTE: Does NOT cleanup shared backend instances since they're singletons.
+	 * This prevents ONNX Runtime environment conflicts when multiple InferenceEngine
+	 * instances are created and destroyed (e.g., in tests).
 	 */
 	async cleanup() {
-		for (const backend of this.backends.values()) {
-			await backend.cleanup();
-		}
+		// Only clear local cache - backends are shared singletons
 		this.cache.clear();
 	}
 }

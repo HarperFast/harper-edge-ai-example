@@ -43,12 +43,18 @@ export class BenchmarkEngine {
 	/**
 	 * Create a new BenchmarkEngine instance
 	 * @param {InferenceEngine} inferenceEngine - Inference engine for running predictions
+	 * @param {Object} [tablesParam] - Optional tables object (defaults to global tables)
 	 */
-	constructor(inferenceEngine) {
+	constructor(inferenceEngine, tablesParam = null) {
 		if (!inferenceEngine) {
 			throw new Error('Inference engine is required');
 		}
 		this.inferenceEngine = inferenceEngine;
+		// Use provided tables or fall back to global tables (when running inside Harper)
+		this.tables = tablesParam || (typeof tables !== 'undefined' ? tables : null);
+		if (!this.tables) {
+			throw new Error('tables object is required (provide via constructor or global)');
+		}
 	}
 
 	/**
@@ -79,7 +85,7 @@ export class BenchmarkEngine {
 		const matchingModels = [];
 
 		// Search all models and filter by metadata
-		for await (const model of tables.Model.search()) {
+		for await (const model of this.tables.Model.search()) {
 			const metadata = this._parseMetadata(model, false);
 
 			if (metadata?.taskType === taskType && metadata.equivalenceGroup === equivalenceGroup) {
@@ -149,13 +155,22 @@ export class BenchmarkEngine {
 			return sortedValues[0];
 		}
 
-		const index = (percentile / 100) * (sortedValues.length - 1);
+		// Use linear interpolation: position = (percentile/100) * n - 0.5
+		const index = (percentile / 100) * sortedValues.length - 0.5;
 		const lower = Math.floor(index);
 		const upper = Math.ceil(index);
 		const weight = index - lower;
 
 		if (lower === upper) {
 			return sortedValues[lower];
+		}
+
+		// Handle edge cases where index goes beyond array bounds
+		if (lower < 0) {
+			return sortedValues[0];
+		}
+		if (upper >= sortedValues.length) {
+			return sortedValues[sortedValues.length - 1];
 		}
 
 		return sortedValues[lower] * (1 - weight) + sortedValues[upper] * weight;
@@ -340,7 +355,7 @@ export class BenchmarkEngine {
 			completedAt,
 		};
 
-		await tables.BenchmarkResult.put(benchmarkResult);
+		await this.tables.BenchmarkResult.put(benchmarkResult);
 
 		// Return formatted result
 		return {
@@ -365,7 +380,7 @@ export class BenchmarkEngine {
 	async getHistoricalResults(filters = {}) {
 		const historical = [];
 
-		for await (const result of tables.BenchmarkResult.search()) {
+		for await (const result of this.tables.BenchmarkResult.search()) {
 			// Apply filters
 			if (filters.taskType && result.taskType !== filters.taskType) {
 				continue;

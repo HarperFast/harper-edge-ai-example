@@ -21,8 +21,8 @@ describe('Model Management Integration Tests', () => {
 		// Check model structure
 		const model = models[0];
 		assert.ok(model.id, 'Model should have id');
-		assert.ok(model.modelId, 'Model should have modelId');
-		assert.ok(model.version, 'Model should have version');
+		assert.ok(model.modelName, 'Model should have modelName');
+		assert.ok(model.modelVersion, 'Model should have modelVersion');
 		assert.ok(model.framework, 'Model should have framework');
 		assert.ok(model.modelBlob, 'Model should have modelBlob');
 		assert.ok(model.metadata, 'Model should have metadata');
@@ -33,8 +33,8 @@ describe('Model Management Integration Tests', () => {
 		assert.ok(response.ok, 'Should fetch model successfully');
 
 		const model = await response.json();
-		assert.strictEqual(model.modelId, 'all-MiniLM-L6-v2');
-		assert.strictEqual(model.version, 'v1');
+		assert.strictEqual(model.modelName, 'all-MiniLM-L6-v2');
+		assert.strictEqual(model.modelVersion, 'v1');
 		assert.strictEqual(model.framework, 'onnx');
 	});
 

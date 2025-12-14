@@ -1,14 +1,18 @@
 import { describe, test, after } from 'node:test';
 import assert from 'node:assert';
+import { createRestTable } from '../helpers/rest-api.js';
 
-describe('Feature Table (Native Harper)', () => {
+// Create REST API interface for Feature table
+const Feature = createRestTable('Feature');
+
+describe('Feature Table (REST API)', () => {
 	const testEntities = ['user_123', 'user_456', 'test_entity'];
 
 	after(async () => {
 		// Cleanup all test features
 		for (const entityId of testEntities) {
-			for await (const feature of tables.Feature.search({ entityId })) {
-				await tables.Feature.delete(feature.id);
+			for await (const feature of Feature.search({ entityId })) {
+				await Feature.delete(feature.id);
 			}
 		}
 	});
@@ -17,19 +21,19 @@ describe('Feature Table (Native Harper)', () => {
 		const timestamp = Date.now();
 
 		// Write features
-		await tables.Feature.put({
+		await Feature.put({
 			entityId: 'user_123',
 			featureName: 'age',
 			featureValue: JSON.stringify(25),
 			timestamp,
 		});
-		await tables.Feature.put({
+		await Feature.put({
 			entityId: 'user_123',
 			featureName: 'city',
 			featureValue: JSON.stringify('SF'),
 			timestamp,
 		});
-		await tables.Feature.put({
+		await Feature.put({
 			entityId: 'user_123',
 			featureName: 'active',
 			featureValue: JSON.stringify(true),
@@ -37,9 +41,9 @@ describe('Feature Table (Native Harper)', () => {
 		});
 
 		// Read features back
-		const age = await tables.Feature.get('user_123:age');
-		const city = await tables.Feature.get('user_123:city');
-		const active = await tables.Feature.get('user_123:active');
+		const age = await Feature.get('user_123:age');
+		const city = await Feature.get('user_123:city');
+		const active = await Feature.get('user_123:active');
 
 		assert.strictEqual(JSON.parse(age.featureValue), 25);
 		assert.strictEqual(JSON.parse(city.featureValue), 'SF');
@@ -50,13 +54,13 @@ describe('Feature Table (Native Harper)', () => {
 		const timestamp = Date.now();
 
 		// Write multiple features
-		await tables.Feature.put({
+		await Feature.put({
 			entityId: 'user_456',
 			featureName: 'age',
 			featureValue: JSON.stringify(30),
 			timestamp,
 		});
-		await tables.Feature.put({
+		await Feature.put({
 			entityId: 'user_456',
 			featureName: 'city',
 			featureValue: JSON.stringify('NYC'),
@@ -65,7 +69,7 @@ describe('Feature Table (Native Harper)', () => {
 
 		// Query all features for entity
 		const features = {};
-		for await (const record of tables.Feature.search({ entityId: 'user_456' })) {
+		for await (const record of Feature.search({ entityId: 'user_456' })) {
 			features[record.featureName] = JSON.parse(record.featureValue);
 		}
 
@@ -75,7 +79,7 @@ describe('Feature Table (Native Harper)', () => {
 	});
 
 	test('should return undefined for non-existent feature', async () => {
-		const feature = await tables.Feature.get('non_existent:age');
+		const feature = await Feature.get('non_existent:age');
 		assert.strictEqual(feature, undefined);
 	});
 
@@ -87,35 +91,35 @@ describe('Feature Table (Native Harper)', () => {
 			scores: [95, 87, 92],
 		};
 
-		await tables.Feature.put({
+		await Feature.put({
 			entityId: 'test_entity',
 			featureName: 'userProfile',
 			featureValue: JSON.stringify(complexValue),
 			timestamp,
 		});
 
-		const retrieved = await tables.Feature.get('test_entity:userProfile');
+		const retrieved = await Feature.get('test_entity:userProfile');
 		assert.deepStrictEqual(JSON.parse(retrieved.featureValue), complexValue);
 	});
 
 	test('should track timestamps for features', async () => {
 		const timestamp = Date.now();
 
-		await tables.Feature.put({
+		await Feature.put({
 			entityId: 'test_entity',
 			featureName: 'score',
 			featureValue: JSON.stringify(95),
 			timestamp,
 		});
 
-		const feature = await tables.Feature.get('test_entity:score');
+		const feature = await Feature.get('test_entity:score');
 		assert.strictEqual(feature.timestamp, timestamp);
 	});
 
 	test('should delete features', async () => {
 		const timestamp = Date.now();
 
-		await tables.Feature.put({
+		await Feature.put({
 			entityId: 'test_entity',
 			featureName: 'temp',
 			featureValue: JSON.stringify('test'),
@@ -123,21 +127,21 @@ describe('Feature Table (Native Harper)', () => {
 		});
 
 		// Verify exists
-		let feature = await tables.Feature.get('test_entity:temp');
+		let feature = await Feature.get('test_entity:temp');
 		assert.ok(feature);
 
 		// Delete
-		await tables.Feature.delete('test_entity:temp');
+		await Feature.delete('test_entity:temp');
 
 		// Verify deleted
-		feature = await tables.Feature.get('test_entity:temp');
+		feature = await Feature.get('test_entity:temp');
 		assert.strictEqual(feature, undefined);
 	});
 
 	test('should overwrite features with same key', async () => {
 		const timestamp1 = Date.now();
 
-		await tables.Feature.put({
+		await Feature.put({
 			entityId: 'test_entity',
 			featureName: 'version',
 			featureValue: JSON.stringify(1),
@@ -146,14 +150,14 @@ describe('Feature Table (Native Harper)', () => {
 
 		const timestamp2 = timestamp1 + 1000;
 
-		await tables.Feature.put({
+		await Feature.put({
 			entityId: 'test_entity',
 			featureName: 'version',
 			featureValue: JSON.stringify(2),
 			timestamp: timestamp2,
 		});
 
-		const feature = await tables.Feature.get('test_entity:version');
+		const feature = await Feature.get('test_entity:version');
 		assert.strictEqual(JSON.parse(feature.featureValue), 2);
 		assert.strictEqual(feature.timestamp, timestamp2);
 	});

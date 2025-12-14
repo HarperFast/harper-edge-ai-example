@@ -10,7 +10,7 @@ describe('PersonalizationEngine', () => {
 		beforeEach(() => {
 			// Create mock inference engine
 			mockInferenceEngine = {
-				predict: async (modelId, version, input) => {
+				predict: async (modelName, input, modelVersion) => {
 					// Mock embedding output (512-dimensional)
 					const numTexts = input.texts?.length || 1;
 					return Array.from({ length: numTexts }, () => Array(512).fill(0.1));
@@ -22,8 +22,8 @@ describe('PersonalizationEngine', () => {
 		it('should create instance with new constructor pattern', () => {
 			personalizationEngine = new PersonalizationEngine({
 				inferenceEngine: mockInferenceEngine,
-				modelId: 'universal-sentence-encoder',
-				version: 'v1',
+				modelName: 'universal-sentence-encoder',
+				modelVersion: 'v1',
 			});
 
 			assert.ok(personalizationEngine instanceof PersonalizationEngine);
@@ -32,28 +32,28 @@ describe('PersonalizationEngine', () => {
 		it('should use InferenceEngine for predictions', async () => {
 			personalizationEngine = new PersonalizationEngine({
 				inferenceEngine: mockInferenceEngine,
-				modelId: 'test-model',
-				version: 'v1',
+				modelName: 'test-model',
+				modelVersion: 'v1',
 			});
 
 			await personalizationEngine.initialize();
 
 			let predictCalled = false;
-			let capturedModelId = null;
-			let capturedVersion = null;
+			let capturedModelName = null;
+			let capturedModelVersion = null;
 
-			mockInferenceEngine.predict = async (modelId, version, input) => {
+			mockInferenceEngine.predict = async (modelName, input, modelVersion) => {
 				predictCalled = true;
-				capturedModelId = modelId;
-				capturedVersion = version;
+				capturedModelName = modelName;
+				capturedModelVersion = modelVersion;
 				return [Array(512).fill(0.1), Array(512).fill(0.2)];
 			};
 
 			const similarities = await personalizationEngine.calculateSimilarity(['query text', 'target text']);
 
 			assert.ok(predictCalled, 'predict should have been called');
-			assert.equal(capturedModelId, 'test-model');
-			assert.equal(capturedVersion, 'v1');
+			assert.equal(capturedModelName, 'test-model');
+			assert.equal(capturedModelVersion, 'v1');
 			assert.ok(Array.isArray(similarities));
 		});
 
@@ -61,38 +61,38 @@ describe('PersonalizationEngine', () => {
 			// Test with different model
 			personalizationEngine = new PersonalizationEngine({
 				inferenceEngine: mockInferenceEngine,
-				modelId: 'custom-embedding-model',
-				version: 'v2',
+				modelName: 'custom-embedding-model',
+				modelVersion: 'v2',
 			});
 
 			await personalizationEngine.initialize();
 
-			let capturedModelId = null;
-			let capturedVersion = null;
+			let capturedModelName = null;
+			let capturedModelVersion = null;
 
-			mockInferenceEngine.predict = async (modelId, version, input) => {
-				capturedModelId = modelId;
-				capturedVersion = version;
+			mockInferenceEngine.predict = async (modelName, input, modelVersion) => {
+				capturedModelName = modelName;
+				capturedModelVersion = modelVersion;
 				return [Array(512).fill(0.1), Array(512).fill(0.2)];
 			};
 
 			await personalizationEngine.calculateSimilarity(['test', 'test2']);
 
-			assert.equal(capturedModelId, 'custom-embedding-model');
-			assert.equal(capturedVersion, 'v2');
+			assert.equal(capturedModelName, 'custom-embedding-model');
+			assert.equal(capturedModelVersion, 'v2');
 		});
 
 		it('should work with ONNX models via InferenceEngine', async () => {
 			// Mock ONNX model
-			mockInferenceEngine.predict = async (modelId, version, input) => {
+			mockInferenceEngine.predict = async (modelName, input, modelVersion) => {
 				// Simulate ONNX output format
 				return Array.from({ length: input.texts.length }, () => Array(512).fill(0.15));
 			};
 
 			personalizationEngine = new PersonalizationEngine({
 				inferenceEngine: mockInferenceEngine,
-				modelId: 'onnx-use-model',
-				version: 'v1',
+				modelName: 'onnx-use-model',
+				modelVersion: 'v1',
 			});
 
 			await personalizationEngine.initialize();
@@ -114,8 +114,8 @@ describe('PersonalizationEngine', () => {
 		it('should initialize without loading in new mode', async () => {
 			personalizationEngine = new PersonalizationEngine({
 				inferenceEngine: mockInferenceEngine,
-				modelId: 'test-model',
-				version: 'v1',
+				modelName: 'test-model',
+				modelVersion: 'v1',
 			});
 
 			const result = await personalizationEngine.initialize();
@@ -145,7 +145,7 @@ describe('PersonalizationEngine', () => {
 
 		beforeEach(() => {
 			mockInferenceEngine = {
-				predict: async (modelId, version, input) => {
+				predict: async (modelName, input, modelVersion) => {
 					// Return mock embeddings
 					const numTexts = input.texts?.length || 1;
 					// Return different embeddings to test similarity calculation
@@ -159,8 +159,8 @@ describe('PersonalizationEngine', () => {
 
 			personalizationEngine = new PersonalizationEngine({
 				inferenceEngine: mockInferenceEngine,
-				modelId: 'test-model',
-				version: 'v1',
+				modelName: 'test-model',
+				modelVersion: 'v1',
 			});
 		});
 
@@ -299,7 +299,7 @@ describe('PersonalizationEngine', () => {
 	describe('model flexibility', () => {
 		it('should support different output dimensions', async () => {
 			const mockInferenceEngine = {
-				predict: async (modelId, version, input) => {
+				predict: async (modelName, input, modelVersion) => {
 					// Return 768-dimensional embeddings (e.g., BERT)
 					const numTexts = input.texts?.length || 1;
 					return Array.from({ length: numTexts }, () => Array(768).fill(0.1));
@@ -309,8 +309,8 @@ describe('PersonalizationEngine', () => {
 
 			const personalizationEngine = new PersonalizationEngine({
 				inferenceEngine: mockInferenceEngine,
-				modelId: 'bert-base',
-				version: 'v1',
+				modelName: 'bert-base',
+				modelVersion: 'v1',
 			});
 
 			await personalizationEngine.initialize();
@@ -323,7 +323,7 @@ describe('PersonalizationEngine', () => {
 
 		it('should work with Ollama embeddings', async () => {
 			const mockInferenceEngine = {
-				predict: async (modelId, version, input) => {
+				predict: async (modelName, input, modelVersion) => {
 					// Simulate Ollama embedding format
 					return Array.from({ length: input.texts.length }, () => Array(4096).fill(0.1));
 				},
@@ -332,8 +332,8 @@ describe('PersonalizationEngine', () => {
 
 			const personalizationEngine = new PersonalizationEngine({
 				inferenceEngine: mockInferenceEngine,
-				modelId: 'ollama-embeddings',
-				version: 'latest',
+				modelName: 'ollama-embeddings',
+				modelVersion: 'latest',
 			});
 
 			await personalizationEngine.initialize();

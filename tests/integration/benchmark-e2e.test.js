@@ -60,12 +60,12 @@ describe('Benchmark E2E Workflow', () => {
 
 		// Create mock inference engine with different latencies per model
 		const mockInferenceEngine = {
-			predict: async (modelId, version, input) => {
+			predict: async (modelName, modelVersion, input) => {
 				// Simulate different latencies based on model
 				let latency;
-				if (modelId === 'test-model-0') {
+				if (modelName === 'test-model-0') {
 					latency = 5; // Fastest
-				} else if (modelId === 'test-model-1') {
+				} else if (modelName === 'test-model-1') {
 					latency = 15; // Medium
 				} else {
 					latency = 25; // Slowest
@@ -101,8 +101,8 @@ describe('Benchmark E2E Workflow', () => {
 
 		// Verify winner is the fastest model
 		assert.equal(
-			benchmarkResult.winner.modelId,
-			'test-model-0:v1',
+			benchmarkResult.winner.modelName,
+			'test-model-0',
 			'test-model-0 should be the winner (lowest latency)'
 		);
 
@@ -159,13 +159,13 @@ describe('Benchmark E2E Workflow', () => {
 		const { PersonalizationEngine } = await import('../../src/PersonalizationEngine.js');
 
 		// Create personalization engine with winner model
-		const winnerModelId = benchmarkResult.winner.modelId.split(':')[0];
-		const winnerVersion = benchmarkResult.winner.modelId.split(':')[1];
+		const winnerModelName = benchmarkResult.winner.modelName;
+		const winnerModelVersion = 'v1'; // From our test models
 
 		const personalizationEngine = new PersonalizationEngine({
 			inferenceEngine: mockInferenceEngine,
-			modelId: winnerModelId,
-			version: winnerVersion,
+			modelName: winnerModelName,
+			modelVersion: winnerModelVersion,
 		});
 
 		await personalizationEngine.initialize();
@@ -201,7 +201,7 @@ describe('Benchmark E2E Workflow', () => {
 		// STEP 7: Verify model info
 		const modelInfo = personalizationEngine.getLoadedModels();
 		assert.equal(modelInfo.length, 1);
-		assert.equal(modelInfo[0].name, `${winnerModelId}:${winnerVersion}`);
+		assert.equal(modelInfo[0].name, `${winnerModelName}:${winnerModelVersion}`);
 		assert.equal(modelInfo[0].mode, 'inference-engine');
 	});
 
@@ -217,12 +217,12 @@ describe('Benchmark E2E Workflow', () => {
 
 		// Create mock engine where model-1 always fails
 		const mockInferenceEngine = {
-			predict: async (modelId, version, input) => {
-				if (modelId === 'test-model-1') {
+			predict: async (modelName, modelVersion, input) => {
+				if (modelName === 'test-model-1') {
 					throw new Error('Model failed');
 				}
 
-				await new Promise((resolve) => setTimeout(resolve, modelId === 'test-model-0' ? 10 : 20));
+				await new Promise((resolve) => setTimeout(resolve, modelName === 'test-model-0' ? 10 : 20));
 				return [Array(512).fill(0.1)];
 			},
 			initialize: async () => {},
@@ -245,10 +245,10 @@ describe('Benchmark E2E Workflow', () => {
 		assert.equal(result.results['test-model-1:v1'].successCount, 0);
 
 		// Verify winner is NOT model-1
-		assert.notEqual(result.winner.modelId, 'test-model-1:v1');
+		assert.notEqual(result.winner.modelName, 'test-model-1');
 
 		// Verify winner is model-0 (lowest latency among successful models)
-		assert.equal(result.winner.modelId, 'test-model-0:v1');
+		assert.equal(result.winner.modelName, 'test-model-0');
 	});
 
 	test('should support different output dimensions', async () => {
@@ -262,7 +262,7 @@ describe('Benchmark E2E Workflow', () => {
 		ctx.trackModel(...models.map((m) => m.id));
 
 		const mockInferenceEngine = {
-			predict: async (modelId, version, input) => {
+			predict: async (modelName, modelVersion, input) => {
 				await new Promise((resolve) => setTimeout(resolve, 10));
 				return [Array(768).fill(0.1)]; // 768-dimensional
 			},

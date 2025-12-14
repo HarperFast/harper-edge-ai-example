@@ -1,4 +1,8 @@
 import assert from 'node:assert';
+import { createRestTables } from './rest-api.js';
+
+// Create REST API tables interface for tests running outside Harper process
+const tables = createRestTables();
 
 /**
  * Create a mock model for testing benchmarks
@@ -20,11 +24,10 @@ export async function createMockModel({ modelName, modelVersion = 'v1', framewor
 		metadata: JSON.stringify(metadata),
 		inputSchema: JSON.stringify({ type: 'object' }),
 		outputSchema: JSON.stringify({ type: 'array' }),
-		uploadedAt: Date.now(),
 	};
 
-	await modelsTable.put(model);
-	return model;
+	const created = await modelsTable.put(model);
+	return created;
 }
 
 /**
@@ -50,6 +53,9 @@ export function createMockInferenceEngine({ latency = 10, shouldFail = false, ou
 		async initialize() {
 			// No-op for mock
 		},
+		async cleanup() {
+			// No-op for mock
+		},
 	};
 }
 
@@ -67,6 +73,9 @@ export function createLatencyMockEngine(latencyMap) {
 			return [Array(512).fill(0.1)];
 		},
 		async initialize() {
+			// No-op for mock
+		},
+		async cleanup() {
 			// No-op for mock
 		},
 	};
@@ -171,15 +180,20 @@ export function assertValidLatencyMetrics(metrics) {
 		}
 	}
 
-	// Verify order: min <= p50 <= avg <= p95 <= p99 <= max
+	// Verify order: min <= p50 <= p95 <= p99 <= max
+	// Note: avg position varies by distribution, so we don't check it in the order
 	if (
 		metrics.minLatency > metrics.p50Latency ||
-		metrics.p50Latency > metrics.avgLatency ||
-		metrics.avgLatency > metrics.p95Latency ||
+		metrics.p50Latency > metrics.p95Latency ||
 		metrics.p95Latency > metrics.p99Latency ||
 		metrics.p99Latency > metrics.maxLatency
 	) {
-		throw new Error('Latency metrics are not in correct order');
+		throw new Error(`Latency metrics are not in correct order: min=${metrics.minLatency}, p50=${metrics.p50Latency}, p95=${metrics.p95Latency}, p99=${metrics.p99Latency}, max=${metrics.maxLatency}`);
+	}
+
+	// Verify avg is within reasonable bounds
+	if (metrics.avgLatency < metrics.minLatency || metrics.avgLatency > metrics.maxLatency) {
+		throw new Error(`Average latency ${metrics.avgLatency} is outside min-max range [${metrics.minLatency}, ${metrics.maxLatency}]`);
 	}
 }
 

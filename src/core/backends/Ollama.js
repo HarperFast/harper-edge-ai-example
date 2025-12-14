@@ -68,7 +68,7 @@ export class OllamaBackend extends BaseBackend {
 
 			// Use model name from config, or fall back to modelId from record, then env default
 			const modelName = config.modelName || config.model || modelRecord?.modelId || process.env.OLLAMA_DEFAULT_MODEL || 'llama2';
-			const mode = config.mode || 'embeddings'; // Default to embeddings for backward compatibility
+			const mode = config.mode || 'chat'; // Default to chat mode
 
 			// Validate model is available (optional - ping Ollama)
 			// For now, just store the config
@@ -188,7 +188,7 @@ export class OllamaBackend extends BaseBackend {
 		}
 
 		if (!prompt) {
-			throw new Error('Embeddings mode requires "texts" array, "prompt", "text", or "content" field');
+			throw new Error('Embeddings mode requires "prompt", "text", or "content" field');
 		}
 
 		const response = await fetch(`${this.baseUrl}/api/embeddings`, {
@@ -211,7 +211,7 @@ export class OllamaBackend extends BaseBackend {
 
 		// Return in consistent format
 		return {
-			embeddings: [result.embedding] || [], // Wrap in array for consistency with other backends
+			embeddings: result.embedding || [], // Raw embedding array
 			embedding: result.embedding,
 		};
 	}

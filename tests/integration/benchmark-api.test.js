@@ -62,8 +62,8 @@ describe('Benchmark API Integration', () => {
 			// Note: We can't actually run predictions without real model files
 			// This test verifies the API structure and model finding logic
 			assert.equal(foundModels.length, 2);
-			assert.equal(foundModels[0].modelId, 'test-model-0');
-			assert.equal(foundModels[1].modelId, 'test-model-1');
+			assert.equal(foundModels[0].modelName, 'test-model-0');
+			assert.equal(foundModels[1].modelName, 'test-model-1');
 
 			await inferenceEngine.cleanup();
 		});
