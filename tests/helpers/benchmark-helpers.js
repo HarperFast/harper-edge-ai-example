@@ -3,20 +3,18 @@ import assert from 'node:assert';
 /**
  * Create a mock model for testing benchmarks
  * @param {Object} options - Model configuration
- * @param {string} options.modelId - Model identifier
- * @param {string} options.version - Model version
+ * @param {string} options.modelName - Model identifier
+ * @param {string} options.modelVersion - Model version
  * @param {string} options.framework - Backend framework (onnx, tensorflowjs, ollama)
  * @param {Object} options.metadata - Model metadata
  * @returns {Promise<Object>} Created model record
  */
-export async function createMockModel({ modelId, version = 'v1', framework = 'onnx', metadata = {} }) {
+export async function createMockModel({ modelName, modelVersion = 'v1', framework = 'onnx', metadata = {} }) {
 	const modelsTable = tables.get('Model');
-	const key = `${modelId}:${version}`;
 
 	const model = {
-		id: key,
-		modelId,
-		version,
+		modelName,
+		modelVersion,
 		framework,
 		stage: 'development',
 		metadata: JSON.stringify(metadata),
@@ -39,7 +37,7 @@ export async function createMockModel({ modelId, version = 'v1', framework = 'on
  */
 export function createMockInferenceEngine({ latency = 10, shouldFail = false, output = [Array(512).fill(0.1)] } = {}) {
 	return {
-		async predict(modelId, version, input) {
+		async predict(modelName, modelVersion, input) {
 			// Simulate latency
 			await new Promise((resolve) => setTimeout(resolve, latency));
 
@@ -58,13 +56,13 @@ export function createMockInferenceEngine({ latency = 10, shouldFail = false, ou
 /**
  * Create mock inference engine with specific latency per model
  * Useful for testing latency-based comparisons
- * @param {Object} latencyMap - Map of modelId to latency in ms
+ * @param {Object} latencyMap - Map of modelName to latency in ms
  * @returns {Object} Mock inference engine
  */
 export function createLatencyMockEngine(latencyMap) {
 	return {
-		async predict(modelId, version, input) {
-			const latency = latencyMap[modelId] || 10;
+		async predict(modelName, modelVersion, input) {
+			const latency = latencyMap[modelName] || 10;
 			await new Promise((resolve) => setTimeout(resolve, latency));
 			return [Array(512).fill(0.1)];
 		},
@@ -94,8 +92,8 @@ export async function createMockBenchmarkModels({
 
 	for (let i = 0; i < count; i++) {
 		const model = await createMockModel({
-			modelId: `test-model-${i}`,
-			version: 'v1',
+			modelName: `test-model-${i}`,
+			modelVersion: 'v1',
 			framework: frameworks[i % frameworks.length],
 			metadata: {
 				taskType,
@@ -258,7 +256,7 @@ export function assertBenchmarkResult(result, expected = {}) {
 
 	if (!expected.allowNoWinner) {
 		assert.ok(result.winner, 'Missing winner');
-		assert.ok(result.winner.modelId, 'Winner missing modelId');
+		assert.ok(result.winner.modelName, 'Winner missing modelName');
 		assert.ok(result.winner.framework, 'Winner missing framework');
 		assert.ok(typeof result.winner.avgLatency === 'number', 'Winner missing avgLatency');
 	}

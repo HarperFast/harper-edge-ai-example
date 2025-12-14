@@ -13,13 +13,13 @@ export async function setupMonitoring() {
 
 /**
  * Cleanup inference events from tests
- * @param {string} modelId - Model ID to filter events by
+ * @param {string} modelName - Model name to filter events by
  */
-export async function cleanupInferenceEvents(modelId) {
+export async function cleanupInferenceEvents(modelName) {
 	const eventsTable = tables.get('InferenceEvent');
 	const testEvents = [];
 
-	for await (const record of eventsTable.search({ modelId })) {
+	for await (const record of eventsTable.search({ modelName })) {
 		testEvents.push(record);
 	}
 
