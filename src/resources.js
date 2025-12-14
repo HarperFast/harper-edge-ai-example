@@ -50,7 +50,7 @@ async function ensureInitialized() {
 
 /**
  * Main resource for product personalization
- * Supports model selection via query parameters: ?modelId=...&version=... (or modelName/modelVersion)
+ * Supports model selection via query parameters: ?modelName=...&modelVersion=...
  */
 export class Personalize extends Resource {
 	async post(data, request) {
@@ -60,8 +60,8 @@ export class Personalize extends Resource {
 		try {
 			// Parse query parameters for model selection
 			const url = new URL(request.url);
-			const modelName = url.searchParams.get('modelName') || url.searchParams.get('modelId');
-			const modelVersion = url.searchParams.get('modelVersion') || url.searchParams.get('version');
+			const modelName = url.searchParams.get('modelName');
+			const modelVersion = url.searchParams.get('modelVersion');
 
 			if (!modelName || !modelVersion) {
 				return {
@@ -139,10 +139,7 @@ export class Predict extends Resource {
 		try {
 			await ensureInitialized();
 
-			// Support both old (modelId/version) and new (modelName/modelVersion) parameter names
-			const modelName = data.modelName || data.modelId;
-			const modelVersion = data.modelVersion || data.version || 'v1';
-			const { features, userId, sessionId } = data;
+			const { modelName, modelVersion = 'v1', features, userId, sessionId } = data;
 
 			// Validation
 			if (!modelName || !features) {
@@ -218,7 +215,7 @@ export class Monitoring extends Resource {
 			}
 
 			const url = new URL(request.url);
-			const modelName = url.searchParams.get('modelName') || url.searchParams.get('modelId');
+			const modelName = url.searchParams.get('modelName');
 
 			if (!modelName) {
 				return {
