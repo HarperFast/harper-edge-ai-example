@@ -36,7 +36,7 @@ import { v4 as uuidv4 } from 'uuid';
  *   equivalenceGroup: 'embeddings-384'
  * });
  *
- * console.log(`Winner: ${result.winner.modelId}`);
+ * console.log(`Winner: ${result.winner.modelName}`);
  * console.log(`Latency: ${result.winner.avgLatency}ms`);
  */
 export class BenchmarkEngine {
@@ -185,8 +185,8 @@ export class BenchmarkEngine {
 	 * @async
 	 * @param {Array<Object>} models - Array of model records to compare (minimum 2)
 	 * @param {string} models[].id - Database record ID
-	 * @param {string} models[].modelId - Model identifier
-	 * @param {string} models[].version - Model version
+	 * @param {string} models[].modelName - Model identifier
+	 * @param {string} models[].modelVersion - Model version
 	 * @param {string} models[].framework - Backend framework
 	 * @param {Object} models[].parsedMetadata - Parsed metadata object
 	 * @param {string} models[].parsedMetadata.taskType - Task type
@@ -205,7 +205,7 @@ export class BenchmarkEngine {
 	 * @returns {string} return.equivalenceGroup - Equivalence group benchmarked
 	 * @returns {string[]} return.modelIds - Array of model IDs compared
 	 * @returns {Object|null} return.winner - Winning model (null if all failed)
-	 * @returns {string} return.winner.modelId - Winner's model ID
+	 * @returns {string} return.winner.modelName - Winner's model name
 	 * @returns {string} return.winner.framework - Winner's framework
 	 * @returns {number} return.winner.avgLatency - Winner's average latency
 	 * @returns {Object} return.results - Per-model metrics (keyed by model ID)
@@ -270,7 +270,7 @@ export class BenchmarkEngine {
 
 				try {
 					const startTime = Date.now();
-					await this.inferenceEngine.predict(model.modelId, sample, model.version, model);
+					await this.inferenceEngine.predict(model.modelName, sample, model.modelVersion, model);
 					const endTime = Date.now();
 
 					const latency = endTime - startTime;
@@ -313,7 +313,7 @@ export class BenchmarkEngine {
 				lowestLatency = metrics.avgLatency;
 				const model = models.find((m) => m.id === modelId);
 				winner = {
-					modelId: model.id,
+					modelName: model.modelName,
 					framework: model.framework,
 					avgLatency: metrics.avgLatency,
 				};

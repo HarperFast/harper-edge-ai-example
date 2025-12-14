@@ -20,7 +20,7 @@ export class MonitoringBackend {
 		const record = {
 			id: inferenceId,
 			timestamp: Date.now(),
-			modelId: event.modelId,
+			modelName: event.modelName,
 			modelVersion: event.modelVersion,
 			framework: event.framework,
 			requestId: event.requestId || inferenceId,
@@ -42,14 +42,14 @@ export class MonitoringBackend {
 
 	/**
 	 * Get aggregate metrics for a model
-	 * @param {string} modelId - The model identifier
+	 * @param {string} modelName - The model identifier
 	 * @param {Object} [options] - Optional time range
 	 * @returns {Object} Aggregate metrics
 	 */
-	async getMetrics(modelId, options = {}) {
+	async getMetrics(modelName, options = {}) {
 		// Use Harper search directly
 		const results = [];
-		for await (const record of tables.InferenceEvent.search({ modelId })) {
+		for await (const record of tables.InferenceEvent.search({ modelName })) {
 			// Filter by time range if provided
 			if (options.startTime && record.timestamp < options.startTime.getTime()) {
 				continue;
