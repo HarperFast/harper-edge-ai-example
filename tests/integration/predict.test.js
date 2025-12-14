@@ -19,7 +19,7 @@ describe('Predict API Integration Tests', () => {
 
 		const result = await response.json();
 		assert.ok(result.error, 'Should return error');
-		assert.match(result.error, /modelId.*features.*required/i);
+		assert.match(result.error, /modelName.*features.*required/i);
 	});
 
 	it('should return error for non-existent model', async () => {
@@ -27,8 +27,8 @@ describe('Predict API Integration Tests', () => {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				modelId: 'nonexistent-model',
-				version: 'v1',
+				modelName: 'nonexistent-model',
+				modelVersion: 'v1',
 				features: { texts: ['test'] },
 			}),
 		});
@@ -43,8 +43,8 @@ describe('Predict API Integration Tests', () => {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				modelId: 'all-MiniLM-L6-v2',
-				version: 'v1',
+				modelName: 'all-MiniLM-L6-v2',
+				modelVersion: 'v1',
 				features: { texts: ['test sentence'] },
 			}),
 		});
@@ -67,8 +67,8 @@ describe('Predict API Integration Tests', () => {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				modelId: 'universal-sentence-encoder',
-				version: 'v1',
+				modelName: 'universal-sentence-encoder',
+				modelVersion: 'v1',
 				features: { texts: ['test sentence'] },
 			}),
 		});
@@ -89,8 +89,8 @@ describe('Predict API Integration Tests', () => {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				modelId: 'nomic-embed-text',
-				version: 'v1',
+				modelName: 'nomic-embed-text',
+				modelVersion: 'v1',
 				features: { texts: ['test sentence'] },
 			}),
 		});

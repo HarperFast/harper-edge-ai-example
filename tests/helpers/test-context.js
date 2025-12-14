@@ -1,6 +1,7 @@
 import { BenchmarkEngine } from '../../src/core/BenchmarkEngine.js';
 import { InferenceEngine } from '../../src/core/InferenceEngine.js';
 import { cleanupBenchmarkResults, cleanupTestModels } from './benchmark-helpers.js';
+import { createRestTables } from './rest-api.js';
 
 export function createBenchmarkTestContext(options = {}) {
 	const context = {
@@ -10,11 +11,14 @@ export function createBenchmarkTestContext(options = {}) {
 		inferenceEngine: null,
 	};
 
+	// Create REST API tables for tests running outside Harper
+	const tables = createRestTables();
+
 	return {
 		async setup() {
 			context.inferenceEngine = options.inferenceEngine || new InferenceEngine();
 			await context.inferenceEngine.initialize();
-			context.engine = new BenchmarkEngine(context.inferenceEngine);
+			context.engine = new BenchmarkEngine(context.inferenceEngine, tables);
 		},
 
 		async teardown() {

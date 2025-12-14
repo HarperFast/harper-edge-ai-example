@@ -1,6 +1,7 @@
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert';
 import { setupMonitoring, cleanupInferenceEvents } from '../helpers/setup.js';
+import { createRestTable } from '../helpers/rest-api.js';
 
 describe('MonitoringBackend', () => {
 	let monitoring;
@@ -8,7 +9,7 @@ describe('MonitoringBackend', () => {
 
 	before(async () => {
 		monitoring = await setupMonitoring();
-		eventsTable = tables.get('InferenceEvent');
+		eventsTable = createRestTable('InferenceEvent');
 	});
 
 	after(async () => {
@@ -31,7 +32,7 @@ describe('MonitoringBackend', () => {
 			{
 				id: 'test-1',
 				timestamp: Date.now(),
-				modelId: 'test-metrics-model',
+				modelName: 'test-metrics-model',
 				modelVersion: 'v1',
 				framework: 'onnx',
 				requestId: 'req-1',
@@ -46,7 +47,7 @@ describe('MonitoringBackend', () => {
 			{
 				id: 'test-2',
 				timestamp: Date.now(),
-				modelId: 'test-metrics-model',
+				modelName: 'test-metrics-model',
 				modelVersion: 'v1',
 				framework: 'onnx',
 				requestId: 'req-2',
@@ -61,7 +62,7 @@ describe('MonitoringBackend', () => {
 			{
 				id: 'test-3',
 				timestamp: Date.now(),
-				modelId: 'test-metrics-model',
+				modelName: 'test-metrics-model',
 				modelVersion: 'v1',
 				framework: 'onnx',
 				requestId: 'req-3',
@@ -94,7 +95,7 @@ describe('MonitoringBackend', () => {
 			{
 				id: 'test-4',
 				timestamp: Date.now(),
-				modelId: 'test-metrics-model',
+				modelName: 'test-metrics-model',
 				modelVersion: 'v1',
 				framework: 'onnx',
 				requestId: 'req-4',
@@ -109,7 +110,7 @@ describe('MonitoringBackend', () => {
 			{
 				id: 'test-5',
 				timestamp: Date.now(),
-				modelId: 'test-metrics-model',
+				modelName: 'test-metrics-model',
 				modelVersion: 'v1',
 				framework: 'onnx',
 				requestId: 'req-5',
@@ -144,7 +145,7 @@ describe('MonitoringBackend', () => {
 		await eventsTable.put({
 			id: 'test-old',
 			timestamp: twoHoursAgo.getTime(),
-			modelId: 'test-metrics-model',
+			modelName: 'test-metrics-model',
 			modelVersion: 'v1',
 			framework: 'onnx',
 			requestId: 'req-old',

@@ -13,14 +13,14 @@ import {
 // Initialize personalization engine (shared across requests)
 const personalizationEngineCache = new Map();
 
-async function getPersonalizationEngine(modelId, version) {
-	const cacheKey = `${modelId}:${version}`;
+async function getPersonalizationEngine(modelName, modelVersion) {
+	const cacheKey = `${modelName}:${modelVersion}`;
 
 	if (!personalizationEngineCache.has(cacheKey)) {
 		const engine = new PersonalizationEngine({
 			inferenceEngine,
-			modelId,
-			version
+			modelName,
+			modelVersion
 		});
 		await engine.initialize();
 		personalizationEngineCache.set(cacheKey, engine);
@@ -50,7 +50,7 @@ async function ensureInitialized() {
 
 /**
  * Main resource for product personalization
- * Supports model selection via query parameters: ?modelId=...&version=...
+ * Supports model selection via query parameters: ?modelName=...&modelVersion=...
  */
 export class Personalize extends Resource {
 	async post(data, request) {
@@ -60,12 +60,12 @@ export class Personalize extends Resource {
 		try {
 			// Parse query parameters for model selection
 			const url = new URL(request.url);
-			const modelId = url.searchParams.get('modelId');
-			const version = url.searchParams.get('version');
+			const modelName = url.searchParams.get('modelName');
+			const modelVersion = url.searchParams.get('modelVersion');
 
-			if (!modelId || !version) {
+			if (!modelName || !modelVersion) {
 				return {
-					error: 'modelId and version query parameters are required',
+					error: 'modelName and modelVersion query parameters are required',
 					requestId
 				};
 			}
@@ -80,7 +80,7 @@ export class Personalize extends Resource {
 			}
 
 			// Get AI engine with model selection
-			const engine = await getPersonalizationEngine(modelId, version);
+			const engine = await getPersonalizationEngine(modelName, modelVersion);
 
 			if (!engine.isReady()) {
 				return {
@@ -99,7 +99,7 @@ export class Personalize extends Resource {
 				requestId,
 				products: sortedProducts,
 				personalized: true,
-				model: `${modelId}:${version}`,
+				model: `${modelName}:${modelVersion}`,
 				responseTime: Date.now() - startTime
 			};
 		} catch (error) {
@@ -139,17 +139,17 @@ export class Predict extends Resource {
 		try {
 			await ensureInitialized();
 
-			const { modelId, version, features, userId, sessionId } = data;
+			const { modelName, modelVersion = 'v1', features, userId, sessionId } = data;
 
 			// Validation
-			if (!modelId || !features) {
+			if (!modelName || !features) {
 				return {
-					error: 'modelId and features required'
+					error: 'modelName and features required'
 				};
 			}
 
 			// Fetch model from table
-			const id = `${modelId}:${version || 'v1'}`;
+			const id = `${modelName}:${modelVersion}`;
 
 			// Check if Model table is available
 			if (!tables.Model) {
@@ -167,11 +167,11 @@ export class Predict extends Resource {
 			}
 
 			// Run inference
-			const result = await inferenceEngine.predict(modelId, features, version, model);
+			const result = await inferenceEngine.predict(modelName, features, modelVersion, model);
 
 			// Record to monitoring
 			const inferenceId = await monitoringBackend.recordInference({
-				modelId,
+				modelName,
 				modelVersion: result.modelVersion,
 				framework: result.framework,
 				requestId: `req-${Date.now()}`,
@@ -215,11 +215,11 @@ export class Monitoring extends Resource {
 			}
 
 			const url = new URL(request.url);
-			const modelId = url.searchParams.get('modelId');
+			const modelName = url.searchParams.get('modelName');
 
-			if (!modelId) {
+			if (!modelName) {
 				return {
-					error: 'modelId parameter required'
+					error: 'modelName parameter required'
 				};
 			}
 
@@ -234,13 +234,13 @@ export class Monitoring extends Resource {
 				endTime = new Date(parseInt(endTime));
 			}
 
-			const metrics = await monitoringBackend.getMetrics(modelId, {
+			const metrics = await monitoringBackend.getMetrics(modelName, {
 				startTime,
 				endTime
 			});
 
 			return {
-				modelId,
+				modelName,
 				...metrics
 			};
 		} catch (error) {

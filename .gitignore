@@ -72,6 +72,9 @@ models/cached/
 *.tflite
 *.tfmodel
 
+# Test fixtures
+tests/fixtures/*.onnx
+
 # Temporary files
 tmp/
 temp/

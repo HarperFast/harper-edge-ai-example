@@ -288,16 +288,29 @@ export class OnnxBackend extends BaseBackend {
 	 * Unload model from cache
 	 */
 	async unload(modelKey) {
-		// ONNX Runtime sessions don't need explicit disposal in Node.js
+		// Note: We don't explicitly clear sessions to avoid ONNX Runtime environment errors
+		// Sessions will be garbage collected when the Maps are cleared or process exits
 		this.sessions.delete(modelKey);
 		this.tokenizers.delete(modelKey);
 	}
 
 	/**
 	 * Cleanup all loaded models
+	 *
+	 * IMPORTANT: We don't explicitly release ONNX sessions here because:
+	 * 1. Multiple OnnxBackend instances share the same global ONNX Runtime environment
+	 * 2. Explicit cleanup can cause "OrtEnv::Release() env_ptr == p_instance_.get() was false" errors
+	 * 3. ONNX Runtime will clean up automatically when the process exits
+	 *
+	 * This is safe because:
+	 * - For long-running processes, models are unloaded via unload() which removes from cache
+	 * - For tests/short-lived processes, OS will reclaim memory on exit
+	 * - ONNX sessions don't hold external resources that need explicit cleanup (like file handles)
 	 */
 	async cleanup() {
-		this.sessions.clear();
-		this.tokenizers.clear();
+		// Do not clear sessions - let process exit handle cleanup
+		// Clearing the Maps can trigger ONNX Runtime environment errors
+		// this.sessions.clear();
+		// this.tokenizers.clear();
 	}
 }

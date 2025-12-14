@@ -1,11 +1,11 @@
 # Database for Harper Edge AI Example with MLOps
 type Model @table @export {
-	# Composite key as single field: "${modelId}:${version}"
+	# Composite key: modelName:modelVersion (set by client)
 	id: ID @primaryKey
 
 	# Model metadata
-	modelId: String @indexed
-	version: String @indexed
+	modelName: String @indexed
+	modelVersion: String @indexed
 	framework: String @indexed # "onnx" | "tensorflowjs" | "ollama"
 	stage: String @indexed # "development" | "staging" | "production"
 	# Model binary data (use Blob for large ONNX/TF models)
@@ -24,7 +24,7 @@ type InferenceEvent @table @export {
 	# Primary key - UUID for each inference
 	id: ID @primaryKey # This will be the inferenceId
 	# Model information
-	modelId: String @indexed
+	modelName: String @indexed
 	modelVersion: String @indexed
 	framework: String @indexed
 
@@ -71,4 +71,20 @@ type BenchmarkResult @table @export {
 	# Timestamps
 	timestamp: Long @createdTime @indexed
 	completedAt: Long
+}
+
+type Feature @table @export {
+	# Composite key: entityId:featureName (set by client)
+	id: ID @primaryKey
+
+	# Indexed fields for flexible querying
+	# entityId can represent userId, sessionId, modelName, requestId, clientId, etc.
+	entityId: String @indexed
+	featureName: String @indexed
+
+	# Feature value (JSON stringified to support any type)
+	featureValue: String
+
+	# Explicit timestamp from caller
+	timestamp: Long
 }

@@ -1,25 +1,29 @@
 import { InferenceEngine } from '../../src/core/InferenceEngine.js';
 import { MonitoringBackend } from '../../src/core/MonitoringBackend.js';
+import { createRestTables } from './rest-api.js';
+
+// Create REST API tables interface for tests running outside Harper process
+const tables = createRestTables();
 
 /**
  * Setup monitoring backend for tests
  * @returns {Promise<MonitoringBackend>} Initialized monitoring backend
  */
 export async function setupMonitoring() {
-	const monitoring = new MonitoringBackend();
+	const monitoring = new MonitoringBackend(tables);
 	await monitoring.initialize();
 	return monitoring;
 }
 
 /**
  * Cleanup inference events from tests
- * @param {string} modelId - Model ID to filter events by
+ * @param {string} modelName - Model name to filter events by
  */
-export async function cleanupInferenceEvents(modelId) {
+export async function cleanupInferenceEvents(modelName) {
 	const eventsTable = tables.get('InferenceEvent');
 	const testEvents = [];
 
-	for await (const record of eventsTable.search({ modelId })) {
+	for await (const record of eventsTable.search({ modelName })) {
 		testEvents.push(record);
 	}
 

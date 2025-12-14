@@ -4,6 +4,40 @@ import { OllamaBackend } from './backends/Ollama.js';
 import { TransformersBackend } from './backends/Transformers.js';
 
 /**
+ * Singleton backend instances shared across all InferenceEngine instances.
+ * This prevents ONNX Runtime environment conflicts when multiple engines are created.
+ */
+const SHARED_BACKENDS = {
+	onnx: null,
+	tensorflow: null,
+	transformers: null,
+	ollama: null,
+};
+
+/**
+ * Initialize shared backends (singleton pattern)
+ */
+function getOrCreateBackend(framework) {
+	if (!SHARED_BACKENDS[framework]) {
+		switch (framework) {
+			case 'onnx':
+				SHARED_BACKENDS.onnx = new OnnxBackend();
+				break;
+			case 'tensorflow':
+				SHARED_BACKENDS.tensorflow = new TensorFlowBackend();
+				break;
+			case 'transformers':
+				SHARED_BACKENDS.transformers = new TransformersBackend();
+				break;
+			case 'ollama':
+				SHARED_BACKENDS.ollama = new OllamaBackend();
+				break;
+		}
+	}
+	return SHARED_BACKENDS[framework];
+}
+
+/**
  * InferenceEngine - Framework-agnostic model loading and inference orchestration
  *
  * Automatically routes model operations to the appropriate backend (ONNX, TensorFlow.js,
@@ -49,7 +83,8 @@ export class InferenceEngine {
 	/**
 	 * Initialize all available backends
 	 *
-	 * Registers ONNX, TensorFlow.js, Transformers.js, and Ollama backends.
+	 * Uses shared singleton backend instances to prevent ONNX Runtime conflicts.
+	 * Multiple InferenceEngine instances share the same backend instances.
 	 * Must be called before any model operations.
 	 *
 	 * @async
@@ -58,11 +93,11 @@ export class InferenceEngine {
 	 * await engine.initialize();
 	 */
 	async initialize() {
-		// Initialize backends
-		this.backends.set('onnx', new OnnxBackend());
-		this.backends.set('tensorflow', new TensorFlowBackend());
-		this.backends.set('transformers', new TransformersBackend());
-		this.backends.set('ollama', new OllamaBackend());
+		// Use shared singleton backends to prevent ONNX Runtime environment conflicts
+		this.backends.set('onnx', getOrCreateBackend('onnx'));
+		this.backends.set('tensorflow', getOrCreateBackend('tensorflow'));
+		this.backends.set('transformers', getOrCreateBackend('transformers'));
+		this.backends.set('ollama', getOrCreateBackend('ollama'));
 	}
 
 	/**
@@ -75,8 +110,8 @@ export class InferenceEngine {
 	/**
 	 * Check if model is cached
 	 */
-	isCached(modelId, version) {
-		const key = `${modelId}:${version}`;
+	isCached(modelName, modelVersion) {
+		const key = `${modelName}:${modelVersion}`;
 		return this.cache.has(key);
 	}
 
@@ -88,12 +123,12 @@ export class InferenceEngine {
 	 * using LRU eviction when cache exceeds maxCacheSize.
 	 *
 	 * @async
-	 * @param {string} modelId - Model identifier (e.g., "all-MiniLM-L6-v2")
-	 * @param {string} [version='latest'] - Model version
+	 * @param {string} modelName - Model identifier (e.g., "all-MiniLM-L6-v2")
+	 * @param {string} [modelVersion='latest'] - Model version
 	 * @param {Object} modelRecord - Model record containing blob and metadata (required)
 	 * @param {string} modelRecord.id - Database record ID
-	 * @param {string} modelRecord.modelId - Model identifier
-	 * @param {string} modelRecord.version - Model version
+	 * @param {string} modelRecord.modelName - Model identifier
+	 * @param {string} modelRecord.modelVersion - Model version
 	 * @param {string} modelRecord.framework - Backend framework ('onnx', 'tensorflow', 'transformers', 'ollama')
 	 * @param {Blob|Buffer} modelRecord.modelBlob - Model binary data
 	 * @param {string} [modelRecord.inputSchema] - JSON schema for inputs
@@ -109,15 +144,15 @@ export class InferenceEngine {
 	 * @example
 	 * const metadata = await engine.loadModel('use', 'v1', {
 	 *   id: 'use:v1',
-	 *   modelId: 'use',
-	 *   version: 'v1',
+	 *   modelName: 'use',
+	 *   modelVersion: 'v1',
 	 *   framework: 'tensorflow',
 	 *   modelBlob: stringOrBuffer,
 	 *   metadata: '{"taskType":"text-embedding"}'
 	 * });
 	 */
-	async loadModel(modelId, version, modelRecord = null) {
-		const cacheKey = `${modelId}:${version || 'latest'}`;
+	async loadModel(modelName, modelVersion, modelRecord = null) {
+		const cacheKey = `${modelName}:${modelVersion || 'latest'}`;
 
 		// Check cache first
 		if (this.cache.has(cacheKey)) {
@@ -128,7 +163,7 @@ export class InferenceEngine {
 		const model = modelRecord;
 
 		if (!model) {
-			throw new Error(`Model ${modelId}:${version || 'latest'} not provided. Call from Resource with model data.`);
+			throw new Error(`Model ${modelName}:${modelVersion || 'latest'} not provided. Call from Resource with model data.`);
 		}
 
 		// Get appropriate backend
@@ -190,8 +225,8 @@ export class InferenceEngine {
 
 		// Store in cache
 		const metadata = {
-			modelId: model.modelId,
-			version: model.version,
+			modelName: model.modelName,
+			modelVersion: model.modelVersion,
 			framework: model.framework,
 			...loadResult,
 		};
@@ -217,14 +252,14 @@ export class InferenceEngine {
 	 * and updates LRU cache. Returns output along with metadata.
 	 *
 	 * @async
-	 * @param {string} modelId - Model identifier
+	 * @param {string} modelName - Model identifier
 	 * @param {Object} inputs - Input data (format depends on model backend)
 	 * @param {string[]} [inputs.texts] - For text embedding models
 	 * @param {string} [inputs.text] - For single text input
 	 * @param {string} [inputs.prompt] - For Ollama models
 	 * @param {Array} [inputs.messages] - For Ollama chat mode
 	 * @param {Tensor} [inputs.input_ids] - For pre-tokenized input
-	 * @param {string} [version='latest'] - Model version
+	 * @param {string} [modelVersion='latest'] - Model version
 	 * @param {Object} [modelRecord=null] - Model record (if already fetched)
 	 * @returns {Promise<Object>} Prediction results with metadata
 	 * @returns {Object} return.output - Backend-specific output
@@ -240,17 +275,17 @@ export class InferenceEngine {
 	 * console.log(result.output.embeddings); // [[0.1, 0.2, ...]]
 	 * console.log(result.latencyMs); // 15.2
 	 */
-	async predict(modelId, inputs, version, modelRecord = null) {
+	async predict(modelName, inputs, modelVersion, modelRecord = null) {
 		// Load model if not cached
-		if (!this.isCached(modelId, version || 'latest')) {
-			await this.loadModel(modelId, version, modelRecord);
+		if (!this.isCached(modelName, modelVersion || 'latest')) {
+			await this.loadModel(modelName, modelVersion, modelRecord);
 		}
 
-		const cacheKey = `${modelId}:${version || 'latest'}`;
+		const cacheKey = `${modelName}:${modelVersion || 'latest'}`;
 		const cached = this.cache.get(cacheKey);
 
 		if (!cached) {
-			throw new Error(`Model ${modelId} failed to load`);
+			throw new Error(`Model ${modelName} failed to load`);
 		}
 
 		// Update last used time
@@ -264,7 +299,7 @@ export class InferenceEngine {
 		return {
 			output,
 			latencyMs,
-			modelVersion: cached.metadata.version,
+			modelVersion: cached.metadata.modelVersion,
 			framework: cached.metadata.framework,
 		};
 	}
@@ -296,12 +331,14 @@ export class InferenceEngine {
 	}
 
 	/**
-	 * Cleanup all loaded models and backends
+	 * Cleanup all loaded models
+	 *
+	 * NOTE: Does NOT cleanup shared backend instances since they're singletons.
+	 * This prevents ONNX Runtime environment conflicts when multiple InferenceEngine
+	 * instances are created and destroyed (e.g., in tests).
 	 */
 	async cleanup() {
-		for (const backend of this.backends.values()) {
-			await backend.cleanup();
-		}
+		// Only clear local cache - backends are shared singletons
 		this.cache.clear();
 	}
 }

@@ -40,10 +40,10 @@ const BASE_URL = config.url;
 /**
  * Factory function to create model definition
  */
-function createModelDef(id, framework, metadata, modelBlob = {}) {
+function createModelDef(name, framework, metadata, modelBlob = {}) {
 	return {
-		modelId: id,
-		version: 'v1',
+		modelName: name,
+		modelVersion: 'v1',
 		framework,
 		stage: 'development',
 		metadata,
@@ -87,7 +87,7 @@ async function cleanModels() {
 					method: 'DELETE',
 				}));
 
-				log.info(`  Deleted: ${model.modelId}:${model.version}`);
+				log.info(`  Deleted: ${model.modelName}:${model.modelVersion}`);
 			}
 
 			log.success(`Cleaned ${models.length} models`);
@@ -133,16 +133,16 @@ function loadOnnxModel(filename) {
  * Create a model in Harper
  */
 async function createModel(modelData) {
-	const { modelId, version, framework, stage, metadata, modelBlob } = modelData;
+	const { modelName, modelVersion, framework, stage, metadata, modelBlob } = modelData;
 
 	try {
-		const id = `${modelId}:${version}`;
+		const id = `${modelName}:${modelVersion}`;
 
 		// Step 1: Create the model record with metadata (no blob yet)
+		// Note: id is computed from modelName:modelVersion, so we don't set it
 		const record = {
-			id,
-			modelId,
-			version,
+			modelName,
+			modelVersion,
 			framework,
 			stage: stage || 'development',
 			metadata: typeof metadata === 'string' ? metadata : JSON.stringify(metadata),
@@ -217,10 +217,10 @@ async function createModel(modelData) {
 			}
 		}
 
-		log.success(`  ${modelId}:${version} (${framework})`);
+		log.success(`  ${modelName}:${modelVersion} (${framework})`);
 		return { id };
 	} catch (error) {
-		log.error(`  Failed to create ${modelId}:${version}: ${error.message}`);
+		log.error(`  Failed to create ${modelName}:${modelVersion}: ${error.message}`);
 		throw error;
 	}
 }
@@ -360,7 +360,7 @@ async function loadModels(taskType = 'all') {
 			try {
 				await createModel(modelDef);
 				summary[type].push({
-					modelId: modelDef.modelId,
+					modelId: `${modelDef.modelName}:${modelDef.modelVersion}`,
 					framework: modelDef.framework,
 					equivalenceGroup: modelDef.metadata.equivalenceGroup,
 				});

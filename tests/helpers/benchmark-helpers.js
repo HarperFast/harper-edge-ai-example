@@ -1,32 +1,33 @@
 import assert from 'node:assert';
+import { createRestTables } from './rest-api.js';
+
+// Create REST API tables interface for tests running outside Harper process
+const tables = createRestTables();
 
 /**
  * Create a mock model for testing benchmarks
  * @param {Object} options - Model configuration
- * @param {string} options.modelId - Model identifier
- * @param {string} options.version - Model version
+ * @param {string} options.modelName - Model identifier
+ * @param {string} options.modelVersion - Model version
  * @param {string} options.framework - Backend framework (onnx, tensorflowjs, ollama)
  * @param {Object} options.metadata - Model metadata
  * @returns {Promise<Object>} Created model record
  */
-export async function createMockModel({ modelId, version = 'v1', framework = 'onnx', metadata = {} }) {
+export async function createMockModel({ modelName, modelVersion = 'v1', framework = 'onnx', metadata = {} }) {
 	const modelsTable = tables.get('Model');
-	const key = `${modelId}:${version}`;
 
 	const model = {
-		id: key,
-		modelId,
-		version,
+		modelName,
+		modelVersion,
 		framework,
 		stage: 'development',
 		metadata: JSON.stringify(metadata),
 		inputSchema: JSON.stringify({ type: 'object' }),
 		outputSchema: JSON.stringify({ type: 'array' }),
-		uploadedAt: Date.now(),
 	};
 
-	await modelsTable.put(model);
-	return model;
+	const created = await modelsTable.put(model);
+	return created;
 }
 
 /**
@@ -39,7 +40,7 @@ export async function createMockModel({ modelId, version = 'v1', framework = 'on
  */
 export function createMockInferenceEngine({ latency = 10, shouldFail = false, output = [Array(512).fill(0.1)] } = {}) {
 	return {
-		async predict(modelId, version, input) {
+		async predict(modelName, modelVersion, input) {
 			// Simulate latency
 			await new Promise((resolve) => setTimeout(resolve, latency));
 
@@ -52,23 +53,29 @@ export function createMockInferenceEngine({ latency = 10, shouldFail = false, ou
 		async initialize() {
 			// No-op for mock
 		},
+		async cleanup() {
+			// No-op for mock
+		},
 	};
 }
 
 /**
  * Create mock inference engine with specific latency per model
  * Useful for testing latency-based comparisons
- * @param {Object} latencyMap - Map of modelId to latency in ms
+ * @param {Object} latencyMap - Map of modelName to latency in ms
  * @returns {Object} Mock inference engine
  */
 export function createLatencyMockEngine(latencyMap) {
 	return {
-		async predict(modelId, version, input) {
-			const latency = latencyMap[modelId] || 10;
+		async predict(modelName, modelVersion, input) {
+			const latency = latencyMap[modelName] || 10;
 			await new Promise((resolve) => setTimeout(resolve, latency));
 			return [Array(512).fill(0.1)];
 		},
 		async initialize() {
+			// No-op for mock
+		},
+		async cleanup() {
 			// No-op for mock
 		},
 	};
@@ -94,8 +101,8 @@ export async function createMockBenchmarkModels({
 
 	for (let i = 0; i < count; i++) {
 		const model = await createMockModel({
-			modelId: `test-model-${i}`,
-			version: 'v1',
+			modelName: `test-model-${i}`,
+			modelVersion: 'v1',
 			framework: frameworks[i % frameworks.length],
 			metadata: {
 				taskType,
@@ -173,15 +180,20 @@ export function assertValidLatencyMetrics(metrics) {
 		}
 	}
 
-	// Verify order: min <= p50 <= avg <= p95 <= p99 <= max
+	// Verify order: min <= p50 <= p95 <= p99 <= max
+	// Note: avg position varies by distribution, so we don't check it in the order
 	if (
 		metrics.minLatency > metrics.p50Latency ||
-		metrics.p50Latency > metrics.avgLatency ||
-		metrics.avgLatency > metrics.p95Latency ||
+		metrics.p50Latency > metrics.p95Latency ||
 		metrics.p95Latency > metrics.p99Latency ||
 		metrics.p99Latency > metrics.maxLatency
 	) {
-		throw new Error('Latency metrics are not in correct order');
+		throw new Error(`Latency metrics are not in correct order: min=${metrics.minLatency}, p50=${metrics.p50Latency}, p95=${metrics.p95Latency}, p99=${metrics.p99Latency}, max=${metrics.maxLatency}`);
+	}
+
+	// Verify avg is within reasonable bounds
+	if (metrics.avgLatency < metrics.minLatency || metrics.avgLatency > metrics.maxLatency) {
+		throw new Error(`Average latency ${metrics.avgLatency} is outside min-max range [${metrics.minLatency}, ${metrics.maxLatency}]`);
 	}
 }
 
@@ -258,7 +270,7 @@ export function assertBenchmarkResult(result, expected = {}) {
 
 	if (!expected.allowNoWinner) {
 		assert.ok(result.winner, 'Missing winner');
-		assert.ok(result.winner.modelId, 'Winner missing modelId');
+		assert.ok(result.winner.modelName, 'Winner missing modelName');
 		assert.ok(result.winner.framework, 'Winner missing framework');
 		assert.ok(typeof result.winner.avgLatency === 'number', 'Winner missing avgLatency');
 	}

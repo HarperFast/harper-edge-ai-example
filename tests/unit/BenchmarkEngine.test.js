@@ -1,6 +1,8 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { BenchmarkEngine } from '../../src/core/BenchmarkEngine.js';
 import { createBenchmarkTestContext } from '../helpers/test-context.js';
+import { createRestTable } from '../helpers/rest-api.js';
 import {
 	createMockModel,
 	createMockInferenceEngine,
@@ -51,8 +53,8 @@ describe('BenchmarkEngine', () => {
 			const found = await benchmarkEngine.findEquivalentModels('text-embedding', 'use');
 
 			assert.equal(found.length, 2);
-			assert.equal(found[0].modelId, 'test-model-0');
-			assert.equal(found[1].modelId, 'test-model-1');
+			assert.equal(found[0].modelName, 'test-model-0');
+			assert.equal(found[1].modelName, 'test-model-1');
 		});
 
 		it('should return empty array if no models match', async () => {
@@ -64,8 +66,8 @@ describe('BenchmarkEngine', () => {
 		it('should filter by both taskType and equivalenceGroup', async () => {
 			// Create models with different metadata
 			const model1 = await createMockModel({
-				modelId: 'model-a',
-				version: 'v1',
+				modelName: 'model-a',
+				modelVersion: 'v1',
 				metadata: {
 					taskType: 'text-embedding',
 					equivalenceGroup: 'use',
@@ -73,8 +75,8 @@ describe('BenchmarkEngine', () => {
 				},
 			});
 			const model2 = await createMockModel({
-				modelId: 'model-b',
-				version: 'v1',
+				modelName: 'model-b',
+				modelVersion: 'v1',
 				metadata: {
 					taskType: 'text-embedding',
 					equivalenceGroup: 'bert',
@@ -86,7 +88,7 @@ describe('BenchmarkEngine', () => {
 			const found = await benchmarkEngine.findEquivalentModels('text-embedding', 'use');
 
 			assert.equal(found.length, 1);
-			assert.equal(found[0].modelId, 'model-a');
+			assert.equal(found[0].modelName, 'model-a');
 		});
 	});
 
@@ -112,8 +114,8 @@ describe('BenchmarkEngine', () => {
 
 		it('should throw error if output dimensions do not match', async () => {
 			const model1 = await createMockModel({
-				modelId: 'model-a',
-				version: 'v1',
+				modelName: 'model-a',
+				modelVersion: 'v1',
 				metadata: {
 					taskType: 'text-embedding',
 					equivalenceGroup: 'test',
@@ -121,8 +123,8 @@ describe('BenchmarkEngine', () => {
 				},
 			});
 			const model2 = await createMockModel({
-				modelId: 'model-b',
-				version: 'v1',
+				modelName: 'model-b',
+				modelVersion: 'v1',
 				metadata: {
 					taskType: 'text-embedding',
 					equivalenceGroup: 'test',
@@ -139,8 +141,8 @@ describe('BenchmarkEngine', () => {
 
 		it('should throw error if metadata is missing', async () => {
 			const model = await createMockModel({
-				modelId: 'model-no-metadata',
-				version: 'v1',
+				modelName: 'model-no-metadata',
+				modelVersion: 'v1',
 				metadata: {},
 			});
 			ctx.trackModel(model.id);
@@ -246,8 +248,8 @@ describe('BenchmarkEngine', () => {
 			const slowEngine = createMockInferenceEngine({ latency: 20 });
 
 			const model1 = await createMockModel({
-				modelId: 'fast-model',
-				version: 'v1',
+				modelName: 'fast-model',
+				modelVersion: 'v1',
 				metadata: {
 					taskType: 'text-embedding',
 					equivalenceGroup: 'test',
@@ -255,8 +257,8 @@ describe('BenchmarkEngine', () => {
 				},
 			});
 			const model2 = await createMockModel({
-				modelId: 'slow-model',
-				version: 'v1',
+				modelName: 'slow-model',
+				modelVersion: 'v1',
 				metadata: {
 					taskType: 'text-embedding',
 					equivalenceGroup: 'test',
@@ -266,8 +268,8 @@ describe('BenchmarkEngine', () => {
 			ctx.trackModel(model1.id, model2.id);
 
 			// Override predict to use different latencies
-			mockInferenceEngine.predict = async (modelId, version, input) => {
-				const latency = modelId === 'fast-model' ? 5 : 20;
+			mockInferenceEngine.predict = async (modelName, modelVersion, input) => {
+				const latency = modelName === 'fast-model' ? 5 : 20;
 				await new Promise((resolve) => setTimeout(resolve, latency));
 				return [Array(512).fill(0.1)];
 			};
@@ -279,7 +281,7 @@ describe('BenchmarkEngine', () => {
 				equivalenceGroup: 'test',
 			});
 
-			assert.equal(result.winner.modelId, 'fast-model:v1');
+			assert.equal(result.winner.modelName, 'fast-model');
 			assert.ok(result.results['fast-model:v1'].avgLatency < result.results['slow-model:v1'].avgLatency);
 
 			ctx.trackResult(result.comparisonId);
@@ -294,7 +296,7 @@ describe('BenchmarkEngine', () => {
 
 			// Make every other prediction fail
 			let callCount = 0;
-			mockInferenceEngine.predict = async (modelId, version, input) => {
+			mockInferenceEngine.predict = async (modelName, modelVersion, input) => {
 				await new Promise((resolve) => setTimeout(resolve, 5));
 				callCount++;
 				if (callCount % 2 === 0) {
@@ -323,8 +325,8 @@ describe('BenchmarkEngine', () => {
 
 		it('should exclude models with 100% error rate from winner selection', async () => {
 			const model1 = await createMockModel({
-				modelId: 'working-model',
-				version: 'v1',
+				modelName: 'working-model',
+				modelVersion: 'v1',
 				metadata: {
 					taskType: 'text-embedding',
 					equivalenceGroup: 'test',
@@ -332,8 +334,8 @@ describe('BenchmarkEngine', () => {
 				},
 			});
 			const model2 = await createMockModel({
-				modelId: 'broken-model',
-				version: 'v1',
+				modelName: 'broken-model',
+				modelVersion: 'v1',
 				metadata: {
 					taskType: 'text-embedding',
 					equivalenceGroup: 'test',
@@ -342,9 +344,9 @@ describe('BenchmarkEngine', () => {
 			});
 			ctx.trackModel(model1.id, model2.id);
 
-			mockInferenceEngine.predict = async (modelId, version, input) => {
+			mockInferenceEngine.predict = async (modelName, modelVersion, input) => {
 				await new Promise((resolve) => setTimeout(resolve, 5));
-				if (modelId === 'broken-model') {
+				if (modelName === 'broken-model') {
 					throw new Error('Always fails');
 				}
 				return [Array(512).fill(0.1)];
@@ -357,7 +359,7 @@ describe('BenchmarkEngine', () => {
 				equivalenceGroup: 'test',
 			});
 
-			assert.equal(result.winner.modelId, 'working-model:v1');
+			assert.equal(result.winner.modelName, 'working-model');
 			assert.equal(result.results['broken-model:v1'].errorRate, 1.0);
 
 			ctx.trackResult(result.comparisonId);
@@ -379,8 +381,8 @@ describe('BenchmarkEngine', () => {
 				notes: 'Test benchmark',
 			});
 
-			// Fetch from Harper table
-			const resultsTable = tables.get('BenchmarkResult');
+			// Fetch from Harper table via REST API
+			const resultsTable = createRestTable('BenchmarkResult');
 			const stored = await resultsTable.get(result.comparisonId);
 
 			assert.ok(stored);
@@ -407,7 +409,7 @@ describe('BenchmarkEngine', () => {
 				equivalenceGroup: 'test-model',
 			});
 
-			const resultsTable = tables.get('BenchmarkResult');
+			const resultsTable = createRestTable('BenchmarkResult');
 			const stored = await resultsTable.get(result.comparisonId);
 
 			const summary = JSON.parse(stored.testDataSummary);
@@ -530,8 +532,8 @@ describe('BenchmarkEngine', () => {
 
 		it('should handle models from same framework', async () => {
 			const model1 = await createMockModel({
-				modelId: 'model-1',
-				version: 'v1',
+				modelName: 'model-1',
+				modelVersion: 'v1',
 				framework: 'onnx',
 				metadata: {
 					taskType: 'text-embedding',
@@ -540,8 +542,8 @@ describe('BenchmarkEngine', () => {
 				},
 			});
 			const model2 = await createMockModel({
-				modelId: 'model-2',
-				version: 'v1',
+				modelName: 'model-2',
+				modelVersion: 'v1',
 				framework: 'onnx',
 				metadata: {
 					taskType: 'text-embedding',
