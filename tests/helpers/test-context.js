@@ -16,7 +16,7 @@ export function createBenchmarkTestContext(options = {}) {
 
 	return {
 		async setup() {
-			context.inferenceEngine = options.inferenceEngine || new InferenceEngine();
+			context.inferenceEngine = options.inferenceEngine || new InferenceEngine(tables);
 			await context.inferenceEngine.initialize();
 			context.engine = new BenchmarkEngine(context.inferenceEngine, tables);
 		},
@@ -33,6 +33,9 @@ export function createBenchmarkTestContext(options = {}) {
 		},
 		get inferenceEngine() {
 			return context.inferenceEngine;
+		},
+		get tables() {
+			return tables;
 		},
 
 		trackModel(...models) {

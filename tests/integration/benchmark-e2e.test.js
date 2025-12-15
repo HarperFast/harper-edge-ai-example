@@ -24,8 +24,8 @@ describe('Benchmark E2E Workflow', () => {
 	before(async () => {
 		ctx = createBenchmarkTestContext();
 		await ctx.setup();
-		modelsTable = tables.get('Model');
-		resultsTable = tables.get('BenchmarkResult');
+		modelsTable = ctx.tables.get('Model');
+		resultsTable = ctx.tables.get('BenchmarkResult');
 	});
 
 	after(async () => {
@@ -61,11 +61,15 @@ describe('Benchmark E2E Workflow', () => {
 		// Create mock inference engine with different latencies per model
 		const mockInferenceEngine = {
 			predict: async (modelName, modelVersion, input) => {
-				// Simulate different latencies based on model
+				// Simulate different latencies based on model index
+				// Model names are like: test-e2e-test-models-0, test-e2e-test-models-1, etc.
+				const match = modelName.match(/-(\d+)$/);
+				const modelIndex = match ? parseInt(match[1]) : 0;
+
 				let latency;
-				if (modelName === 'test-model-0') {
+				if (modelIndex === 0) {
 					latency = 5; // Fastest
-				} else if (modelName === 'test-model-1') {
+				} else if (modelIndex === 1) {
 					latency = 15; // Medium
 				} else {
 					latency = 25; // Slowest
@@ -79,7 +83,7 @@ describe('Benchmark E2E Workflow', () => {
 			initialize: async () => {},
 		};
 
-		const benchmarkEngine = new BenchmarkEngine(mockInferenceEngine);
+		const benchmarkEngine = new BenchmarkEngine(mockInferenceEngine, ctx.tables);
 
 		const testData = generateTestData('text-embedding', 5);
 		const benchmarkResult = await benchmarkEngine.compareBenchmark(models, testData, {
@@ -99,11 +103,10 @@ describe('Benchmark E2E Workflow', () => {
 		assert.ok(benchmarkResult.winner, 'Should identify a winner');
 		assert.ok(benchmarkResult.results, 'Should have results for all models');
 
-		// Verify winner is the fastest model
-		assert.equal(
-			benchmarkResult.winner.modelName,
-			'test-model-0',
-			'test-model-0 should be the winner (lowest latency)'
+		// Verify winner is the fastest model (model with index 0)
+		assert.ok(
+			benchmarkResult.winner.modelName.endsWith('-0'),
+			'Model with index 0 should be the winner (lowest latency)'
 		);
 
 		// Verify metrics for all models using helper
@@ -114,10 +117,16 @@ describe('Benchmark E2E Workflow', () => {
 			assert.equal(metrics.successCount + metrics.errorCount, 10, `${modelId} should have 10 total attempts`);
 		}
 
-		// Verify latency ordering
-		const model0Latency = benchmarkResult.results['test-model-0:v1'].avgLatency;
-		const model1Latency = benchmarkResult.results['test-model-1:v1'].avgLatency;
-		const model2Latency = benchmarkResult.results['test-model-2:v1'].avgLatency;
+		// Verify latency ordering - sort model IDs by index
+		const sortedModelIds = benchmarkResult.modelIds.sort((a, b) => {
+			const aIndex = parseInt(a.match(/-(\d+):/)[1]);
+			const bIndex = parseInt(b.match(/-(\d+):/)[1]);
+			return aIndex - bIndex;
+		});
+
+		const model0Latency = benchmarkResult.results[sortedModelIds[0]].avgLatency;
+		const model1Latency = benchmarkResult.results[sortedModelIds[1]].avgLatency;
+		const model2Latency = benchmarkResult.results[sortedModelIds[2]].avgLatency;
 
 		assert.ok(model0Latency < model1Latency, 'Model 0 should be faster than Model 1');
 		assert.ok(model1Latency < model2Latency, 'Model 1 should be faster than Model 2');
@@ -137,9 +146,11 @@ describe('Benchmark E2E Workflow', () => {
 		assert.equal(storedModelIds.length, 3);
 
 		const storedResults = JSON.parse(storedResult.results);
-		assert.ok(storedResults['test-model-0:v1']);
-		assert.ok(storedResults['test-model-1:v1']);
-		assert.ok(storedResults['test-model-2:v1']);
+		// Verify all 3 models have results (model IDs contain equivalence group name)
+		assert.equal(Object.keys(storedResults).length, 3, 'Should have results for 3 models');
+		for (const modelId of storedModelIds) {
+			assert.ok(storedResults[modelId], `Should have results for ${modelId}`);
+		}
 
 		// STEP 5: Query historical results
 
@@ -215,21 +226,24 @@ describe('Benchmark E2E Workflow', () => {
 		});
 		ctx.trackModel(...models.map((m) => m.id));
 
-		// Create mock engine where model-1 always fails
+		// Create mock engine where model with index 1 always fails
 		const mockInferenceEngine = {
 			predict: async (modelName, modelVersion, input) => {
-				if (modelName === 'test-model-1') {
+				const match = modelName.match(/-(\d+)$/);
+				const modelIndex = match ? parseInt(match[1]) : 0;
+
+				if (modelIndex === 1) {
 					throw new Error('Model failed');
 				}
 
-				await new Promise((resolve) => setTimeout(resolve, modelName === 'test-model-0' ? 10 : 20));
+				await new Promise((resolve) => setTimeout(resolve, modelIndex === 0 ? 10 : 20));
 				return [Array(512).fill(0.1)];
 			},
 			initialize: async () => {},
 		};
 
 		const { BenchmarkEngine } = await import('../../src/core/BenchmarkEngine.js');
-		const benchmarkEngine = new BenchmarkEngine(mockInferenceEngine);
+		const benchmarkEngine = new BenchmarkEngine(mockInferenceEngine, ctx.tables);
 
 		const testData = generateTestData('text-embedding', 2);
 		const result = await benchmarkEngine.compareBenchmark(models, testData, {
@@ -240,15 +254,19 @@ describe('Benchmark E2E Workflow', () => {
 
 		ctx.trackResult(result.comparisonId);
 
-		// Verify model-1 has 100% error rate
-		assert.equal(result.results['test-model-1:v1'].errorRate, 1.0);
-		assert.equal(result.results['test-model-1:v1'].successCount, 0);
+		// Find the model with index 1 (the one that fails)
+		const failingModelId = result.modelIds.find(id => id.match(/-1:/));
+		assert.ok(failingModelId, 'Should have a model with index 1');
 
-		// Verify winner is NOT model-1
-		assert.notEqual(result.winner.modelName, 'test-model-1');
+		// Verify model with index 1 has 100% error rate
+		assert.equal(result.results[failingModelId].errorRate, 1.0);
+		assert.equal(result.results[failingModelId].successCount, 0);
 
-		// Verify winner is model-0 (lowest latency among successful models)
-		assert.equal(result.winner.modelName, 'test-model-0');
+		// Verify winner is NOT the failing model
+		assert.notEqual(result.winner.modelName, failingModelId.split(':')[0]);
+
+		// Verify winner is model with index 0 (lowest latency among successful models)
+		assert.ok(result.winner.modelName.endsWith('-0'), 'Winner should be model with index 0');
 	});
 
 	test('should support different output dimensions', async () => {
@@ -270,7 +288,7 @@ describe('Benchmark E2E Workflow', () => {
 		};
 
 		const { BenchmarkEngine } = await import('../../src/core/BenchmarkEngine.js');
-		const benchmarkEngine = new BenchmarkEngine(mockInferenceEngine);
+		const benchmarkEngine = new BenchmarkEngine(mockInferenceEngine, ctx.tables);
 
 		const testData = generateTestData('text-embedding', 2);
 		const result = await benchmarkEngine.compareBenchmark(models, testData, {

@@ -66,13 +66,16 @@ export class OnnxBackend extends BaseBackend {
 
 			// For sentence-transformers models, load tokenizer
 			// Check if this is a sentence embedding model that needs tokenization
+			console.log(`[OnnxBackend] Model ${modelKey} input names:`, session.inputNames);
+			console.log(`[OnnxBackend] Model ${modelKey} output names:`, session.outputNames);
 			const needsTokenization = session.inputNames.includes('input_ids') &&
 			                          session.inputNames.includes('attention_mask');
+			console.log(`[OnnxBackend] Model ${modelKey} needsTokenization:`, needsTokenization);
 
 			if (needsTokenization) {
 				try {
 					// Load tokenizer for the model
-					// Use tokenizerModel from metadata if available, otherwise try modelId
+					// Use tokenizerModel from metadata if available, otherwise derive from modelName
 					let tokenizerModelName;
 
 					if (modelRecord?.metadata) {
@@ -82,14 +85,18 @@ export class OnnxBackend extends BaseBackend {
 					}
 
 					if (!tokenizerModelName) {
-						const modelId = modelRecord?.modelId || 'sentence-transformers/all-MiniLM-L6-v2';
-						tokenizerModelName = modelId.includes('/') ? modelId : `sentence-transformers/${modelId}`;
+						// Use modelName to derive tokenizer
+						const modelName = modelRecord?.modelName || 'all-MiniLM-L6-v2';
+						// If it already has a slash, use it as-is, otherwise prepend sentence-transformers/
+						tokenizerModelName = modelName.includes('/') ? modelName : `sentence-transformers/${modelName}`;
 					}
 
+					console.log(`[OnnxBackend] Loading tokenizer for ${modelKey}: ${tokenizerModelName}`);
 					const tokenizer = await AutoTokenizer.from_pretrained(tokenizerModelName);
 					this.tokenizers.set(modelKey, tokenizer);
+					console.log(`[OnnxBackend] Tokenizer loaded successfully for ${modelKey}`);
 				} catch (tokenError) {
-					console.warn(`[OnnxBackend] Failed to load tokenizer: ${tokenError.message}`);
+					console.warn(`[OnnxBackend] Failed to load tokenizer for ${modelKey}: ${tokenError.message}`);
 					// Continue without tokenizer - caller can still provide pre-tokenized inputs
 				}
 			}
@@ -127,20 +134,33 @@ export class OnnxBackend extends BaseBackend {
 			// Check if input is raw text that needs tokenization
 			if (inputs.texts && Array.isArray(inputs.texts)) {
 				if (!tokenizer) {
+					console.error(`[OnnxBackend] Text input provided but no tokenizer available for ${modelKey}`);
+					console.error(`[OnnxBackend] Available tokenizers:`, Array.from(this.tokenizers.keys()));
+					console.error(`[OnnxBackend] Session input names:`, session.inputNames);
 					throw new Error('Text input provided but no tokenizer available. Provide pre-tokenized inputs instead.');
 				}
 
 				// Tokenize the texts
 				const text = inputs.texts[0]; // Process first text
+				console.log(`[OnnxBackend] Tokenizing text for ${modelKey}: "${text.substring(0, 50)}..."`);
 				const encoded = await tokenizer(text, {
 					padding: true,
 					truncation: true,
 					return_tensors: 'pt', // Request PyTorch-style tensors
 				});
+				console.log(`[OnnxBackend] Tokenization result:`, {
+					hasInputIds: !!encoded.input_ids,
+					hasAttentionMask: !!encoded.attention_mask,
+					inputIdsShape: encoded.input_ids?.dims || encoded.input_ids?.shape,
+					hasCpuData: !!encoded.input_ids?.cpuData
+				});
 
 				// Create ONNX tensors from tokenizer output
 				// This model requires int64 tensors - use BigInt64Array
 				const convertToBigInt64Array = (data) => {
+					if (!data) {
+						throw new Error('convertToBigInt64Array: data is undefined or null');
+					}
 					const arr = new BigInt64Array(data.length);
 					for (let i = 0; i < data.length; i++) {
 						// Handle both regular numbers and BigInt values from tokenizer
@@ -149,8 +169,29 @@ export class OnnxBackend extends BaseBackend {
 					return arr;
 				};
 
-				const inputIds = convertToBigInt64Array(encoded.input_ids.data);
-				const attentionMask = convertToBigInt64Array(encoded.attention_mask.data);
+				// Extract data from tokenizer output
+				// Transformers.js Tensor objects store data in cpuData property
+				const getTokenizerData = (tensor) => {
+					if (!tensor) {
+						throw new Error('Tokenizer output tensor is undefined');
+					}
+					// If it's already an array, return it
+					if (Array.isArray(tensor)) {
+						return tensor;
+					}
+					// Transformers.js Tensor objects have cpuData property
+					if (tensor.cpuData) {
+						return Array.from(tensor.cpuData);
+					}
+					// Fallback: check for .data property
+					if (tensor.data) {
+						return Array.isArray(tensor.data) ? tensor.data : Array.from(tensor.data);
+					}
+					throw new Error(`Unable to extract data from tokenizer tensor. Keys: ${Object.keys(tensor).join(',')}`);
+				};
+
+				const inputIds = convertToBigInt64Array(getTokenizerData(encoded.input_ids));
+				const attentionMask = convertToBigInt64Array(getTokenizerData(encoded.attention_mask));
 
 				// Ensure dims are plain arrays (not typed arrays or special objects)
 				const dims = Array.isArray(encoded.input_ids.dims) ?
@@ -164,7 +205,7 @@ export class OnnxBackend extends BaseBackend {
 					const tokenDims = Array.isArray(encoded.token_type_ids.dims) ?
 						encoded.token_type_ids.dims :
 						Array.from(encoded.token_type_ids.dims);
-					feeds['token_type_ids'] = new ort.Tensor('int64', convertToBigInt64Array(encoded.token_type_ids.data), tokenDims);
+					feeds['token_type_ids'] = new ort.Tensor('int64', convertToBigInt64Array(getTokenizerData(encoded.token_type_ids)), tokenDims);
 				} else if (session.inputNames.includes('token_type_ids')) {
 					// Create zeros for token_type_ids if model expects it but tokenizer didn't provide it
 					const totalSize = dims.reduce((a, b) => a * b, 1);

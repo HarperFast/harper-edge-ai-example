@@ -11,8 +11,8 @@ describe('Benchmark API Integration', () => {
 	before(async () => {
 		ctx = createBenchmarkTestContext();
 		await ctx.setup();
-		modelsTable = tables.get('Model');
-		resultsTable = tables.get('BenchmarkResult');
+		modelsTable = ctx.tables.get('Model');
+		resultsTable = ctx.tables.get('BenchmarkResult');
 	});
 
 	after(async () => {
@@ -46,10 +46,10 @@ describe('Benchmark API Integration', () => {
 			const { BenchmarkEngine } = await import('../../src/core/BenchmarkEngine.js');
 			const { InferenceEngine } = await import('../../src/core/InferenceEngine.js');
 
-			const inferenceEngine = new InferenceEngine();
+			const inferenceEngine = new InferenceEngine(ctx.tables);
 			await inferenceEngine.initialize();
 
-			const benchmarkEngine = new BenchmarkEngine(inferenceEngine);
+			const benchmarkEngine = new BenchmarkEngine(inferenceEngine, ctx.tables);
 
 			// Find models
 			const foundModels = await benchmarkEngine.findEquivalentModels(
@@ -62,8 +62,9 @@ describe('Benchmark API Integration', () => {
 			// Note: We can't actually run predictions without real model files
 			// This test verifies the API structure and model finding logic
 			assert.equal(foundModels.length, 2);
-			assert.equal(foundModels[0].modelName, 'test-model-0');
-			assert.equal(foundModels[1].modelName, 'test-model-1');
+			// Verify model names contain the equivalence group
+			assert.ok(foundModels[0].modelName.includes('test-use'));
+			assert.ok(foundModels[1].modelName.includes('test-use'));
 
 			await inferenceEngine.cleanup();
 		});
@@ -81,10 +82,10 @@ describe('Benchmark API Integration', () => {
 			const { BenchmarkEngine } = await import('../../src/core/BenchmarkEngine.js');
 			const { InferenceEngine } = await import('../../src/core/InferenceEngine.js');
 
-			const inferenceEngine = new InferenceEngine();
+			const inferenceEngine = new InferenceEngine(ctx.tables);
 			await inferenceEngine.initialize();
 
-			const benchmarkEngine = new BenchmarkEngine(inferenceEngine);
+			const benchmarkEngine = new BenchmarkEngine(inferenceEngine, ctx.tables);
 
 			const foundModels = await benchmarkEngine.findEquivalentModels('text-embedding', 'lonely-model');
 
@@ -107,6 +108,7 @@ describe('Benchmark API Integration', () => {
 				equivalenceGroup: 'mismatched',
 				outputDimensions: [768],
 				count: 1,
+				startIndex: 1, // Avoid overwriting model1
 			});
 
 			ctx.trackModel(...model1.map((m) => m.id));
@@ -115,10 +117,10 @@ describe('Benchmark API Integration', () => {
 			const { BenchmarkEngine } = await import('../../src/core/BenchmarkEngine.js');
 			const { InferenceEngine } = await import('../../src/core/InferenceEngine.js');
 
-			const inferenceEngine = new InferenceEngine();
+			const inferenceEngine = new InferenceEngine(ctx.tables);
 			await inferenceEngine.initialize();
 
-			const benchmarkEngine = new BenchmarkEngine(inferenceEngine);
+			const benchmarkEngine = new BenchmarkEngine(inferenceEngine, ctx.tables);
 
 			// Fetch both models
 			const allModels = await benchmarkEngine.findEquivalentModels('text-embedding', 'mismatched');
@@ -145,7 +147,7 @@ describe('Benchmark API Integration', () => {
 			const { createMockInferenceEngine } = await import('../helpers/benchmark-helpers.js');
 
 			const mockEngine = createMockInferenceEngine({ latency: 10 });
-			const benchmarkEngine = new BenchmarkEngine(mockEngine);
+			const benchmarkEngine = new BenchmarkEngine(mockEngine, ctx.tables);
 
 			const testData = generateTestData('text-embedding', 2);
 			const result = await benchmarkEngine.compareBenchmark(models, testData, {
@@ -198,7 +200,7 @@ describe('Benchmark API Integration', () => {
 			const { createMockInferenceEngine } = await import('../helpers/benchmark-helpers.js');
 
 			const mockEngine = createMockInferenceEngine({ latency: 10 });
-			const benchmarkEngine = new BenchmarkEngine(mockEngine);
+			const benchmarkEngine = new BenchmarkEngine(mockEngine, ctx.tables);
 
 			const testData = generateTestData('text-embedding', 2);
 			const result = await benchmarkEngine.compareBenchmark(models, testData, {
@@ -236,7 +238,7 @@ describe('Benchmark API Integration', () => {
 			const { createMockInferenceEngine } = await import('../helpers/benchmark-helpers.js');
 
 			const mockEngine = createMockInferenceEngine({ latency: 10 });
-			const benchmarkEngine = new BenchmarkEngine(mockEngine);
+			const benchmarkEngine = new BenchmarkEngine(mockEngine, ctx.tables);
 
 			const testData = generateTestData('text-embedding', 2);
 			const result = await benchmarkEngine.compareBenchmark(embeddingModels, testData, {
@@ -264,7 +266,7 @@ describe('Benchmark API Integration', () => {
 			const { createMockInferenceEngine } = await import('../helpers/benchmark-helpers.js');
 
 			const mockEngine = createMockInferenceEngine({ latency: 10 });
-			const benchmarkEngine = new BenchmarkEngine(mockEngine);
+			const benchmarkEngine = new BenchmarkEngine(mockEngine, ctx.tables);
 
 			const history = await benchmarkEngine.getHistoricalResults({
 				taskType: 'nonexistent-task-12345',
@@ -289,7 +291,7 @@ describe('Benchmark API Integration', () => {
 			const { createMockInferenceEngine } = await import('../helpers/benchmark-helpers.js');
 
 			const mockEngine = createMockInferenceEngine({ latency: 10 });
-			const benchmarkEngine = new BenchmarkEngine(mockEngine);
+			const benchmarkEngine = new BenchmarkEngine(mockEngine, ctx.tables);
 
 			await assert.rejects(async () => {
 				await benchmarkEngine.compareBenchmark(models, [], {
@@ -313,7 +315,7 @@ describe('Benchmark API Integration', () => {
 			const { createMockInferenceEngine } = await import('../helpers/benchmark-helpers.js');
 
 			const mockEngine = createMockInferenceEngine({ latency: 10 });
-			const benchmarkEngine = new BenchmarkEngine(mockEngine);
+			const benchmarkEngine = new BenchmarkEngine(mockEngine, ctx.tables);
 
 			const testData = generateTestData('text-embedding', 2);
 

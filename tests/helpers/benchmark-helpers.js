@@ -88,6 +88,7 @@ export function createLatencyMockEngine(latencyMap) {
  * @param {string} options.equivalenceGroup - Equivalence group
  * @param {Array} options.outputDimensions - Output dimensions
  * @param {number} options.count - Number of models to create (default: 2)
+ * @param {number} options.startIndex - Starting index for model names (default: 0)
  * @returns {Promise<Array>} Array of created models
  */
 export async function createMockBenchmarkModels({
@@ -95,15 +96,19 @@ export async function createMockBenchmarkModels({
 	equivalenceGroup = 'test-model',
 	outputDimensions = [512],
 	count = 2,
+	startIndex = 0,
 } = {}) {
 	const models = [];
 	const frameworks = ['onnx', 'tensorflowjs', 'ollama'];
 
 	for (let i = 0; i < count; i++) {
+		const modelIndex = startIndex + i;
+		// Use equivalence group in model name to avoid conflicts between parallel tests
+		const modelName = `test-${equivalenceGroup}-${modelIndex}`;
 		const model = await createMockModel({
-			modelName: `test-model-${i}`,
+			modelName,
 			modelVersion: 'v1',
-			framework: frameworks[i % frameworks.length],
+			framework: frameworks[modelIndex % frameworks.length],
 			metadata: {
 				taskType,
 				equivalenceGroup,

@@ -70,14 +70,20 @@ export class InferenceEngine {
 	 * Call initialize() after construction to register backends.
 	 *
 	 * @constructor
+	 * @param {Object} [tables] - Optional tables object for accessing Harper tables (required for tests)
 	 * @example
 	 * const engine = new InferenceEngine();
 	 * await engine.initialize(); // Required before use
+	 *
+	 * // For tests running outside Harper:
+	 * const tables = createRestTables();
+	 * const engine = new InferenceEngine(tables);
 	 */
-	constructor() {
+	constructor(tables = null) {
 		this.backends = new Map();
 		this.cache = new Map(); // Cache loaded models: modelKey -> { backend, metadata }
 		this.maxCacheSize = parseInt(process.env.MODEL_CACHE_SIZE) || 10; // LRU cache size
+		this.tables = tables; // Store tables reference for tests
 	}
 
 	/**
@@ -159,11 +165,30 @@ export class InferenceEngine {
 			return this.cache.get(cacheKey).metadata;
 		}
 
-		// Use provided model data or throw error (caller should fetch)
+		// Use provided model data, or fetch from tables if available
 		let model = modelRecord;
 
 		if (!model) {
-			throw new Error(`Model ${modelName}:${modelVersion || 'latest'} not provided. Call from Resource with model data.`);
+			// Try to fetch from tables if available (for tests running outside Harper)
+			if (this.tables) {
+				try {
+					model = await this.tables.Model.get(cacheKey);
+				} catch (err) {
+					// Ignore fetch errors, will throw below
+				}
+			}
+			// Also try global tables if available (for code running inside Harper)
+			else if (typeof tables !== 'undefined') {
+				try {
+					model = await tables.Model.get(cacheKey);
+				} catch (err) {
+					// Ignore fetch errors, will throw below
+				}
+			}
+
+			if (!model) {
+				throw new Error(`Model ${modelName}:${modelVersion || 'latest'} not provided. Call from Resource with model data.`);
+			}
 		}
 
 		// Get appropriate backend
@@ -175,10 +200,17 @@ export class InferenceEngine {
 
 	// If we don't have the blob, fetch the full record
 	// (search() may not include blob data, so fetch explicitly)
-	if (!model.modelBlob && typeof tables !== 'undefined') {
-		const fullModel = await tables.Model.get(model.id);
-		if (fullModel) {
-			model = fullModel;
+	if (!model.modelBlob) {
+		if (this.tables) {
+			const fullModel = await this.tables.Model.get(model.id);
+			if (fullModel) {
+				model = fullModel;
+			}
+		} else if (typeof tables !== 'undefined') {
+			const fullModel = await tables.Model.get(model.id);
+			if (fullModel) {
+				model = fullModel;
+			}
 		}
 	}
 

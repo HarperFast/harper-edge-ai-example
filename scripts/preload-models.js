@@ -138,11 +138,18 @@ async function createModel(modelData) {
 	try {
 		const id = `${modelName}:${modelVersion}`;
 
-		// For ONNX models with large blobs, use UploadModelBlob resource
-		// which uses Harper's native tables API for proper file-backed blob storage
-		if (modelBlob && typeof modelBlob === 'object' && modelBlob.path) {
-			// Read ONNX model file
-			const blobBuffer = readFileSync(modelBlob.path);
+		// Use UploadModelBlob resource for ALL models (uses Harper's native tables API)
+		if (modelBlob) {
+			let blobBuffer;
+
+			if (typeof modelBlob === 'object' && modelBlob.path) {
+				// ONNX model - read binary file
+				blobBuffer = readFileSync(modelBlob.path);
+			} else {
+				// Ollama/TensorFlow - convert JSON object to Buffer
+				const jsonString = typeof modelBlob === 'string' ? modelBlob : JSON.stringify(modelBlob);
+				blobBuffer = Buffer.from(jsonString, 'utf-8');
+			}
 
 			// Upload via UploadModelBlob resource (uses tables API)
 			// Pass metadata as query parameters (headers aren't accessible in Harper resources)
@@ -169,10 +176,8 @@ async function createModel(modelData) {
 			if (!response.ok || !result.success) {
 				throw new Error(result.error || 'Upload failed');
 			}
-
-			log.success(`  Uploaded ${result.size} bytes`);
 		} else {
-			// For Ollama/TensorFlow models, use standard two-step process
+			// Models without blobs - create record only
 			const record = {
 				modelName,
 				modelVersion,
@@ -190,30 +195,6 @@ async function createModel(modelData) {
 			if (!response.ok) {
 				const error = await response.text();
 				throw new Error(error);
-			}
-
-			if (modelBlob) {
-				// Ollama/TensorFlow - convert to Buffer
-				const jsonString = typeof modelBlob === 'string' ? modelBlob : JSON.stringify(modelBlob);
-				const blobData = Buffer.from(jsonString, 'utf-8');
-
-				const headers = {
-					'Content-Type': 'application/octet-stream',
-					'Content-Length': blobData.length.toString(),
-				};
-
-				const fetchOptions = getFetchOptions(config, {
-					method: 'PUT',
-					headers,
-					body: blobData,
-				});
-
-				const blobResponse = await fetch(`${BASE_URL}/Model/${encodeURIComponent(id)}/modelBlob`, fetchOptions);
-
-				if (!blobResponse.ok) {
-					const error = await blobResponse.text();
-					throw new Error(`Failed to upload blob: ${error}`);
-				}
 			}
 		}
 

@@ -3,6 +3,7 @@ import assert from 'node:assert';
 import { InferenceEngine } from '../../src/core/InferenceEngine.js';
 import { MonitoringBackend } from '../../src/core/MonitoringBackend.js';
 import { getTestOnnxModel } from '../fixtures/test-models.js';
+import { createRestTables } from '../helpers/rest-api.js';
 
 describe('End-to-End ONNX Flow', () => {
 	let engine;
@@ -12,10 +13,13 @@ describe('End-to-End ONNX Flow', () => {
 	let inferenceId;
 
 	before(async () => {
-		monitoring = new MonitoringBackend();
+		// Create REST API tables for tests running outside Harper
+		const tables = createRestTables();
+
+		monitoring = new MonitoringBackend(tables);
 		await monitoring.initialize();
 
-		engine = new InferenceEngine();
+		engine = new InferenceEngine(tables);
 		await engine.initialize();
 
 		// Get Harper table references for direct operations
@@ -53,8 +57,8 @@ describe('End-to-End ONNX Flow', () => {
 			modelVersion: 'v1',
 			framework: 'onnx',
 			modelBlob,
-			inputSchema: JSON.stringify({ inputs: [{ name: 'data', shape: [1, 2] }] }),
-			outputSchema: JSON.stringify({ outputs: [{ name: 'result', shape: [1, 2] }] }),
+			inputSchema: JSON.stringify({ inputs: [{ name: 'Input3', shape: [1, 1, 28, 28] }] }),
+			outputSchema: JSON.stringify({ outputs: [{ name: 'Plus214_Output_0', shape: [1, 10] }] }),
 			metadata: JSON.stringify({ description: 'E2E test model' }),
 			stage: 'development',
 			uploadedAt: Date.now(),
@@ -67,8 +71,12 @@ describe('End-to-End ONNX Flow', () => {
 		assert.strictEqual(storedModel.modelVersion, 'v1');
 
 		// 2. Run prediction
-		const input = new Float32Array([1.0, 2.0]);
-		const result = await engine.predict('test-e2e-onnx', { data: input }, 'v1');
+		// test-model.onnx expects Input3 with shape [1, 1, 28, 28] (28x28 grayscale image)
+		const inputSize = 1 * 1 * 28 * 28; // 784 floats
+		const inputData = new Float32Array(inputSize).fill(0.5);
+		const result = await engine.predict('test-e2e-onnx', {
+			Input3: { data: inputData, shape: [1, 1, 28, 28] }
+		}, 'v1');
 
 		assert.ok(result);
 		assert.ok(result.output);
@@ -82,7 +90,7 @@ describe('End-to-End ONNX Flow', () => {
 			requestId: 'test-req-1',
 			userId: 'test-user',
 			sessionId: 'test-session',
-			featuresIn: JSON.stringify({ data: Array.from(input) }),
+			featuresIn: JSON.stringify({ Input3: { shape: [1, 1, 28, 28], size: inputSize } }),
 			prediction: JSON.stringify(result.output),
 			confidence: 0.95,
 			latencyMs: result.latencyMs,
@@ -110,7 +118,9 @@ describe('End-to-End ONNX Flow', () => {
 			...eventToUpdate,
 			actualOutcome: JSON.stringify({ result: [1.0, 2.0] }),
 			correct: true,
-			feedbackTimestamp: Date.now(),
+			feedbackTimestamp: Math.floor(Date.now()),
+			// Ensure timestamp is an integer (Harper Long type)
+			timestamp: eventToUpdate.timestamp ? Math.floor(eventToUpdate.timestamp) : Math.floor(Date.now()),
 		});
 
 		// 6. Verify feedback recorded using Harper native table.get()
