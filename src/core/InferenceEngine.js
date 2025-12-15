@@ -175,8 +175,8 @@ export class InferenceEngine {
 
 	// If we don't have the blob, fetch the full record
 	// (search() may not include blob data, so fetch explicitly)
-	if (!model.modelBlob) {
-		const fullModel = await this.tables.Model.get(model.id);
+	if (!model.modelBlob && typeof tables !== 'undefined') {
+		const fullModel = await tables.Model.get(model.id);
 		if (fullModel) {
 			model = fullModel;
 		}
@@ -195,7 +195,7 @@ export class InferenceEngine {
 		if (Buffer.isBuffer(blob)) {
 			// Already a Buffer
 			modelData = blob;
-		} else if (typeof blob.arrayBuffer === 'function') {
+		} else if (blob && typeof blob.arrayBuffer === 'function') {
 			// FileBackedBlob or Web Blob - use arrayBuffer() method for binary data
 			const arrayBuffer = await blob.arrayBuffer();
 			modelData = Buffer.from(arrayBuffer);

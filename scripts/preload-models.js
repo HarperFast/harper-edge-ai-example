@@ -145,27 +145,32 @@ async function createModel(modelData) {
 			const blobBuffer = readFileSync(modelBlob.path);
 
 			// Upload via UploadModelBlob resource (uses tables API)
-			// Send binary data with metadata in headers
-			const headers = {
-				'Content-Type': 'application/octet-stream',
-				'Content-Length': blobBuffer.length.toString(),
-				'x-model-name': modelName,
-				'x-model-version': modelVersion,
-				'x-framework': framework,
-				'x-stage': stage || 'development',
-				'x-metadata': typeof metadata === 'string' ? metadata : JSON.stringify(metadata),
-			};
+			// Pass metadata as query parameters (headers aren't accessible in Harper resources)
+			const metadataString = typeof metadata === 'string' ? metadata : JSON.stringify(metadata);
+			const queryParams = new URLSearchParams({
+				modelName,
+				modelVersion,
+				framework,
+				stage: stage || 'development',
+				metadata: metadataString,
+			});
 
-			const response = await fetch(`${BASE_URL}/UploadModelBlob`, getFetchOptions(config, {
+			const response = await fetch(`${BASE_URL}/UploadModelBlob?${queryParams}`, getFetchOptions(config, {
 				method: 'PUT',
-				headers,
+				headers: {
+					'Content-Type': 'application/octet-stream',
+					'Content-Length': blobBuffer.length.toString(),
+				},
 				body: blobBuffer,
 			}));
 
-			if (!response.ok) {
-				const error = await response.text();
-				throw new Error(error);
+			const result = await response.json();
+
+			if (!response.ok || !result.success) {
+				throw new Error(result.error || 'Upload failed');
 			}
+
+			log.success(`  Uploaded ${result.size} bytes`);
 		} else {
 			// For Ollama/TensorFlow models, use standard two-step process
 			const record = {

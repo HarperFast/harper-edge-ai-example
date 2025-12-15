@@ -345,30 +345,49 @@ export class Benchmark extends Resource {
 	}
 }
 
-// Upload Model Blob (uses native tables API for proper file-backed blob storage)
+/**
+ * Upload Model Blob Resource
+ *
+ * Uses Harper's native tables API to store large model blobs with proper file-backed storage.
+ * This avoids the REST API limitation where blobs are stored as indexed JSON objects.
+ *
+ * Usage:
+ *   PUT /UploadModelBlob?modelName={name}&modelVersion={version}&framework={framework}&stage={stage}&metadata={json}
+ *   Headers:
+ *     Content-Type: application/octet-stream
+ *   Body: binary blob data
+ *
+ * Query Parameters:
+ *   - modelName (required): Model name
+ *   - modelVersion (optional): Model version (default: v1)
+ *   - framework (required): onnx|tensorflow|ollama
+ *   - stage (optional): development|staging|production (default: development)
+ *   - metadata (optional): URL-encoded JSON string with taskType, equivalenceGroup, etc.
+ */
 export class UploadModelBlob extends Resource {
-	async put(request) {
-		// This endpoint receives binary blob data with metadata in headers
-		// and uses Harper's native tables.Model.put() which properly handles
-		// file-backed blobs for large files
+	async put(data, request) {
 		try {
-			// Get metadata from headers
-			const modelName = request.headers.get('x-model-name');
-			const modelVersion = request.headers.get('x-model-version');
-			const framework = request.headers.get('x-framework');
-			const stage = request.headers.get('x-stage') || 'development';
-			const metadata = request.headers.get('x-metadata') || '{}';
+			// Parse query parameters for metadata
+			const searchParams = new URLSearchParams(request.search || '');
+			const modelName = searchParams.get('modelName');
+			const modelVersion = searchParams.get('modelVersion') || 'v1';
+			const framework = searchParams.get('framework');
+			const stage = searchParams.get('stage') || 'development';
+			const metadata = searchParams.get('metadata') || '{}';
 
-			if (!modelName || !modelVersion || !framework) {
-				throw new Error('Missing required headers: x-model-name, x-model-version, x-framework');
+			if (!modelName || !framework) {
+				return {
+					success: false,
+					error: 'Missing required query parameters: modelName, framework'
+				};
 			}
 
-			// Read binary blob data from request body
-			const blobBuffer = Buffer.from(await request.arrayBuffer());
-
-			// Upload using native tables API (triggers file-backed blob storage)
+			// Binary blob data is in the data parameter as a Buffer
+			const blobBuffer = data;
 			const id = `${modelName}:${modelVersion}`;
-			const result = await tables.Model.put({
+
+			// Use Harper's native tables API - triggers file-backed blob storage for large files
+			await tables.Model.put({
 				id,
 				modelName,
 				modelVersion,
@@ -378,10 +397,18 @@ export class UploadModelBlob extends Resource {
 				modelBlob: blobBuffer,
 			});
 
-			return { success: true, id: result.id };
+			return {
+				success: true,
+				id,
+				size: blobBuffer.length
+			};
 		} catch (error) {
-			console.error('Upload model blob failed:', error);
-			return { error: error.message };
+			console.error('UploadModelBlob failed:', error);
+			return {
+				success: false,
+				error: error.message
+			};
 		}
 	}
 }
+
