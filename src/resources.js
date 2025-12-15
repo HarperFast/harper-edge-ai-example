@@ -344,3 +344,44 @@ export class Benchmark extends Resource {
 		}
 	}
 }
+
+// Upload Model Blob (uses native tables API for proper file-backed blob storage)
+export class UploadModelBlob extends Resource {
+	async put(request) {
+		// This endpoint receives binary blob data with metadata in headers
+		// and uses Harper's native tables.Model.put() which properly handles
+		// file-backed blobs for large files
+		try {
+			// Get metadata from headers
+			const modelName = request.headers.get('x-model-name');
+			const modelVersion = request.headers.get('x-model-version');
+			const framework = request.headers.get('x-framework');
+			const stage = request.headers.get('x-stage') || 'development';
+			const metadata = request.headers.get('x-metadata') || '{}';
+
+			if (!modelName || !modelVersion || !framework) {
+				throw new Error('Missing required headers: x-model-name, x-model-version, x-framework');
+			}
+
+			// Read binary blob data from request body
+			const blobBuffer = Buffer.from(await request.arrayBuffer());
+
+			// Upload using native tables API (triggers file-backed blob storage)
+			const id = `${modelName}:${modelVersion}`;
+			const result = await tables.Model.put({
+				id,
+				modelName,
+				modelVersion,
+				framework,
+				stage,
+				metadata,
+				modelBlob: blobBuffer,
+			});
+
+			return { success: true, id: result.id };
+		} catch (error) {
+			console.error('Upload model blob failed:', error);
+			return { error: error.message };
+		}
+	}
+}

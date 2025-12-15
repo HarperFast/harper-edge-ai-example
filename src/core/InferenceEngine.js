@@ -160,7 +160,7 @@ export class InferenceEngine {
 		}
 
 		// Use provided model data or throw error (caller should fetch)
-		const model = modelRecord;
+		let model = modelRecord;
 
 		if (!model) {
 			throw new Error(`Model ${modelName}:${modelVersion || 'latest'} not provided. Call from Resource with model data.`);
@@ -172,6 +172,15 @@ export class InferenceEngine {
 		if (!backend) {
 			throw new Error(`No backend available for framework: ${model.framework}`);
 		}
+
+	// If we don't have the blob, fetch the full record
+	// (search() may not include blob data, so fetch explicitly)
+	if (!model.modelBlob) {
+		const fullModel = await this.tables.Model.get(model.id);
+		if (fullModel) {
+			model = fullModel;
+		}
+	}
 
 			// Access blob from model record
 		// When stored via createBlob() in a Resource, the blob is attached to the record

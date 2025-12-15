@@ -138,68 +138,63 @@ async function createModel(modelData) {
 	try {
 		const id = `${modelName}:${modelVersion}`;
 
-		// Step 1: Create the model record with metadata (no blob yet)
-		// Note: id is computed from modelName:modelVersion, so we don't set it
-		const record = {
-			modelName,
-			modelVersion,
-			framework,
-			stage: stage || 'development',
-			metadata: typeof metadata === 'string' ? metadata : JSON.stringify(metadata),
-		};
+		// For ONNX models with large blobs, use UploadModelBlob resource
+		// which uses Harper's native tables API for proper file-backed blob storage
+		if (modelBlob && typeof modelBlob === 'object' && modelBlob.path) {
+			// Read ONNX model file
+			const blobBuffer = readFileSync(modelBlob.path);
 
-		const response = await fetch(`${BASE_URL}/Model/${encodeURIComponent(id)}`, getFetchOptions(config, {
-			method: 'PUT',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(record),
-		}));
+			// Upload via UploadModelBlob resource (uses tables API)
+			// Send binary data with metadata in headers
+			const headers = {
+				'Content-Type': 'application/octet-stream',
+				'Content-Length': blobBuffer.length.toString(),
+				'x-model-name': modelName,
+				'x-model-version': modelVersion,
+				'x-framework': framework,
+				'x-stage': stage || 'development',
+				'x-metadata': typeof metadata === 'string' ? metadata : JSON.stringify(metadata),
+			};
 
-		if (!response.ok) {
-			const error = await response.text();
-			throw new Error(error);
-		}
+			const response = await fetch(`${BASE_URL}/UploadModelBlob`, getFetchOptions(config, {
+				method: 'PUT',
+				headers,
+				body: blobBuffer,
+			}));
 
-		// Step 2: Upload blob data separately
-		// For ONNX models, modelBlob is {path, size} object
-		// For other models, it's a JSON object or string
-		if (modelBlob) {
-			let blobData;
-			let contentLength;
+			if (!response.ok) {
+				const error = await response.text();
+				throw new Error(error);
+			}
+		} else {
+			// For Ollama/TensorFlow models, use standard two-step process
+			const record = {
+				modelName,
+				modelVersion,
+				framework,
+				stage: stage || 'development',
+				metadata: typeof metadata === 'string' ? metadata : JSON.stringify(metadata),
+			};
 
-			if (modelBlob && typeof modelBlob === 'object' && modelBlob.path) {
-				// ONNX model - use file stream for large files
-				const fileStream = createReadStream(modelBlob.path);
-				contentLength = modelBlob.size;
+			const response = await fetch(`${BASE_URL}/Model/${encodeURIComponent(id)}`, getFetchOptions(config, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(record),
+			}));
 
-				// Use stream as body
-				const headers = {
-					'Content-Type': 'application/octet-stream',
-					'Content-Length': contentLength.toString(),
-				};
+			if (!response.ok) {
+				const error = await response.text();
+				throw new Error(error);
+			}
 
-				// Merge with auth headers and add duplex for streaming
-				const fetchOptions = getFetchOptions(config, {
-					method: 'PUT',
-					headers,
-					body: fileStream,
-					duplex: 'half', // Required for streaming bodies in Node.js fetch
-				});
-
-				const blobResponse = await fetch(`${BASE_URL}/Model/${encodeURIComponent(id)}/modelBlob`, fetchOptions);
-
-				if (!blobResponse.ok) {
-					const error = await blobResponse.text();
-					throw new Error(`Failed to upload blob: ${error}`);
-				}
-			} else {
+			if (modelBlob) {
 				// Ollama/TensorFlow - convert to Buffer
 				const jsonString = typeof modelBlob === 'string' ? modelBlob : JSON.stringify(modelBlob);
-				blobData = Buffer.from(jsonString, 'utf-8');
-				contentLength = blobData.length;
+				const blobData = Buffer.from(jsonString, 'utf-8');
 
 				const headers = {
 					'Content-Type': 'application/octet-stream',
-					'Content-Length': contentLength.toString(),
+					'Content-Length': blobData.length.toString(),
 				};
 
 				const fetchOptions = getFetchOptions(config, {
@@ -235,7 +230,7 @@ const MODEL_DEFINITIONS = {
 			'ollama',
 			{
 				taskType: 'text-embedding',
-				equivalenceGroup: 'product-recommender',
+				equivalenceGroup: 'embeddings-768',
 				outputDimensions: [768],
 				description: 'Nomic embedding model for product recommendations',
 				backend: 'ollama',
@@ -248,7 +243,7 @@ const MODEL_DEFINITIONS = {
 			'ollama',
 			{
 				taskType: 'text-embedding',
-				equivalenceGroup: 'product-recommender',
+				equivalenceGroup: 'embeddings-1024',
 				outputDimensions: [1024],
 				description: 'MxBai large embedding model',
 				backend: 'ollama',
@@ -261,7 +256,7 @@ const MODEL_DEFINITIONS = {
 			'tensorflow',
 			{
 				taskType: 'text-embedding',
-				equivalenceGroup: 'product-recommender',
+				equivalenceGroup: 'embeddings-512',
 				outputDimensions: [512],
 				description: 'Universal Sentence Encoder (TensorFlow.js)',
 				backend: 'tensorflow',
@@ -270,12 +265,12 @@ const MODEL_DEFINITIONS = {
 		),
 
 		createModelDef('all-MiniLM-L6-v2', 'onnx', {
-			taskType: 'text-embedding',
-			equivalenceGroup: 'product-recommender',
-			outputDimensions: [384],
-			description: 'Sentence-BERT MiniLM model (ONNX)',
-			backend: 'onnx',
-		}, loadOnnxModel('all-MiniLM-L6-v2.onnx')),
+		taskType: 'text-embedding',
+		equivalenceGroup: 'embeddings-384',
+		outputDimensions: [384],
+		description: 'Sentence-BERT MiniLM model (ONNX)',
+		backend: 'onnx',
+	}, loadOnnxModel('all-MiniLM-L6-v2.onnx')),
 	],
 
 	classification: [
