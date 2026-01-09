@@ -219,6 +219,48 @@ $ npm run benchmark
 
 ---
 
+### Model Fetch System
+
+Async model downloading from multiple sources without manual upload.
+
+**Sources:**
+- **HuggingFace Hub** - Transformers.js models with variant selection (default/quantized)
+- **HTTP URLs** - Direct download from any HTTP/HTTPS endpoint
+- **Local Filesystem** - Load models from `models/` directory
+
+**Features:**
+- Async job queue with retry logic (3 attempts, exponential backoff)
+- Real-time progress tracking via database
+- Multi-file support for Transformers.js models
+- Rate limiting with 429 backoff
+- Security: filesystem restricted to `models/` directory, path traversal protection
+- Optional webhooks for completion/failure notifications
+
+**Quick Example:**
+
+```bash
+# Inspect model before downloading
+curl "http://localhost:9926/InspectModel?source=huggingface&sourceReference=Xenova/all-MiniLM-L6-v2"
+
+# Fetch model asynchronously
+curl -X POST http://localhost:9926/FetchModel \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "huggingface",
+    "sourceReference": "Xenova/all-MiniLM-L6-v2",
+    "variant": "quantized",
+    "modelName": "minilm",
+    "modelVersion": "v1"
+  }'
+
+# Track job progress
+curl "http://localhost:9926/ModelFetchJob?id=<jobId>"
+```
+
+**Documentation:** [Model Fetch System Guide](docs/MODEL_FETCH_SYSTEM.md)
+
+---
+
 ### Example: ONNX Model Inference
 
 ```bash
@@ -387,6 +429,9 @@ harper-edge-ai-example/
 - [Model Metadata Convention](docs/MODEL_METADATA.md) - Metadata schema
 - [Benchmarking Guide](docs/BENCHMARKING.md) - Performance comparison
 - [ONNX Runtime Guide](docs/ONNX_RUNTIME_GUIDE.md) - ONNX backend docs
+
+### Model Management
+- [Model Fetch System Guide](docs/MODEL_FETCH_SYSTEM.md) - Async model downloading from HuggingFace, HTTP, and filesystem
 
 ### API Documentation
 Core classes have comprehensive JSDoc documentation:
