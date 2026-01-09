@@ -140,12 +140,18 @@ deploy_code() {
     log_info "  Replicated: ${DEPLOY_REPLICATED}"
     log_info "  Restart: ${DEPLOY_RESTART}"
 
-    CLI_TARGET_USERNAME="$REMOTE_USERNAME" \
-    CLI_TARGET_PASSWORD="$REMOTE_PASSWORD" \
+    # Export credentials as environment variables (required by Harper CLI)
+    export CLI_TARGET_USERNAME="$REMOTE_USERNAME"
+    export CLI_TARGET_PASSWORD="$REMOTE_PASSWORD"
+
     harperdb deploy \
         target="${REMOTE_URL}" \
         replicated="${DEPLOY_REPLICATED}" \
         restart="${DEPLOY_RESTART}"
+
+    # Unset credentials after use
+    unset CLI_TARGET_USERNAME
+    unset CLI_TARGET_PASSWORD
 
     if [[ "$DEPLOY_RESTART" == "true" ]] || [[ "$DEPLOY_RESTART" == "rolling" ]]; then
         log_info "Waiting for restart to complete..."
@@ -158,10 +164,16 @@ deploy_code() {
 restart_harper() {
     log_info "Restarting Harper on remote instance..."
 
+    # Export credentials as environment variables (required by Harper CLI)
+    export CLI_TARGET_USERNAME="$REMOTE_USERNAME"
+    export CLI_TARGET_PASSWORD="$REMOTE_PASSWORD"
+
     # Restart using Harper CLI
-    CLI_TARGET_USERNAME="$REMOTE_USERNAME" \
-    CLI_TARGET_PASSWORD="$REMOTE_PASSWORD" \
     harperdb restart target="${REMOTE_URL}"
+
+    # Unset credentials after use
+    unset CLI_TARGET_USERNAME
+    unset CLI_TARGET_PASSWORD
 
     log_info "Waiting for Harper to restart..."
     sleep 5
@@ -182,9 +194,13 @@ check_deployment_status() {
 
     # Check using Harper CLI
     log_info "Getting Harper status..."
-    CLI_TARGET_USERNAME="$REMOTE_USERNAME" \
-    CLI_TARGET_PASSWORD="$REMOTE_PASSWORD" \
+    export CLI_TARGET_USERNAME="$REMOTE_USERNAME"
+    export CLI_TARGET_PASSWORD="$REMOTE_PASSWORD"
+
     harperdb status target="${REMOTE_URL}" || true
+
+    unset CLI_TARGET_USERNAME
+    unset CLI_TARGET_PASSWORD
 
     log_success "Status check complete"
 }
