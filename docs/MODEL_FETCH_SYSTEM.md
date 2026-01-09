@@ -15,7 +15,32 @@ Async model downloading system for Harper Edge AI. Fetches models from multiple 
 
 ## Quick Start
 
-### 1. Inspect a Model
+### CLI (Recommended)
+
+The `harper-ai` CLI provides the easiest way to interact with the Model Fetch System:
+
+```bash
+# Inspect a model before downloading
+harper-ai model inspect filesystem test-fixtures/test-model.onnx
+
+# Fetch a model
+harper-ai model fetch filesystem test-fixtures/test-model.onnx \
+  --name my-model --version v1
+
+# Watch job progress (live updates)
+harper-ai job watch <jobId>
+
+# List all jobs
+harper-ai job list
+```
+
+For full CLI documentation, run `harper-ai --help`.
+
+### REST API
+
+You can also use the REST API directly:
+
+#### 1. Inspect a Model
 
 Preview model information without downloading:
 
@@ -478,6 +503,157 @@ const response = await fetch('http://localhost:3000/FetchModel', {
     }
   })
 });
+```
+
+## CLI Commands
+
+The `harper-ai` CLI provides a user-friendly interface for all Model Fetch operations.
+
+### Installation
+
+The CLI is automatically available after `npm install`:
+
+```bash
+# Global access (after npm install)
+harper-ai --help
+
+# Or run directly
+node scripts/cli/harper-ai.js --help
+```
+
+### Model Commands
+
+#### inspect
+
+Preview a model before downloading:
+
+```bash
+harper-ai model inspect <source> <sourceReference> [--variant <variant>]
+
+# Examples
+harper-ai model inspect filesystem test-fixtures/test-model.onnx
+harper-ai model inspect huggingface Xenova/all-MiniLM-L6-v2 --variant quantized
+harper-ai model inspect url https://example.com/model.onnx
+```
+
+Output includes framework, variants, sizes, and inferred metadata.
+
+#### fetch
+
+Create an async fetch job:
+
+```bash
+harper-ai model fetch <source> <sourceReference> --name <name> [options]
+
+Options:
+  --name <name>         Model name (required)
+  --version <version>   Model version (default: v1)
+  --variant <variant>   Variant (for HuggingFace)
+  --framework <framework>  Override framework detection
+  --stage <stage>       Stage (development|staging|production)
+  --webhook <url>       Webhook for notifications
+
+# Examples
+harper-ai model fetch filesystem test-fixtures/test-model.onnx --name test-model
+harper-ai model fetch huggingface Xenova/all-MiniLM-L6-v2 \
+  --name minilm --variant quantized --stage production
+harper-ai model fetch url https://cdn.example.com/model.onnx \
+  --name remote-model --framework onnx
+```
+
+#### list
+
+List models in database:
+
+```bash
+harper-ai model list [--stage <stage>] [--framework <framework>]
+
+# Examples
+harper-ai model list
+harper-ai model list --stage production
+harper-ai model list --framework onnx
+```
+
+### Job Commands
+
+#### list
+
+List fetch jobs with filters:
+
+```bash
+harper-ai job list [--status <status>] [--modelName <name>]
+
+# Examples
+harper-ai job list
+harper-ai job list --status downloading
+harper-ai job list --status completed
+harper-ai job list --modelName my-model
+```
+
+#### get
+
+Get detailed job information:
+
+```bash
+harper-ai job get <jobId>
+
+# Example
+harper-ai job get 550e8400-e29b-41d4-a716-446655440000
+```
+
+Shows full job details including progress, errors, retry info, and suggested next actions.
+
+#### watch
+
+Watch job progress with live updates:
+
+```bash
+harper-ai job watch <jobId>
+
+# Example
+harper-ai job watch 550e8400-e29b-41d4-a716-446655440000
+```
+
+Displays real-time progress bar, status updates, and download progress. Press Ctrl+C to stop.
+
+Features:
+- Live progress bar with percentage
+- Download speed tracking (bytes downloaded / total)
+- Status indicators with emoji icons
+- Automatic completion detection
+
+#### retry
+
+Retry a failed job:
+
+```bash
+harper-ai job retry <jobId>
+
+# Example
+harper-ai job retry 550e8400-e29b-41d4-a716-446655440000
+```
+
+### Global Options
+
+All commands support:
+
+```bash
+--url <url>       Harper instance URL (default: http://localhost:9926)
+--token <token>   Authentication token (or set MODEL_FETCH_TOKEN env var)
+--help            Show help for command
+```
+
+### Authentication
+
+Set `MODEL_FETCH_TOKEN` in environment or use `--token` flag:
+
+```bash
+# Via environment variable
+export MODEL_FETCH_TOKEN="your-secret-token"
+harper-ai model inspect filesystem test.onnx
+
+# Via CLI flag
+harper-ai model inspect filesystem test.onnx --token your-secret-token
 ```
 
 ## Troubleshooting

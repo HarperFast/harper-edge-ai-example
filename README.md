@@ -428,6 +428,27 @@ harper-edge-ai-example/
 | `npm run benchmark:all`     | Run all benchmark groups                    |
 | `npm run pull-ollama`       | Pull Ollama models (requires Ollama)        |
 
+### Harper AI CLI
+
+After installation, the `harper-ai` CLI is available globally:
+
+```bash
+# Model operations
+harper-ai model inspect filesystem test.onnx
+harper-ai model fetch huggingface Xenova/all-MiniLM-L6-v2 --name minilm
+harper-ai model list --stage production
+
+# Job operations
+harper-ai job list --status downloading
+harper-ai job get <jobId>
+harper-ai job watch <jobId>  # Live progress tracking
+harper-ai job retry <jobId>
+
+# Help
+harper-ai --help
+harper-ai model --help
+```
+
 ---
 
 ## Documentation
