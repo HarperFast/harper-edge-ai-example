@@ -77,6 +77,8 @@ export function getConfig(args = []) {
 
 		password: cliArgs.password || process.env.CLI_TARGET_PASSWORD || envVars.CLI_TARGET_PASSWORD || null,
 
+		modelFetchToken: cliArgs.token || process.env.MODEL_FETCH_TOKEN || envVars.MODEL_FETCH_TOKEN || null,
+
 		ollamaHost:
 			process.env.OLLAMA_HOST || envVars.OLLAMA_HOST || 'http://localhost:11434',
 	};
