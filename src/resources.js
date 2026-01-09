@@ -9,6 +9,10 @@ import {
 	MonitoringBackend,
 	BenchmarkEngine
 } from './core/index.js';
+import { ModelFetchWorker } from './core/ModelFetchWorker.js';
+import { LocalFilesystemAdapter } from './core/fetchers/LocalFilesystemAdapter.js';
+import { HttpUrlAdapter } from './core/fetchers/HttpUrlAdapter.js';
+import { HuggingFaceAdapter } from './core/fetchers/HuggingFaceAdapter.js';
 
 // Initialize personalization engine (shared across requests)
 const personalizationEngineCache = new Map();
@@ -33,6 +37,7 @@ async function getPersonalizationEngine(modelName, modelVersion) {
 let monitoringBackend;
 let inferenceEngine;
 let benchmarkEngine;
+let modelFetchWorker;
 
 async function ensureInitialized() {
 	if (!inferenceEngine) {
@@ -45,6 +50,15 @@ async function ensureInitialized() {
 	}
 	if (!benchmarkEngine) {
 		benchmarkEngine = new BenchmarkEngine(inferenceEngine);
+	}
+	if (!modelFetchWorker) {
+		// Initialize ModelFetchWorker if enabled (default: enabled)
+		const workerEnabled = process.env.MODEL_FETCH_WORKER_ENABLED !== 'false';
+		if (workerEnabled) {
+			modelFetchWorker = new ModelFetchWorker(tables);
+			await modelFetchWorker.start();
+			console.log('[resources] ModelFetchWorker started');
+		}
 	}
 }
 
@@ -412,3 +426,402 @@ export class UploadModelBlob extends Resource {
 	}
 }
 
+/**
+ * InspectModel Resource
+ *
+ * GET /InspectModel?source={source}&sourceReference={reference}&variant={variant}
+ *
+ * Inspect a model at a source without downloading it.
+ * Returns framework, available variants, and inferred metadata.
+ *
+ * Query Parameters:
+ *   - source (required): "filesystem" | "url" | "huggingface"
+ *   - sourceReference (required): file path, URL, or HuggingFace model ID
+ *   - variant (optional): variant name (for HuggingFace: "default" | "quantized")
+ */
+export class InspectModel extends Resource {
+	async get(data, request) {
+		try {
+			await ensureInitialized();
+
+			// Parse query parameters
+			const searchParams = new URLSearchParams(request.search || '');
+			const source = searchParams.get('source');
+			const sourceReference = searchParams.get('sourceReference');
+			const variant = searchParams.get('variant');
+
+			// Validation
+			if (!source || !sourceReference) {
+				return {
+					error: 'Missing required query parameters: source, sourceReference'
+				};
+			}
+
+			// Get adapter
+			const adapters = {
+				filesystem: new LocalFilesystemAdapter(),
+				url: new HttpUrlAdapter(),
+				huggingface: new HuggingFaceAdapter()
+			};
+
+			const adapter = adapters[source];
+			if (!adapter) {
+				return {
+					error: `Unsupported source: ${source}. Supported: filesystem, url, huggingface`
+				};
+			}
+
+			// Detect framework
+			let framework;
+			try {
+				framework = await adapter.detectFramework(sourceReference, variant);
+			} catch (error) {
+				return {
+					error: `Failed to detect framework: ${error.message}`,
+					code: error.code || 'DETECTION_FAILED'
+				};
+			}
+
+			// List variants
+			let variants;
+			try {
+				variants = await adapter.listVariants(sourceReference);
+			} catch (error) {
+				return {
+					error: `Failed to list variants: ${error.message}`,
+					code: error.code || 'LIST_VARIANTS_FAILED'
+				};
+			}
+
+			// Infer metadata
+			let inferredMetadata;
+			try {
+				inferredMetadata = await adapter.inferMetadata(sourceReference, variant);
+			} catch (error) {
+				console.warn('[InspectModel] Failed to infer metadata:', error.message);
+				inferredMetadata = {};
+			}
+
+			// Suggest model name from source reference
+			let suggestedModelName = sourceReference.split('/').pop().replace(/\.[^.]+$/, '');
+			if (source === 'huggingface') {
+				// For HuggingFace, use the repo name
+				const parts = sourceReference.split('/');
+				suggestedModelName = parts[parts.length - 1];
+			}
+
+			return {
+				source,
+				sourceReference,
+				framework,
+				variants,
+				inferredMetadata,
+				suggestedModelName
+			};
+		} catch (error) {
+			console.error('[InspectModel] Error:', error);
+			return {
+				error: error.message,
+				code: error.code || 'INSPECT_FAILED'
+			};
+		}
+	}
+}
+
+/**
+ * FetchModel Resource
+ *
+ * POST /FetchModel
+ *
+ * Create a job to fetch a model from a source and store it in the Model table.
+ * Returns jobId for tracking progress.
+ *
+ * Request Body:
+ *   {
+ *     source: "filesystem" | "url" | "huggingface",
+ *     sourceReference: "path/to/model.onnx" | "https://..." | "Xenova/all-MiniLM-L6-v2",
+ *     variant: "default" | "quantized" (optional, for HuggingFace),
+ *     modelName: "my-model" (required),
+ *     modelVersion: "v1" (optional, default: "v1"),
+ *     framework: "onnx" | "tensorflow" | "transformers" (optional, auto-detected if omitted),
+ *     stage: "development" | "staging" | "production" (optional, default: "development"),
+ *     metadata: { taskType, equivalenceGroup, ... } (optional, merged with inferred metadata),
+ *     webhookUrl: "https://..." (optional, called on completion/failure),
+ *     maxRetries: 3 (optional, default: 3)
+ *   }
+ */
+export class FetchModel extends Resource {
+	async post(data) {
+		try {
+			await ensureInitialized();
+
+			const {
+				source,
+				sourceReference,
+				variant = null,
+				modelName,
+				modelVersion = 'v1',
+				framework,
+				stage = 'development',
+				metadata = {},
+				webhookUrl = null,
+				maxRetries = 3
+			} = data;
+
+			// Validation
+			if (!source || !sourceReference || !modelName) {
+				return {
+					error: 'Missing required fields: source, sourceReference, modelName'
+				};
+			}
+
+			const supportedSources = ['filesystem', 'url', 'huggingface'];
+			if (!supportedSources.includes(source)) {
+				return {
+					error: `Unsupported source: ${source}. Supported: ${supportedSources.join(', ')}`
+				};
+			}
+
+			const modelId = `${modelName}:${modelVersion}`;
+
+			// Check if model already exists
+			const existingModel = await tables.Model.get(modelId);
+			if (existingModel) {
+				// Check if it's the same source (idempotent) or different source (error)
+				const existingMetadata = JSON.parse(existingModel.metadata || '{}');
+				const existingSource = existingMetadata.fetchSource;
+				const existingReference = existingMetadata.fetchReference;
+
+				if (existingSource === source && existingReference === sourceReference) {
+					// Same source, return success (idempotent)
+					return {
+						message: 'Model already exists with same source',
+						modelId,
+						existing: true
+					};
+				} else {
+					// Different source, error
+					return {
+						error: `Model ${modelId} already exists from a different source (${existingSource}:${existingReference}). Delete it first or use a different modelName/modelVersion.`
+					};
+				}
+			}
+
+			// Check for active job with same modelId
+			const activeJobs = await tables.ModelFetchJob.findMany({
+				where: { modelName, modelVersion, status: 'queued' }
+			});
+			if (activeJobs.length > 0) {
+				return {
+					error: `A job is already queued for model ${modelId}`,
+					existingJobId: activeJobs[0].id
+				};
+			}
+
+			// Detect framework if not provided
+			let detectedFramework = framework;
+			if (!detectedFramework) {
+				const adapters = {
+					filesystem: new LocalFilesystemAdapter(),
+					url: new HttpUrlAdapter(),
+					huggingface: new HuggingFaceAdapter()
+				};
+
+				const adapter = adapters[source];
+				try {
+					detectedFramework = await adapter.detectFramework(sourceReference, variant);
+				} catch (error) {
+					return {
+						error: `Failed to detect framework: ${error.message}. Please specify framework explicitly.`,
+						code: error.code || 'DETECTION_FAILED'
+					};
+				}
+			}
+
+			// Validate framework
+			const supportedFrameworks = ['onnx', 'tensorflow', 'transformers', 'ollama'];
+			if (!supportedFrameworks.includes(detectedFramework)) {
+				return {
+					error: `Unsupported framework: ${detectedFramework}. Supported: ${supportedFrameworks.join(', ')}`
+				};
+			}
+
+			// Infer metadata (best effort, failures are ignored)
+			let inferredMetadata = {};
+			try {
+				const adapters = {
+					filesystem: new LocalFilesystemAdapter(),
+					url: new HttpUrlAdapter(),
+					huggingface: new HuggingFaceAdapter()
+				};
+				const adapter = adapters[source];
+				inferredMetadata = await adapter.inferMetadata(sourceReference, variant);
+			} catch (error) {
+				console.warn('[FetchModel] Failed to infer metadata:', error.message);
+			}
+
+			// Create job
+			const jobId = uuidv4();
+			const job = {
+				id: jobId,
+				jobId, // Indexed field for queries
+				source,
+				sourceReference,
+				variant,
+				modelName,
+				modelVersion,
+				framework: detectedFramework,
+				stage,
+				status: 'queued',
+				progress: 0,
+				downloadedBytes: 0,
+				totalBytes: 0,
+				retryCount: 0,
+				maxRetries,
+				lastError: null,
+				errorCode: null,
+				retryable: true,
+				inferredMetadata: JSON.stringify(inferredMetadata),
+				userMetadata: JSON.stringify(metadata),
+				webhookUrl,
+				createdAt: Date.now(),
+				startedAt: null,
+				completedAt: null,
+				resultModelId: null
+			};
+
+			await tables.ModelFetchJob.create(job);
+
+			return {
+				jobId,
+				status: 'queued',
+				message: 'Job created successfully. Use GET /ModelFetchJob?id={jobId} to track progress.',
+				modelId
+			};
+		} catch (error) {
+			console.error('[FetchModel] Error:', error);
+			return {
+				error: error.message,
+				code: error.code || 'FETCH_FAILED'
+			};
+		}
+	}
+}
+
+/**
+ * ModelFetchJob Resource
+ *
+ * GET /ModelFetchJob?id={jobId} - Get job status by ID
+ * GET /ModelFetchJob?status={status} - List jobs by status
+ * GET /ModelFetchJob?modelName={name} - List jobs by model name
+ * POST /ModelFetchJob - Retry a failed job
+ */
+export class ModelFetchJobResource extends Resource {
+	async get(data, request) {
+		try {
+			await ensureInitialized();
+
+			// Parse query parameters
+			const searchParams = new URLSearchParams(request.search || '');
+			const jobId = searchParams.get('id');
+			const status = searchParams.get('status');
+			const modelName = searchParams.get('modelName');
+			const limit = parseInt(searchParams.get('limit') || '50');
+
+			// Get single job by ID
+			if (jobId) {
+				const job = await tables.ModelFetchJob.get(jobId);
+				if (!job) {
+					return {
+						error: `Job ${jobId} not found`
+					};
+				}
+				return job;
+			}
+
+			// List jobs with filters
+			const where = {};
+			if (status) {
+				where.status = status;
+			}
+			if (modelName) {
+				where.modelName = modelName;
+			}
+
+			const jobs = await tables.ModelFetchJob.findMany({
+				where: Object.keys(where).length > 0 ? where : undefined,
+				orderBy: { createdAt: 'desc' },
+				limit
+			});
+
+			return {
+				jobs,
+				count: jobs.length
+			};
+		} catch (error) {
+			console.error('[ModelFetchJob] GET Error:', error);
+			return {
+				error: error.message
+			};
+		}
+	}
+
+	async post(data) {
+		try {
+			await ensureInitialized();
+
+			const { jobId, action = 'retry' } = data;
+
+			// Validation
+			if (!jobId) {
+				return {
+					error: 'Missing required field: jobId'
+				};
+			}
+
+			// Get job
+			const job = await tables.ModelFetchJob.get(jobId);
+			if (!job) {
+				return {
+					error: `Job ${jobId} not found`
+				};
+			}
+
+			// Handle actions
+			if (action === 'retry') {
+				// Only retry failed jobs
+				if (job.status !== 'failed') {
+					return {
+						error: `Job ${jobId} is not in failed state (current status: ${job.status})`
+					};
+				}
+
+				// Reset job to queued
+				await tables.ModelFetchJob.update({
+					where: { id: jobId },
+					data: {
+						status: 'queued',
+						retryCount: 0,
+						lastError: null,
+						errorCode: null
+					}
+				});
+
+				return {
+					jobId,
+					status: 'queued',
+					message: 'Job reset to queued for retry'
+				};
+			}
+
+			return {
+				error: `Unknown action: ${action}. Supported: retry`
+			};
+		} catch (error) {
+			console.error('[ModelFetchJob] POST Error:', error);
+			return {
+				error: error.message
+			};
+		}
+	}
+}
