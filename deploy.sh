@@ -15,20 +15,32 @@
 set -e  # Exit on error
 
 # ============================================
+# LOAD ENVIRONMENT
+# ============================================
+
+# Load .env file if it exists
+if [[ -f .env ]]; then
+    # Export variables from .env file
+    set -a
+    source .env
+    set +a
+fi
+
+# ============================================
 # CONFIGURATION
 # ============================================
 
-# Remote Harper instance
-REMOTE_HOST="ai-ops.irjudson-ai.harperfabric.com"
-REMOTE_PORT="9925"
-REMOTE_URL="https://${REMOTE_HOST}:${REMOTE_PORT}"
+# Remote Harper instance (configurable via .env)
+REMOTE_HOST="${DEPLOY_REMOTE_HOST:-ai-ops.irjudson-ai.harperfabric.com}"
+REMOTE_PORT="${DEPLOY_REMOTE_PORT:-9925}"
+REMOTE_URL="${DEPLOY_REMOTE_URL:-https://${REMOTE_HOST}:${REMOTE_PORT}}"
 
-# Harper Admin Credentials (update these with your credentials)
-REMOTE_USERNAME="${CLI_TARGET_USERNAME:-HDB_ADMIN}"  # TODO: Update with your username
-REMOTE_PASSWORD="${CLI_TARGET_PASSWORD:-your-password}"  # TODO: Update with your password
+# Harper Admin Credentials (configurable via .env or environment)
+REMOTE_USERNAME="${CLI_TARGET_USERNAME:-${DEPLOY_USERNAME:-HDB_ADMIN}}"
+REMOTE_PASSWORD="${CLI_TARGET_PASSWORD:-${DEPLOY_PASSWORD:-}}"
 
-# Model Fetch Token (for testing)
-MODEL_FETCH_TOKEN="${MODEL_FETCH_TOKEN:-your-secret-token}"  # TODO: Update with your token
+# Model Fetch Token (for testing, configurable via .env)
+MODEL_FETCH_TOKEN="${MODEL_FETCH_TOKEN:-}"
 
 # Deployment options
 RESTART_HARPER=false
@@ -82,15 +94,19 @@ check_prerequisites() {
         fi
     fi
 
-    # Check if TODO items are updated
-    if grep -q "TODO:" "$0"; then
-        log_warn "Configuration contains TODO items - please update credentials"
-        log_info "Edit deploy.sh and update REMOTE_USERNAME, REMOTE_PASSWORD, and MODEL_FETCH_TOKEN"
-        read -p "Continue with current values? (y/N) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 1
-        fi
+    # Check if credentials are configured
+    if [[ -z "$REMOTE_PASSWORD" ]]; then
+        log_error "REMOTE_PASSWORD not set"
+        log_info "Set in .env file:"
+        log_info "  DEPLOY_PASSWORD=your-password"
+        log_info "Or use environment variable:"
+        log_info "  export CLI_TARGET_PASSWORD=your-password"
+        exit 1
+    fi
+
+    if [[ -z "$MODEL_FETCH_TOKEN" ]]; then
+        log_warn "MODEL_FETCH_TOKEN not set - tests will fail if token is required"
+        log_info "Set in .env file: MODEL_FETCH_TOKEN=your-token"
     fi
 
     log_success "Prerequisites check passed"
@@ -229,7 +245,20 @@ CONFIGURATION:
     Remote: ${REMOTE_URL}
     Username: ${REMOTE_USERNAME}
 
-    Set environment variables or edit deploy.sh:
+    Configuration priority (highest to lowest):
+      1. Environment variables (CLI_TARGET_*, DEPLOY_*)
+      2. .env file
+      3. Script defaults
+
+    .env file variables:
+      DEPLOY_REMOTE_HOST=ai-ops.irjudson-ai.harperfabric.com
+      DEPLOY_REMOTE_PORT=9925
+      DEPLOY_REMOTE_URL=https://ai-ops.irjudson-ai.harperfabric.com:9925
+      DEPLOY_USERNAME=HDB_ADMIN
+      DEPLOY_PASSWORD=your-password
+      MODEL_FETCH_TOKEN=your-token
+
+    Environment variable overrides:
       CLI_TARGET_USERNAME=HDB_ADMIN
       CLI_TARGET_PASSWORD=your-password
       MODEL_FETCH_TOKEN=your-token
@@ -237,7 +266,7 @@ CONFIGURATION:
 PREREQUISITES:
     - Harper CLI installed: npm install -g harperdb
     - Remote Harper instance running
-    - Valid admin credentials
+    - Valid admin credentials in .env or environment
 
 EOF
 }

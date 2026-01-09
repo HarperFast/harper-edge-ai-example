@@ -40,6 +40,23 @@ harperdb deploy \
   password=your-admin-password
 ```
 
+**Recommended:** Use local `.env` file for deploy.sh script:
+
+```bash
+# Add to your local .env file (will be loaded by deploy.sh)
+DEPLOY_REMOTE_HOST=ai-ops.irjudson-ai.harperfabric.com
+DEPLOY_REMOTE_PORT=9925
+DEPLOY_REMOTE_URL=https://ai-ops.irjudson-ai.harperfabric.com:9925
+DEPLOY_USERNAME=HDB_ADMIN
+DEPLOY_PASSWORD=your-admin-password
+MODEL_FETCH_TOKEN=your-secret-token
+```
+
+**Configuration priority:**
+1. Environment variables (`CLI_TARGET_*`, `DEPLOY_*`)
+2. `.env` file
+3. Script defaults
+
 ### Configure Remote .env File
 
 Before deploying, ensure your remote instance has the proper environment configuration. Create/edit `.env` on your remote Harper instance with:
