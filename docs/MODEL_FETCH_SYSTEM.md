@@ -643,17 +643,65 @@ All commands support:
 --help            Show help for command
 ```
 
-### Authentication
+### Configuration
 
-Set `MODEL_FETCH_TOKEN` in environment or use `--token` flag:
+The CLI can be configured via command-line flags, environment variables, or `.env` file:
+
+#### Harper Instance URL
 
 ```bash
+# Default (localhost)
+harper-ai model list
+
+# Via --url flag
+harper-ai model list --url https://my-harper.cloud.harperdb.io
+
+# Via environment variable
+export HARPER_URL=https://my-harper.cloud.harperdb.io
+harper-ai model list
+
+# Via .env file
+echo "HARPER_URL=https://my-harper.cloud.harperdb.io" >> .env
+harper-ai model list
+```
+
+**Priority:** CLI flag > Environment variable > .env file > default
+
+**Supported environment variables:**
+- `HARPER_URL` - Harper instance URL
+- `CLI_TARGET_URL` - Alternative name for Harper URL
+
+#### Authentication
+
+```bash
+# Via --token flag
+harper-ai model inspect filesystem test.onnx --token your-secret-token
+
 # Via environment variable
 export MODEL_FETCH_TOKEN="your-secret-token"
 harper-ai model inspect filesystem test.onnx
 
-# Via CLI flag
-harper-ai model inspect filesystem test.onnx --token your-secret-token
+# Via .env file
+echo "MODEL_FETCH_TOKEN=your-secret-token" >> .env
+harper-ai model inspect filesystem test.onnx
+```
+
+#### Complete Example with Remote Instance
+
+```bash
+# Set configuration
+export HARPER_URL=https://production.harperdb.io
+export MODEL_FETCH_TOKEN=prod-secret-token-123
+
+# Fetch a model on remote instance
+harper-ai model fetch huggingface Xenova/all-MiniLM-L6-v2 \
+  --name minilm-prod --variant quantized --stage production
+
+# Watch job progress
+harper-ai job watch <jobId>
+
+# List production models
+harper-ai model list --stage production
 ```
 
 ## Troubleshooting

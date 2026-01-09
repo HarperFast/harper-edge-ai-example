@@ -444,6 +444,19 @@ harper-ai job get <jobId>
 harper-ai job watch <jobId>  # Live progress tracking
 harper-ai job retry <jobId>
 
+# Connect to remote Harper instance
+harper-ai model list --url https://my-harper.cloud.harperdb.io
+
+# With authentication
+harper-ai model fetch filesystem test.onnx --name test \
+  --url https://my-harper.cloud.harperdb.io \
+  --token my-secret-token
+
+# Or set environment variables
+export HARPER_URL=https://my-harper.cloud.harperdb.io
+export MODEL_FETCH_TOKEN=my-secret-token
+harper-ai model list
+
 # Help
 harper-ai --help
 harper-ai model --help
