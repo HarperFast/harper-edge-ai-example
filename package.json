@@ -4,6 +4,9 @@
 	"version": "1.0.0",
 	"description": "Harper Edge AI example with ONNX Runtime, TensorFlow.js, Transformers.js, and Ollama backends",
 	"main": "src/resources.js",
+	"bin": {
+		"harper-ai": "./scripts/cli/harper-ai.js"
+	},
 	"scripts": {
 		"preinstall": "echo '\n📦 Installing dependencies (this may take 1-2 minutes)...\n'",
 		"postinstall": "echo '\n✅ Installation complete!\n\n📝 Next steps:\n   npm run dev       - Start Harper server\n   npm run preload   - Load test models\n   npm run benchmark - Compare backends\n'",
