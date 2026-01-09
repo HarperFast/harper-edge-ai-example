@@ -49,8 +49,17 @@ DEPLOY_REMOTE_PORT=9925
 DEPLOY_REMOTE_URL=https://ai-ops.irjudson-ai.harperfabric.com:9925
 DEPLOY_USERNAME=HDB_ADMIN
 DEPLOY_PASSWORD=your-admin-password
+DEPLOY_REPLICATED=true        # Replicate across cluster nodes (default: true)
+DEPLOY_RESTART=true            # Restart after deploy (default: true, options: true/false/rolling)
 MODEL_FETCH_TOKEN=your-secret-token
 ```
+
+**Deploy Options:**
+- `DEPLOY_REPLICATED=true` - Replicates deployment across all cluster nodes
+- `DEPLOY_RESTART=true` - Automatically restarts Harper after deployment
+  - `true` - Standard restart
+  - `false` - No restart (manual restart required)
+  - `rolling` - Rolling restart (minimal downtime for clusters)
 
 **Configuration priority:**
 1. Environment variables (`CLI_TARGET_*`, `DEPLOY_*`)
@@ -93,36 +102,61 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 
 ## Deployment Workflow
 
-### Step 1: Deploy Code
+### Single Command Deployment (Recommended)
 
-Deploy your local code to the remote Harper instance:
+The `deploy.sh` script handles deployment, replication, and restart in a single command:
 
 ```bash
-# From your project root directory
-harperdb deploy target=$CLI_TARGET_URL
+# Full deployment with restart and replication
+./deploy.sh --full
 ```
 
-This packages and sends your current directory to the remote instance. The Harper CLI will:
+By default (configured via `.env`):
+- Automatically restarts Harper after deployment (`DEPLOY_RESTART=true`)
+- Replicates across all cluster nodes (`DEPLOY_REPLICATED=true`)
+
+**Customize deployment behavior in `.env`:**
+
+```bash
+# Standard restart after deploy
+DEPLOY_RESTART=true
+
+# Rolling restart (minimal downtime)
+DEPLOY_RESTART=rolling
+
+# No automatic restart (manual restart required)
+DEPLOY_RESTART=false
+
+# Disable replication (single node only)
+DEPLOY_REPLICATED=false
+```
+
+### Manual Harper CLI Deployment
+
+You can also use the Harper CLI directly with combined options:
+
+```bash
+# Deploy with automatic restart and replication
+harperdb deploy \
+  target=$CLI_TARGET_URL \
+  replicated=true \
+  restart=true
+
+# Rolling restart for zero-downtime deployment
+harperdb deploy \
+  target=$CLI_TARGET_URL \
+  replicated=true \
+  restart=rolling
+```
+
+This single command will:
 - Package your component code
 - Upload to the remote instance
 - Install dependencies
-- Initialize the component
+- Replicate across all cluster nodes
+- Restart Harper automatically
 
-### Step 2: Restart Harper
-
-After deployment, restart the remote Harper instance to apply changes:
-
-```bash
-harperdb restart target=$CLI_TARGET_URL
-```
-
-**For clustered environments**, ensure the restart replicates across all nodes:
-
-```bash
-harperdb restart target=$CLI_TARGET_URL replicated=true
-```
-
-### Step 3: Verify Deployment
+### Verify Deployment
 
 Check the remote instance status:
 

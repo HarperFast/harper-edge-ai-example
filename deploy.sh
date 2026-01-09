@@ -42,7 +42,11 @@ REMOTE_PASSWORD="${CLI_TARGET_PASSWORD:-${DEPLOY_PASSWORD:-}}"
 # Model Fetch Token (for testing, configurable via .env)
 MODEL_FETCH_TOKEN="${MODEL_FETCH_TOKEN:-}"
 
-# Deployment options
+# Harper deploy options (configurable via .env)
+DEPLOY_REPLICATED="${DEPLOY_REPLICATED:-true}"  # Replicate across cluster nodes
+DEPLOY_RESTART="${DEPLOY_RESTART:-true}"        # Restart after deploy
+
+# Script flow options
 RESTART_HARPER=false
 CHECK_STATUS=false
 RUN_TESTS=false
@@ -133,10 +137,20 @@ deploy_code() {
 
     # Deploy using Harper CLI
     log_info "Deploying via Harper CLI..."
+    log_info "  Replicated: ${DEPLOY_REPLICATED}"
+    log_info "  Restart: ${DEPLOY_RESTART}"
 
     CLI_TARGET_USERNAME="$REMOTE_USERNAME" \
     CLI_TARGET_PASSWORD="$REMOTE_PASSWORD" \
-    harperdb deploy target="${REMOTE_URL}"
+    harperdb deploy \
+        target="${REMOTE_URL}" \
+        replicated="${DEPLOY_REPLICATED}" \
+        restart="${DEPLOY_RESTART}"
+
+    if [[ "$DEPLOY_RESTART" == "true" ]] || [[ "$DEPLOY_RESTART" == "rolling" ]]; then
+        log_info "Waiting for restart to complete..."
+        sleep 5
+    fi
 
     log_success "Code deployed successfully"
 }
@@ -256,6 +270,8 @@ CONFIGURATION:
       DEPLOY_REMOTE_URL=https://ai-ops.irjudson-ai.harperfabric.com:9925
       DEPLOY_USERNAME=HDB_ADMIN
       DEPLOY_PASSWORD=your-password
+      DEPLOY_REPLICATED=true              # Replicate across cluster
+      DEPLOY_RESTART=true                 # Restart after deploy (true/false/rolling)
       MODEL_FETCH_TOKEN=your-token
 
     Environment variable overrides:
