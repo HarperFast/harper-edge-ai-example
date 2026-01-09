@@ -546,19 +546,21 @@ Create an async fetch job:
 harper-ai model fetch <source> <sourceReference> --name <name> [options]
 
 Options:
-  --name <name>         Model name (required)
-  --version <version>   Model version (default: v1)
+  --name <name>         Model name (required) (alias: --modelName)
+  --version <version>   Model version (default: v1) (alias: --modelVersion)
   --variant <variant>   Variant (for HuggingFace)
   --framework <framework>  Override framework detection
   --stage <stage>       Stage (development|staging|production)
   --webhook <url>       Webhook for notifications
+
+Note: Both short (--name, --version) and long (--modelName, --modelVersion) forms are supported.
 
 # Examples
 harper-ai model fetch filesystem test-fixtures/test-model.onnx --name test-model
 harper-ai model fetch huggingface Xenova/all-MiniLM-L6-v2 \
   --name minilm --variant quantized --stage production
 harper-ai model fetch url https://cdn.example.com/model.onnx \
-  --name remote-model --framework onnx
+  --modelName remote-model --modelVersion v2 --framework onnx
 ```
 
 #### list

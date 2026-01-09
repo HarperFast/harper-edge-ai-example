@@ -436,6 +436,7 @@ After installation, the `harper-ai` CLI is available globally:
 # Model operations
 harper-ai model inspect filesystem test.onnx
 harper-ai model fetch huggingface Xenova/all-MiniLM-L6-v2 --name minilm
+harper-ai model fetch url https://example.com/model.onnx --modelName mymodel --modelVersion v2
 harper-ai model list --stage production
 
 # Job operations

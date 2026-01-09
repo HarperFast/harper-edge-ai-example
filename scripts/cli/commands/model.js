@@ -103,13 +103,18 @@ async function fetch(args) {
 	const parsed = parseArgs(args);
 	const [source, sourceReference] = parsed.positional;
 
-	if (!source || !sourceReference || !parsed.name) {
+	// Support both --name and --modelName (prefer --modelName if both provided)
+	const modelName = parsed.modelName || parsed.name;
+	// Support both --version and --modelVersion (prefer --modelVersion if both provided)
+	const modelVersion = parsed.modelVersion || parsed.version || 'v1';
+
+	if (!source || !sourceReference || !modelName) {
 		log.error('Missing required arguments');
 		console.log('\nUsage: harper-ai model fetch <source> <sourceReference> --name <name> [options]');
 		console.log('\nRequired:');
-		console.log('  --name <name>              Model name');
+		console.log('  --name <name>              Model name (or --modelName)');
 		console.log('\nOptional:');
-		console.log('  --version <version>        Model version (default: v1)');
+		console.log('  --version <version>        Model version (or --modelVersion, default: v1)');
 		console.log('  --variant <variant>        Variant name (for HuggingFace)');
 		console.log('  --framework <framework>    Framework override');
 		console.log('  --stage <stage>            Stage (development|staging|production)');
@@ -117,7 +122,7 @@ async function fetch(args) {
 		console.log('\nExamples:');
 		console.log('  harper-ai model fetch filesystem test-fixtures/test-model.onnx --name test-model');
 		console.log('  harper-ai model fetch huggingface Xenova/all-MiniLM-L6-v2 --name minilm --variant quantized');
-		console.log('  harper-ai model fetch url https://example.com/model.onnx --name remote-model');
+		console.log('  harper-ai model fetch url https://example.com/model.onnx --modelName remote-model --modelVersion v2');
 		process.exit(1);
 	}
 
@@ -128,8 +133,8 @@ async function fetch(args) {
 		const fetchData = {
 			source,
 			sourceReference,
-			modelName: parsed.name,
-			modelVersion: parsed.version || 'v1',
+			modelName,
+			modelVersion,
 		};
 
 		if (parsed.variant) fetchData.variant = parsed.variant;
