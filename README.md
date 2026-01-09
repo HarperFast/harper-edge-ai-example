@@ -239,12 +239,17 @@ Async model downloading from multiple sources without manual upload.
 **Quick Example:**
 
 ```bash
+# Set optional authentication token (if MODEL_FETCH_TOKEN is configured)
+TOKEN="your-secret-token"
+
 # Inspect model before downloading
-curl "http://localhost:9926/InspectModel?source=huggingface&sourceReference=Xenova/all-MiniLM-L6-v2"
+curl "http://localhost:9926/InspectModel?source=huggingface&sourceReference=Xenova/all-MiniLM-L6-v2" \
+  -H "Authorization: Bearer $TOKEN"
 
 # Fetch model asynchronously
 curl -X POST http://localhost:9926/FetchModel \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
     "source": "huggingface",
     "sourceReference": "Xenova/all-MiniLM-L6-v2",
@@ -254,8 +259,11 @@ curl -X POST http://localhost:9926/FetchModel \
   }'
 
 # Track job progress
-curl "http://localhost:9926/ModelFetchJob?id=<jobId>"
+curl "http://localhost:9926/ModelFetchJob?id=<jobId>" \
+  -H "Authorization: Bearer $TOKEN"
 ```
+
+**Note:** Authentication is optional. If `MODEL_FETCH_TOKEN` environment variable is not set, the API is open.
 
 **Documentation:** [Model Fetch System Guide](docs/MODEL_FETCH_SYSTEM.md)
 
