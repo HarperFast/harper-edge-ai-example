@@ -13,6 +13,7 @@ import { ModelFetchWorker } from './core/ModelFetchWorker.js';
 import { LocalFilesystemAdapter } from './core/fetchers/LocalFilesystemAdapter.js';
 import { HttpUrlAdapter } from './core/fetchers/HttpUrlAdapter.js';
 import { HuggingFaceAdapter } from './core/fetchers/HuggingFaceAdapter.js';
+import { verifyModelFetchAuth } from './core/utils/auth.js';
 
 // Initialize personalization engine (shared across requests)
 const personalizationEngineCache = new Map();
@@ -442,6 +443,12 @@ export class UploadModelBlob extends Resource {
 export class InspectModel extends Resource {
 	async get(data, request) {
 		try {
+			// Check authentication
+			const authError = verifyModelFetchAuth(request);
+			if (authError) {
+				return authError;
+			}
+
 			await ensureInitialized();
 
 			// Parse query parameters
@@ -551,8 +558,14 @@ export class InspectModel extends Resource {
  *   }
  */
 export class FetchModel extends Resource {
-	async post(data) {
+	async post(data, request) {
 		try {
+			// Check authentication
+			const authError = verifyModelFetchAuth(request);
+			if (authError) {
+				return authError;
+			}
+
 			await ensureInitialized();
 
 			const {
@@ -719,6 +732,12 @@ export class FetchModel extends Resource {
 export class ModelFetchJobResource extends Resource {
 	async get(data, request) {
 		try {
+			// Check authentication
+			const authError = verifyModelFetchAuth(request);
+			if (authError) {
+				return authError;
+			}
+
 			await ensureInitialized();
 
 			// Parse query parameters
@@ -766,8 +785,14 @@ export class ModelFetchJobResource extends Resource {
 		}
 	}
 
-	async post(data) {
+	async post(data, request) {
 		try {
+			// Check authentication
+			const authError = verifyModelFetchAuth(request);
+			if (authError) {
+				return authError;
+			}
+
 			await ensureInitialized();
 
 			const { jobId, action = 'retry' } = data;
