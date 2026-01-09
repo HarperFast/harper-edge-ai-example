@@ -464,6 +464,56 @@ harper-ai model --help
 
 ---
 
+## Deploying to Remote Harper Instances
+
+Deploy your Harper Edge AI Ops application to remote Harper instances using the Harper CLI.
+
+### Quick Deployment
+
+```bash
+# Install Harper CLI globally
+npm install -g harperdb
+
+# Set remote target credentials
+export CLI_TARGET_URL=https://ai-ops.irjudson-ai.harperfabric.com:9925
+export CLI_TARGET_USERNAME=HDB_ADMIN
+export CLI_TARGET_PASSWORD=your-admin-password
+
+# Deploy code
+harperdb deploy target=$CLI_TARGET_URL
+
+# Restart Harper
+harperdb restart target=$CLI_TARGET_URL
+
+# Test the deployment
+export HARPER_URL=$CLI_TARGET_URL
+export MODEL_FETCH_TOKEN=your-secret-token
+harper-ai model list
+```
+
+### Simple Deployment Script
+
+Create `deploy-remote.sh` for convenience:
+
+```bash
+#!/usr/bin/env bash
+set -e
+
+REMOTE_URL="${CLI_TARGET_URL:-https://ai-ops.irjudson-ai.harperfabric.com:9925}"
+
+echo "Deploying to ${REMOTE_URL}..."
+harperdb deploy target="${REMOTE_URL}"
+
+echo "Restarting Harper..."
+harperdb restart target="${REMOTE_URL}"
+
+echo "Deployment complete!"
+```
+
+**Complete deployment guide:** [DEPLOYMENT.md](docs/DEPLOYMENT.md)
+
+---
+
 ## Documentation
 
 ### Design & Architecture
@@ -474,6 +524,9 @@ harper-ai model --help
 
 ### Model Management
 - [Model Fetch System Guide](docs/MODEL_FETCH_SYSTEM.md) - Async model downloading from HuggingFace, HTTP, and filesystem
+
+### Deployment
+- [Deployment Guide](docs/DEPLOYMENT.md) - Deploy to remote Harper instances using Harper CLI
 
 ### API Documentation
 Core classes have comprehensive JSDoc documentation:
