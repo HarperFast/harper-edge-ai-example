@@ -308,9 +308,19 @@ deploy_code() {
         replicated="${DEPLOY_REPLICATED}" \
         restart="${DEPLOY_RESTART}"
 
+    local deploy_exit_code=$?
+
     # Unset credentials after use
     unset CLI_TARGET_USERNAME
     unset CLI_TARGET_PASSWORD
+
+    # Check if deploy succeeded
+    if [[ $deploy_exit_code -ne 0 ]]; then
+        log_error "Deployment failed with exit code $deploy_exit_code"
+        restore_package_json
+        trap - EXIT ERR INT TERM
+        exit 1
+    fi
 
     if [[ "$DEPLOY_RESTART" == "true" ]] || [[ "$DEPLOY_RESTART" == "rolling" ]]; then
         log_info "Waiting for restart to complete..."
@@ -663,15 +673,28 @@ fi
 
 create_deployment_package
 
-deploy_code
+# Deploy code - exit on failure
+if ! deploy_code; then
+    log_error "Deployment failed, aborting"
+    exit 1
+fi
 
 if [[ "$RESTART_HARPER" == "true" ]]; then
-    restart_harper
-    check_deployment_status
+    if ! restart_harper; then
+        log_error "Restart failed, aborting"
+        exit 1
+    fi
+    if ! check_deployment_status; then
+        log_error "Status check failed, aborting"
+        exit 1
+    fi
 fi
 
 if [[ "$RUN_TESTS" == "true" ]]; then
-    run_deployment_tests
+    if ! run_deployment_tests; then
+        log_error "Tests failed, aborting"
+        exit 1
+    fi
 fi
 
 echo ""
