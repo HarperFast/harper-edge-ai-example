@@ -23,7 +23,8 @@ export class ModelFetchClient {
 		};
 
 		if (this.token) {
-			options.headers.Authorization = `Bearer ${this.token}`;
+			// Use custom header to avoid conflicts with Harper's built-in JWT auth
+			options.headers['X-Model-Fetch-Token'] = this.token;
 		}
 
 		return options;

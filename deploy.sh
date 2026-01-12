@@ -296,12 +296,14 @@ deploy_code() {
     log_info "  Replicated: ${DEPLOY_REPLICATED}"
     log_info "  Restart: ${DEPLOY_RESTART}"
 
+    echo "DEBUG: Running command:"
+    echo "  CLI_TARGET_USERNAME=\"${REMOTE_USERNAME}\""
+    echo "  CLI_TARGET_PASSWORD=\"${REMOTE_PASSWORD}\""
+    echo "  harperdb deploy target=\"${REMOTE_URL}\" replicated=\"${DEPLOY_REPLICATED}\" restart=\"${DEPLOY_RESTART}\""
+
     # Export credentials as environment variables (required by Harper CLI)
     export CLI_TARGET_USERNAME="$REMOTE_USERNAME"
-    # Only export password if it's not empty (local instances may not need it)
-    if [[ -n "$REMOTE_PASSWORD" ]]; then
-        export CLI_TARGET_PASSWORD="$REMOTE_PASSWORD"
-    fi
+    export CLI_TARGET_PASSWORD="$REMOTE_PASSWORD"
 
     harperdb deploy \
         target="${REMOTE_URL}" \
@@ -341,10 +343,7 @@ restart_harper() {
 
     # Export credentials as environment variables (required by Harper CLI)
     export CLI_TARGET_USERNAME="$REMOTE_USERNAME"
-    # Only export password if it's not empty (local instances may not need it)
-    if [[ -n "$REMOTE_PASSWORD" ]]; then
-        export CLI_TARGET_PASSWORD="$REMOTE_PASSWORD"
-    fi
+    export CLI_TARGET_PASSWORD="$REMOTE_PASSWORD"
 
     # Restart using Harper CLI
     harperdb restart target="${REMOTE_URL}"
@@ -373,10 +372,7 @@ check_deployment_status() {
     # Check using Harper CLI
     log_info "Getting Harper status..."
     export CLI_TARGET_USERNAME="$REMOTE_USERNAME"
-    # Only export password if it's not empty (local instances may not need it)
-    if [[ -n "$REMOTE_PASSWORD" ]]; then
-        export CLI_TARGET_PASSWORD="$REMOTE_PASSWORD"
-    fi
+    export CLI_TARGET_PASSWORD="$REMOTE_PASSWORD"
 
     harperdb status target="${REMOTE_URL}" || true
 
@@ -438,7 +434,7 @@ DEFAULT BEHAVIOR:
 
 OPTIONS:
     --help              Show this help message
-    --local             Deploy to local Harper instance (http://localhost:9926)
+    --local             Deploy to local Harper instance (http://localhost:9925)
     --dry-run           Show what would be deployed without executing
     --no-restart        Skip Harper restart after deployment
     --no-tests          Skip post-deployment tests
@@ -628,17 +624,11 @@ done
 
 # Override configuration for local mode
 if [[ "$LOCAL_MODE" == "true" ]]; then
-    REMOTE_URL="http://localhost:9926"
+    REMOTE_URL="http://localhost:9925"
     REMOTE_HOST="localhost"
-    REMOTE_PORT="9926"
+    REMOTE_PORT="9925"
     REMOTE_USERNAME="${DEPLOY_USERNAME:-admin}"
-    # For local Harper instances, don't set password (uses local auth)
-    # If you need a specific password for local, set DEPLOY_PASSWORD in .env
-    if [[ -n "${DEPLOY_PASSWORD}" ]]; then
-        REMOTE_PASSWORD="${DEPLOY_PASSWORD}"
-    else
-        REMOTE_PASSWORD=""
-    fi
+    REMOTE_PASSWORD="${DEPLOY_PASSWORD}"
     # Local deployments typically don't need replication
     DEPLOY_REPLICATED=false
 fi

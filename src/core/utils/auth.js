@@ -23,32 +23,26 @@ export function verifyModelFetchAuth(request) {
 		return null; // Allow request
 	}
 
-	// Get authorization header
-	const authHeader = request?.headers?.authorization;
-	console.log('  Auth header:', authHeader ? `${authHeader.substring(0, 20)}...` : '(none)');
+	// Get token from custom header (use X-Model-Fetch-Token instead of Authorization
+	// to avoid conflicts with Harper's built-in JWT authentication)
+	const tokenHeader = request?.headers?.['x-model-fetch-token'];
+	console.log('  X-Model-Fetch-Token header:', tokenHeader ? `${tokenHeader.substring(0, 10)}...` : '(none)');
 
-	if (!authHeader) {
-		console.log('[Auth] No authorization header provided');
+	if (!tokenHeader) {
+		console.log('[Auth] No X-Model-Fetch-Token header provided');
 		return {
-			error: 'Unauthorized: MODEL_FETCH_TOKEN required',
+			error: 'Unauthorized: X-Model-Fetch-Token header required',
 			code: 'UNAUTHORIZED'
 		};
 	}
 
-	// Extract token from header (support both "Bearer TOKEN" and plain "TOKEN")
-	let token = authHeader;
-	if (authHeader.toLowerCase().startsWith('bearer ')) {
-		token = authHeader.substring(7); // Remove "Bearer " prefix
-		console.log('  Extracted token (Bearer removed):', token ? `${token.substring(0, 10)}...` : '(none)');
-	}
-
 	// Verify token matches
 	console.log('  Comparing tokens:');
-	console.log('    Received:', token ? `${token.substring(0, 10)}...` : '(none)');
+	console.log('    Received:', tokenHeader ? `${tokenHeader.substring(0, 10)}...` : '(none)');
 	console.log('    Required:', requiredToken ? `${requiredToken.substring(0, 10)}...` : '(none)');
-	console.log('    Match:', token === requiredToken);
+	console.log('    Match:', tokenHeader === requiredToken);
 
-	if (token !== requiredToken) {
+	if (tokenHeader !== requiredToken) {
 		console.log('[Auth] Token mismatch, rejecting');
 		return {
 			error: 'invalid token',

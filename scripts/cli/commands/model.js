@@ -185,7 +185,7 @@ async function list(args) {
 		const fetchOptions = {};
 		if (config.modelFetchToken) {
 			fetchOptions.headers = {
-				Authorization: `Bearer ${config.modelFetchToken}`,
+				'X-Model-Fetch-Token': config.modelFetchToken,
 			};
 		}
 
