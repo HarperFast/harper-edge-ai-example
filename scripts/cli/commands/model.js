@@ -62,6 +62,10 @@ async function inspect(args) {
 
 		if (result.error) {
 			log.error(`Inspection failed: ${result.error}`);
+			if (result.debug) {
+				console.log('\nDebug Info:');
+				console.log(JSON.stringify(result.debug, null, 2));
+			}
 			process.exit(1);
 		}
 

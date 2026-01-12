@@ -460,22 +460,16 @@ export class InspectModel extends Resource {
 
 			await ensureInitialized();
 
-			// Parse query parameters
-			const source = data?.source;
-			const sourceReference = data?.sourceReference;
-			const variant = data?.variant;
+			// Parse query parameters from data.search
+			const searchParams = new URLSearchParams(data?.search || '');
+			const source = searchParams.get('source');
+			const sourceReference = searchParams.get('sourceReference');
+			const variant = searchParams.get('variant');
 
 			// Validation
 			if (!source || !sourceReference) {
 				return {
-					error: 'Missing required query parameters: source, sourceReference',
-					debug: {
-						requestKeys: request ? Object.keys(request) : null,
-						dataKeys: data ? Object.keys(data) : null,
-						source,
-						sourceReference,
-						variant
-					}
+					error: 'Missing required query parameters: source, sourceReference'
 				};
 			}
 
