@@ -471,6 +471,7 @@ export class InspectModel extends Resource {
 			}
 
 			// Get adapter
+			console.log('[InspectModel] Creating adapters');
 			const adapters = {
 				filesystem: new LocalFilesystemAdapter(),
 				url: new HttpUrlAdapter(),
@@ -487,8 +488,11 @@ export class InspectModel extends Resource {
 			// Detect framework
 			let framework;
 			try {
+				console.log('[InspectModel] Calling detectFramework');
 				framework = await adapter.detectFramework(sourceReference, variant);
+				console.log('[InspectModel] Framework detected:', framework);
 			} catch (error) {
+				console.error('[InspectModel] detectFramework failed:', error);
 				return {
 					error: `Failed to detect framework: ${error.message}`,
 					code: error.code || 'DETECTION_FAILED'
@@ -498,8 +502,11 @@ export class InspectModel extends Resource {
 			// List variants
 			let variants;
 			try {
+				console.log('[InspectModel] Calling listVariants');
 				variants = await adapter.listVariants(sourceReference);
+				console.log('[InspectModel] Variants found:', variants.length);
 			} catch (error) {
+				console.error('[InspectModel] listVariants failed:', error);
 				return {
 					error: `Failed to list variants: ${error.message}`,
 					code: error.code || 'LIST_VARIANTS_FAILED'
