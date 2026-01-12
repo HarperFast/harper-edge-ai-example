@@ -445,7 +445,7 @@ export class InspectModel extends Resource {
 		try {
 			console.log('[InspectModel] Request received');
 			console.log('  Headers:', JSON.stringify(request.headers, null, 2));
-			console.log('  Authorization:', request.headers?.authorization || '(none)');
+			console.log('  X-Model-Fetch-Token:', request.headers?.['x-model-fetch-token'] ? `${request.headers['x-model-fetch-token'].substring(0, 10)}...` : '(none)');
 
 			// Check authentication
 			const authError = verifyModelFetchAuth(request);
