@@ -1,6 +1,36 @@
 # Deploying Harper Edge AI Ops
 
-This guide covers deploying your Harper Edge AI Ops application to remote Harper instances using the Harper CLI.
+This guide covers deploying your Harper Edge AI Ops application to both local and remote Harper instances using the Harper CLI.
+
+## Quick Start
+
+### Local Development Deployment
+
+For testing and development with a locally running Harper instance:
+
+```bash
+# Start your local Harper instance first
+harper dev .
+
+# In another terminal, deploy to local instance
+./deploy.sh --local
+
+# Preview local deployment
+./deploy.sh --local --dry-run
+
+# Deploy specific backends locally
+DEPLOY_BACKENDS=onnx,transformers ./deploy.sh --local
+```
+
+The `--local` flag:
+- Targets `http://localhost:9926` automatically
+- Disables cluster replication (single node)
+- Uses default local credentials (`admin` with no password)
+- Perfect for testing deployment process before pushing to remote
+
+### Remote Deployment
+
+For production or remote Harper instances, see the full configuration guide below.
 
 ## Prerequisites
 

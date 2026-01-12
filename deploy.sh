@@ -55,6 +55,7 @@ RESTART_HARPER=true
 RUN_TESTS=true
 CHECK_STATUS=false
 DRY_RUN=false
+LOCAL_MODE=false
 
 # Colors for output
 RED='\033[0;31m'
@@ -418,6 +419,7 @@ DEFAULT BEHAVIOR:
 
 OPTIONS:
     --help              Show this help message
+    --local             Deploy to local Harper instance (http://localhost:9926)
     --dry-run           Show what would be deployed without executing
     --no-restart        Skip Harper restart after deployment
     --no-tests          Skip post-deployment tests
@@ -445,6 +447,15 @@ EXAMPLES:
 
     # Preview what would be deployed
     ./deploy.sh --dry-run
+
+    # Deploy to local Harper instance (development)
+    ./deploy.sh --local
+
+    # Preview local deployment
+    ./deploy.sh --local --dry-run
+
+    # Local deployment with specific backends
+    DEPLOY_BACKENDS=onnx,transformers ./deploy.sh --local
 
 CONFIGURATION:
     Remote: ${REMOTE_URL}
@@ -485,7 +496,12 @@ show_dry_run_plan() {
     echo ""
 
     log_info "Target Configuration:"
-    echo "  Remote URL:       ${REMOTE_URL}"
+    if [[ "$LOCAL_MODE" == "true" ]]; then
+        echo "  Mode:             Local Development"
+    else
+        echo "  Mode:             Remote"
+    fi
+    echo "  Target URL:       ${REMOTE_URL}"
     echo "  Username:         ${REMOTE_USERNAME}"
     echo "  Replicated:       ${DEPLOY_REPLICATED}"
     echo "  Restart Harper:   ${RESTART_HARPER}"
@@ -579,6 +595,10 @@ while [[ $# -gt 0 ]]; do
             DRY_RUN=true
             shift
             ;;
+        --local)
+            LOCAL_MODE=true
+            shift
+            ;;
         *)
             log_error "Unknown option: $1"
             show_help
@@ -586,6 +606,17 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Override configuration for local mode
+if [[ "$LOCAL_MODE" == "true" ]]; then
+    REMOTE_URL="http://localhost:9926"
+    REMOTE_HOST="localhost"
+    REMOTE_PORT="9926"
+    REMOTE_USERNAME="${DEPLOY_USERNAME:-admin}"
+    REMOTE_PASSWORD="${DEPLOY_PASSWORD:-}"
+    # Local deployments typically don't need replication
+    DEPLOY_REPLICATED=false
+fi
 
 # Execute based on flags
 if [[ "$CHECK_STATUS" == "true" ]]; then
