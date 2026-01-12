@@ -50,11 +50,11 @@ DEPLOY_RESTART="${DEPLOY_RESTART:-true}"        # Restart after deploy
 # Set to 'auto' to skip interactive prompt, or comma-separated: onnx,tensorflow,transformers
 DEPLOY_BACKENDS="${DEPLOY_BACKENDS:-}"
 
-# Script flow options
-RESTART_HARPER=false
+# Script flow options (defaults to full deployment)
+RESTART_HARPER=true
+RUN_TESTS=true
 CHECK_STATUS=false
-RUN_TESTS=false
-FULL_DEPLOY=false
+DRY_RUN=false
 
 # Colors for output
 RED='\033[0;31m'
@@ -220,11 +220,14 @@ select_backends() {
         log_warn "⚠️  Deployment size (${total_size}MB) exceeds 800MB!"
         log_warn "This may cause slow deployments or storage issues."
         echo ""
-        read -p "Continue anyway? (y/N) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            log_info "Deployment cancelled."
-            exit 0
+        # Skip confirmation in dry-run mode
+        if [[ "$DRY_RUN" != "true" ]]; then
+            read -p "Continue anyway? (y/N) " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                log_info "Deployment cancelled."
+                exit 0
+            fi
         fi
     fi
 
@@ -409,25 +412,39 @@ See docs/DEPLOYMENT.md for complete documentation.
 USAGE:
     ./deploy.sh [OPTIONS]
 
+DEFAULT BEHAVIOR:
+    Full deployment: deploy + replicate + restart + test
+    To skip any step, use the --no-* flags below.
+
 OPTIONS:
     --help              Show this help message
-    --restart           Deploy and restart Harper
-    --status            Check deployment status
-    --test              Run post-deployment tests
-    --full              Full deployment (deploy + restart + test)
+    --dry-run           Show what would be deployed without executing
+    --no-restart        Skip Harper restart after deployment
+    --no-tests          Skip post-deployment tests
+    --no-replicate      Deploy to single node only (no cluster replication)
+    --status            Check deployment status (no deploy)
 
 EXAMPLES:
-    # Deploy code only
+    # Full deployment (default: deploy + replicate + restart + test)
     ./deploy.sh
 
-    # Deploy and restart Harper
-    ./deploy.sh --restart
+    # Deploy without restarting
+    ./deploy.sh --no-restart
 
-    # Full deployment with tests
-    ./deploy.sh --full
+    # Deploy without tests
+    ./deploy.sh --no-tests
 
-    # Check current status
+    # Deploy to single node only (no cluster replication)
+    ./deploy.sh --no-replicate
+
+    # Deploy with no restart and no tests
+    ./deploy.sh --no-restart --no-tests
+
+    # Check current status only
     ./deploy.sh --status
+
+    # Preview what would be deployed
+    ./deploy.sh --dry-run
 
 CONFIGURATION:
     Remote: ${REMOTE_URL}
@@ -461,6 +478,76 @@ PREREQUISITES:
 EOF
 }
 
+show_dry_run_plan() {
+    log_info "========================================="
+    log_info "DRY RUN - Deployment Plan"
+    log_info "========================================="
+    echo ""
+
+    log_info "Target Configuration:"
+    echo "  Remote URL:       ${REMOTE_URL}"
+    echo "  Username:         ${REMOTE_USERNAME}"
+    echo "  Replicated:       ${DEPLOY_REPLICATED}"
+    echo "  Restart Harper:   ${RESTART_HARPER}"
+    echo "  Run Tests:        ${RUN_TESTS}"
+    echo ""
+
+    log_info "Selected Backends:"
+    local backends_list=""
+    local total_size=0
+
+    if [[ "$DEPLOY_ONNX" == "true" ]]; then
+        backends_list="${backends_list}  ✓ ONNX Runtime        - 183 MB\n"
+        total_size=$((total_size + 183))
+    fi
+
+    if [[ "$DEPLOY_TENSORFLOW" == "true" ]]; then
+        backends_list="${backends_list}  ✓ TensorFlow.js       - 683 MB\n"
+        total_size=$((total_size + 683))
+    fi
+
+    if [[ "$DEPLOY_TRANSFORMERS" == "true" ]]; then
+        backends_list="${backends_list}  ✓ Transformers.js     -  45 MB\n"
+        total_size=$((total_size + 45))
+    fi
+
+    backends_list="${backends_list}  ✓ Ollama              -   0 MB (external service)"
+
+    echo -e "$backends_list"
+    echo ""
+    log_info "Total Deployment Size: ${total_size} MB"
+
+    if [[ $total_size -gt 800 ]]; then
+        log_warn "⚠️  Deployment size exceeds 800MB!"
+    fi
+    echo ""
+
+    log_info "Deployment Steps:"
+    echo "  1. Package selected backends"
+    echo "  2. Deploy to ${REMOTE_URL}"
+    if [[ "$DEPLOY_REPLICATED" == "true" ]]; then
+        echo "  3. Replicate across cluster nodes"
+    else
+        echo "  3. Deploy to single node only"
+    fi
+    if [[ "$RESTART_HARPER" == "true" ]]; then
+        echo "  4. Restart Harper"
+        echo "  5. Check deployment status"
+    fi
+    if [[ "$RUN_TESTS" == "true" ]]; then
+        echo "  6. Run post-deployment tests"
+    fi
+    echo ""
+
+    log_success "========================================="
+    log_success "Dry Run Complete"
+    log_success "========================================="
+    echo ""
+    log_info "To execute this deployment, run without --dry-run:"
+    echo "  ./deploy.sh"
+    echo ""
+}
+
 # ============================================
 # MAIN
 # ============================================
@@ -472,22 +559,24 @@ while [[ $# -gt 0 ]]; do
             show_help
             exit 0
             ;;
-        --restart)
-            RESTART_HARPER=true
+        --no-restart)
+            RESTART_HARPER=false
+            shift
+            ;;
+        --no-tests)
+            RUN_TESTS=false
+            shift
+            ;;
+        --no-replicate)
+            DEPLOY_REPLICATED=false
             shift
             ;;
         --status)
             CHECK_STATUS=true
             shift
             ;;
-        --test)
-            RUN_TESTS=true
-            shift
-            ;;
-        --full)
-            FULL_DEPLOY=true
-            RESTART_HARPER=true
-            RUN_TESTS=true
+        --dry-run)
+            DRY_RUN=true
             shift
             ;;
         *)
@@ -511,11 +600,21 @@ log_info "Harper Edge AI Ops - Deployment"
 log_info "========================================="
 echo ""
 
-check_prerequisites
-check_remote_connection
+# Skip prerequisite checks in dry-run mode
+if [[ "$DRY_RUN" != "true" ]]; then
+    check_prerequisites
+    check_remote_connection
+fi
 
 # Select backends for deployment
 select_backends
+
+# Show dry-run plan and exit if requested
+if [[ "$DRY_RUN" == "true" ]]; then
+    show_dry_run_plan
+    exit 0
+fi
+
 create_deployment_package
 
 deploy_code
