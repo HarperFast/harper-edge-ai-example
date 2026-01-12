@@ -1,0 +1,36 @@
+{
+  "comparisonId": "8f1f04fe-b1a2-4e69-a469-aa9662283eb4",
+  "taskType": "classification",
+  "equivalenceGroup": "price-classifier",
+  "modelIds": [
+    "llama2-classifier:v1",
+    "mistral-classifier:v1"
+  ],
+  "winner": null,
+  "results": {
+    "llama2-classifier:v1": {
+      "avgLatency": 0,
+      "p50Latency": 0,
+      "p95Latency": 0,
+      "p99Latency": 0,
+      "minLatency": 0,
+      "maxLatency": 0,
+      "errorRate": 1,
+      "successCount": 0,
+      "errorCount": 100
+    },
+    "mistral-classifier:v1": {
+      "avgLatency": 0,
+      "p50Latency": 0,
+      "p95Latency": 0,
+      "p99Latency": 0,
+      "minLatency": 0,
+      "maxLatency": 0,
+      "errorRate": 1,
+      "successCount": 0,
+      "errorCount": 100
+    }
+  },
+  "timestamp": 1767980739803,
+  "completedAt": 1767980739820
+}

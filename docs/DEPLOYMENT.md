@@ -60,6 +60,51 @@ MODEL_FETCH_TOKEN=your-secret-token
   - `true` - Standard restart
   - `false` - No restart (manual restart required)
   - `rolling` - Rolling restart (minimal downtime for clusters)
+- `DEPLOY_BACKENDS` - Select which ML backends to deploy (optional)
+  - Empty: Interactive prompt (default)
+  - `all`: All backends (911MB - ⚠️ exceeds 800MB)
+  - `onnx`: ONNX Runtime only (183MB)
+  - `tensorflow`: TensorFlow.js only (683MB)
+  - `transformers`: Transformers.js only (45MB)
+  - Comma-separated: `onnx,transformers` (228MB)
+  - **Note:** Ollama backend is always available (0 MB - external service)
+
+**Backend Selection:**
+
+The deploy script allows you to choose which ML backends to include in the remote deployment. This reduces deployment size and speeds up installation.
+
+**Interactive mode (default):**
+```bash
+./deploy.sh --full
+
+# Prompts:
+#   1. ONNX Runtime        - 183 MB
+#   2. TensorFlow.js       - 683 MB
+#   3. Transformers.js     -  45 MB
+#   4. All backends        - 911 MB (WARNING: >800MB)
+#
+# Select backends: 1,3
+# Selected: ONNX, Transformers.js (228MB)
+```
+
+**Automated mode (skip prompt):**
+```bash
+# In .env file:
+DEPLOY_BACKENDS=onnx,transformers
+
+# Or export before running:
+export DEPLOY_BACKENDS=onnx
+./deploy.sh --full
+```
+
+**⚠️ 800MB Warning:**
+
+If your selected backends exceed 800MB, you'll receive a warning:
+```
+⚠️ Deployment size (911MB) exceeds 800MB!
+This may cause slow deployments or storage issues.
+Continue anyway? (y/N)
+```
 
 **Configuration priority:**
 1. Environment variables (`CLI_TARGET_*`, `DEPLOY_*`)

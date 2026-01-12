@@ -46,6 +46,10 @@ MODEL_FETCH_TOKEN="${MODEL_FETCH_TOKEN:-}"
 DEPLOY_REPLICATED="${DEPLOY_REPLICATED:-true}"  # Replicate across cluster nodes
 DEPLOY_RESTART="${DEPLOY_RESTART:-true}"        # Restart after deploy
 
+# Backend selection (configurable via .env for automated deployments)
+# Set to 'auto' to skip interactive prompt, or comma-separated: onnx,tensorflow,transformers
+DEPLOY_BACKENDS="${DEPLOY_BACKENDS:-}"
+
 # Script flow options
 RESTART_HARPER=false
 CHECK_STATUS=false
@@ -129,11 +133,159 @@ check_remote_connection() {
     fi
 }
 
+select_backends() {
+    log_info "Selecting ML backends for deployment..."
+
+    local backend_selection=""
+
+    # Check if DEPLOY_BACKENDS is set (automated deployment)
+    if [[ -n "$DEPLOY_BACKENDS" ]]; then
+        log_info "Using backends from DEPLOY_BACKENDS: $DEPLOY_BACKENDS"
+        backend_selection="$DEPLOY_BACKENDS"
+    else
+        # Interactive selection
+        echo ""
+        echo "Available ML backends and their sizes:"
+        echo "  1. ONNX Runtime        - 183 MB"
+        echo "  2. TensorFlow.js       - 683 MB"
+        echo "  3. Transformers.js     -  45 MB"
+        echo "  4. All backends        - 911 MB (WARNING: >800MB)"
+        echo ""
+        echo "Note: Ollama backend is always available (0 MB - external service)"
+        echo ""
+        echo "Select backends to deploy (comma-separated, e.g., 1,3 or 'all'):"
+        read -r backend_selection
+
+        # Default to all if empty
+        if [[ -z "$backend_selection" ]]; then
+            backend_selection="all"
+        fi
+    fi
+
+    # Parse selection
+    DEPLOY_ONNX=false
+    DEPLOY_TENSORFLOW=false
+    DEPLOY_TRANSFORMERS=false
+
+    if [[ "$backend_selection" == "all" ]] || [[ "$backend_selection" == "4" ]]; then
+        DEPLOY_ONNX=true
+        DEPLOY_TENSORFLOW=true
+        DEPLOY_TRANSFORMERS=true
+    else
+        IFS=',' read -ra SELECTIONS <<< "$backend_selection"
+        for sel in "${SELECTIONS[@]}"; do
+            # Trim whitespace
+            sel=$(echo "$sel" | xargs)
+            case $sel in
+                1|onnx) DEPLOY_ONNX=true ;;
+                2|tensorflow) DEPLOY_TENSORFLOW=true ;;
+                3|transformers) DEPLOY_TRANSFORMERS=true ;;
+                *) log_warn "Unknown selection: $sel" ;;
+            esac
+        done
+    fi
+
+    # Calculate total size
+    local total_size=0
+    local selected_backends=""
+
+    if [[ "$DEPLOY_ONNX" == "true" ]]; then
+        total_size=$((total_size + 183))
+        selected_backends="${selected_backends}ONNX, "
+    fi
+
+    if [[ "$DEPLOY_TENSORFLOW" == "true" ]]; then
+        total_size=$((total_size + 683))
+        selected_backends="${selected_backends}TensorFlow, "
+    fi
+
+    if [[ "$DEPLOY_TRANSFORMERS" == "true" ]]; then
+        total_size=$((total_size + 45))
+        selected_backends="${selected_backends}Transformers.js, "
+    fi
+
+    # Remove trailing comma
+    selected_backends="${selected_backends%, }"
+
+    if [[ -z "$selected_backends" ]]; then
+        log_error "No backends selected. At least one backend is required."
+        exit 1
+    fi
+
+    log_info "Selected backends: ${selected_backends}"
+    log_info "Estimated deployment size: ${total_size} MB"
+
+    # Warn if >800MB
+    if [[ $total_size -gt 800 ]]; then
+        log_warn "⚠️  Deployment size (${total_size}MB) exceeds 800MB!"
+        log_warn "This may cause slow deployments or storage issues."
+        echo ""
+        read -p "Continue anyway? (y/N) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            log_info "Deployment cancelled."
+            exit 0
+        fi
+    fi
+
+    echo ""
+}
+
+create_deployment_package() {
+    log_info "Creating deployment package with selected backends..."
+
+    # Backup original package.json
+    cp package.json package.json.backup
+
+    # Use Node.js to modify package.json (cross-platform compatible)
+    node -e "
+        const fs = require('fs');
+        const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+
+        // Build new dependencies based on selections
+        const newDeps = { uuid: pkg.dependencies.uuid };
+
+        if ('$DEPLOY_ONNX' === 'true') {
+            newDeps['onnxruntime-node'] = pkg.dependencies['onnxruntime-node'];
+        }
+
+        if ('$DEPLOY_TENSORFLOW' === 'true') {
+            newDeps['@tensorflow/tfjs-node'] = pkg.dependencies['@tensorflow/tfjs-node'];
+            newDeps['@tensorflow-models/universal-sentence-encoder'] = pkg.dependencies['@tensorflow-models/universal-sentence-encoder'];
+        }
+
+        if ('$DEPLOY_TRANSFORMERS' === 'true') {
+            newDeps['@xenova/transformers'] = pkg.dependencies['@xenova/transformers'];
+        }
+
+        // Replace dependencies
+        pkg.dependencies = newDeps;
+
+        // Write modified package.json
+        fs.writeFileSync('package.json', JSON.stringify(pkg, null, '\t') + '\n');
+    "
+
+    log_success "Deployment package configured"
+}
+
+restore_package_json() {
+    log_info "Restoring original package.json..."
+
+    if [[ -f package.json.backup ]]; then
+        mv package.json.backup package.json
+        rm -f package.json.tmp
+        log_success "Original package.json restored"
+    fi
+}
+
 deploy_code() {
     log_info "Deploying code to ${REMOTE_URL}..."
 
     local current_branch=$(git branch --show-current)
     log_info "Current branch: ${current_branch}"
+
+    # Set up trap to restore package.json on error
+    trap restore_package_json EXIT ERR INT TERM
 
     # Deploy using Harper CLI
     log_info "Deploying via Harper CLI..."
@@ -157,6 +309,12 @@ deploy_code() {
         log_info "Waiting for restart to complete..."
         sleep 5
     fi
+
+    # Restore package.json
+    restore_package_json
+
+    # Clear trap
+    trap - EXIT ERR INT TERM
 
     log_success "Code deployed successfully"
 }
@@ -355,6 +513,10 @@ echo ""
 
 check_prerequisites
 check_remote_connection
+
+# Select backends for deployment
+select_backends
+create_deployment_package
 
 deploy_code
 
