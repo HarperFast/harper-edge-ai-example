@@ -385,8 +385,20 @@ check_deployment_status() {
 run_deployment_tests() {
     log_info "Running post-deployment tests..."
 
-    export HARPER_URL="${REMOTE_URL}"
+    # REMOTE_URL is the deployment port (9925), but CLI needs application port (9926)
+    # Convert deployment URL to application URL by changing port from 9925 to 9926
+    local APP_URL
+    if [[ "$REMOTE_URL" =~ :9925$ ]]; then
+        APP_URL="${REMOTE_URL%:9925}:9926"
+    else
+        # For local deployments, use localhost:9926
+        APP_URL="http://localhost:9926"
+    fi
+
+    export HARPER_URL="${APP_URL}"
     export MODEL_FETCH_TOKEN="${MODEL_FETCH_TOKEN}"
+
+    log_info "Testing against application URL: ${APP_URL}"
 
     # Test 1: Inspect a HuggingFace model
     log_info "Test 1: Inspect model..."
