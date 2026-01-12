@@ -17,6 +17,11 @@ export class HuggingFaceAdapter extends BaseSourceAdapter {
 	}
 
 	async detectFramework(sourceReference, variant = null) {
+		// Check if fetch is available
+		if (typeof fetch === 'undefined') {
+			throw new NetworkError('fetch is not available in this environment');
+		}
+
 		// Check for Transformers.js model files
 		const transformersFiles = [
 			'onnx/model.onnx',
@@ -24,18 +29,25 @@ export class HuggingFaceAdapter extends BaseSourceAdapter {
 			'tokenizer.json'
 		];
 
+		const errors = [];
 		for (const file of transformersFiles) {
 			const url = `${this.baseUrl}/${sourceReference}/resolve/main/${file}`;
 			try {
 				const response = await fetch(url, { method: 'HEAD' });
-				if (response.ok) {
+				if (response && response.ok) {
 					return 'transformers';
 				}
 			} catch (error) {
 				// Continue checking other files
+				errors.push(`${file}: ${error.message}`);
+				console.warn(`[HuggingFaceAdapter] Error checking ${file}:`, error.message);
 			}
 		}
 
+		// If we got here, no files were found
+		if (errors.length > 0) {
+			throw new NetworkError(`Failed to check HuggingFace files: ${errors.join('; ')}`);
+		}
 		throw new UnsupportedFrameworkError('Cannot detect framework from HuggingFace model. Only Transformers.js models are currently supported.');
 	}
 
@@ -46,7 +58,7 @@ export class HuggingFaceAdapter extends BaseSourceAdapter {
 		const defaultUrl = `${this.baseUrl}/${sourceReference}/resolve/main/onnx/model.onnx`;
 		try {
 			const response = await fetch(defaultUrl, { method: 'HEAD' });
-			if (response.ok) {
+			if (response && response.ok && response.headers) {
 				const contentLength = response.headers.get('content-length');
 				const size = contentLength ? parseInt(contentLength, 10) : 0;
 
@@ -59,13 +71,14 @@ export class HuggingFaceAdapter extends BaseSourceAdapter {
 			}
 		} catch (error) {
 			// Default variant doesn't exist, continue
+			console.warn('[HuggingFaceAdapter] Error checking default variant:', error.message);
 		}
 
 		// Check for quantized model
 		const quantizedUrl = `${this.baseUrl}/${sourceReference}/resolve/main/onnx/model_quantized.onnx`;
 		try {
 			const response = await fetch(quantizedUrl, { method: 'HEAD' });
-			if (response.ok) {
+			if (response && response.ok && response.headers) {
 				const contentLength = response.headers.get('content-length');
 				const size = contentLength ? parseInt(contentLength, 10) : 0;
 
@@ -78,6 +91,7 @@ export class HuggingFaceAdapter extends BaseSourceAdapter {
 			}
 		} catch (error) {
 			// Quantized variant doesn't exist, continue
+			console.warn('[HuggingFaceAdapter] Error checking quantized variant:', error.message);
 		}
 
 		if (variants.length === 0) {
@@ -107,7 +121,7 @@ export class HuggingFaceAdapter extends BaseSourceAdapter {
 			const url = `${this.baseUrl}/${sourceReference}/resolve/main/${file}`;
 			try {
 				const response = await fetch(url, { method: 'HEAD' });
-				if (response.ok) {
+				if (response && response.ok && response.headers) {
 					const contentLength = response.headers.get('content-length');
 					if (contentLength) {
 						totalSize += parseInt(contentLength, 10);
@@ -115,6 +129,7 @@ export class HuggingFaceAdapter extends BaseSourceAdapter {
 				}
 			} catch (error) {
 				// Skip files that don't exist
+				console.warn(`[HuggingFaceAdapter] Error getting size for ${file}:`, error.message);
 			}
 		}
 
