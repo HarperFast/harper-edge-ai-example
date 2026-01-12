@@ -147,18 +147,48 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 
 ## Deployment Workflow
 
+### Preview Deployment (Dry Run)
+
+Before deploying, you can preview what would be deployed without executing:
+
+```bash
+# Preview default deployment
+./deploy.sh --dry-run
+
+# Preview specific backends
+DEPLOY_BACKENDS=onnx,transformers ./deploy.sh --dry-run
+
+# Preview with custom options
+./deploy.sh --dry-run --no-restart --no-tests
+```
+
+The dry-run mode shows:
+- Target configuration (URL, credentials, replication settings)
+- Selected backends with sizes
+- Total deployment size (with 800MB warning if applicable)
+- Deployment steps that would be executed
+
 ### Single Command Deployment (Recommended)
 
 The `deploy.sh` script handles deployment, replication, and restart in a single command:
 
 ```bash
-# Full deployment with restart and replication
-./deploy.sh --full
+# Full deployment (default: deploy + replicate + restart + test)
+./deploy.sh
+
+# Deploy without restarting
+./deploy.sh --no-restart
+
+# Deploy without tests
+./deploy.sh --no-tests
+
+# Deploy to single node only (no replication)
+./deploy.sh --no-replicate
 ```
 
-By default (configured via `.env`):
-- Automatically restarts Harper after deployment (`DEPLOY_RESTART=true`)
-- Replicates across all cluster nodes (`DEPLOY_REPLICATED=true`)
+By default:
+- Full deployment: deploy + replicate + restart + test
+- To skip any step, use the `--no-*` flags shown above
 
 **Customize deployment behavior in `.env`:**
 
