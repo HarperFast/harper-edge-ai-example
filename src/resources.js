@@ -444,8 +444,11 @@ export class InspectModel extends Resource {
 	async get(data, request) {
 		try {
 			console.log('[InspectModel] Request received');
-			console.log('  Headers:', JSON.stringify(request.headers, null, 2));
-			console.log('  X-Model-Fetch-Token:', request.headers?.['x-model-fetch-token'] ? `${request.headers['x-model-fetch-token'].substring(0, 10)}...` : '(none)');
+			console.log('  Request object:', request ? 'exists' : 'undefined');
+			console.log('  Request type:', typeof request);
+			console.log('  Request keys:', request ? Object.keys(request) : 'n/a');
+			console.log('  Headers:', request?.headers ? JSON.stringify(request.headers, null, 2) : '(undefined)');
+			console.log('  X-Model-Fetch-Token:', request?.headers?.['x-model-fetch-token'] ? `${request.headers['x-model-fetch-token'].substring(0, 10)}...` : '(none)');
 
 			// Check authentication
 			const authError = verifyModelFetchAuth(request);
@@ -458,10 +461,16 @@ export class InspectModel extends Resource {
 			await ensureInitialized();
 
 			// Parse query parameters
-			const searchParams = new URLSearchParams(request.search || '');
-			const source = searchParams.get('source');
-			const sourceReference = searchParams.get('sourceReference');
-			const variant = searchParams.get('variant');
+			if (!request || !request.url) {
+				return {
+					error: 'Invalid request: missing URL'
+				};
+			}
+
+			const url = new URL(request.url);
+			const source = url.searchParams.get('source');
+			const sourceReference = url.searchParams.get('sourceReference');
+			const variant = url.searchParams.get('variant');
 
 			// Validation
 			if (!source || !sourceReference) {

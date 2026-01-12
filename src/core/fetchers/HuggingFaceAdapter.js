@@ -18,6 +18,10 @@ export class HuggingFaceAdapter extends BaseSourceAdapter {
 
 	async detectFramework(sourceReference, variant = null) {
 		// Check if fetch is available
+		console.log('[HuggingFaceAdapter] typeof fetch:', typeof fetch);
+		console.log('[HuggingFaceAdapter] typeof global.fetch:', typeof global.fetch);
+		console.log('[HuggingFaceAdapter] typeof globalThis.fetch:', typeof globalThis.fetch);
+
 		if (typeof fetch === 'undefined') {
 			throw new NetworkError('fetch is not available in this environment');
 		}
