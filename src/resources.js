@@ -428,6 +428,60 @@ export class UploadModelBlob extends Resource {
 }
 
 /**
+ * ModelList Resource
+ *
+ * GET /ModelList?stage=...&framework=...
+ *
+ * List models from the Model table
+ */
+export class ModelList extends Resource {
+	async get(data, request) {
+		try {
+			// Check authentication
+			const authError = verifyModelFetchAuth(request);
+			if (authError) {
+				return authError;
+			}
+
+			await ensureInitialized();
+
+			// Parse query parameters
+			const searchParams = new URLSearchParams(data?.search || '');
+			const stage = searchParams.get('stage');
+			const framework = searchParams.get('framework');
+
+			// Query Model table
+			const models = [];
+			for await (const model of tables.Model.search()) {
+				// Apply filters
+				if (stage && model.stage !== stage) continue;
+				if (framework && model.framework !== framework) continue;
+
+				// Don't return the full blob in list view
+				models.push({
+					id: model.id,
+					modelName: model.modelName,
+					modelVersion: model.modelVersion,
+					framework: model.framework,
+					stage: model.stage,
+					blobSize: model.modelBlob?.length || 0,
+					uploadedAt: model.uploadedAt,
+					metadata: model.metadata
+				});
+			}
+
+			return models;
+		} catch (error) {
+			console.error('[ModelList] Error:', error);
+			return {
+				error: error.message,
+				code: error.code || 'LIST_FAILED'
+			};
+		}
+	}
+}
+
+/**
  * InspectModel Resource
  *
  * GET /InspectModel?source={source}&sourceReference={reference}&variant={variant}

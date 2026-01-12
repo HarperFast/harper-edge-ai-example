@@ -68,6 +68,11 @@ try {
 async function handleModelCommand(subcommand, args) {
 	const { default: modelCommands } = await import('./commands/model.js');
 
+	if (global.VERBOSE) {
+		console.log('[CLI] Model subcommand:', subcommand);
+		console.log('[CLI] Available commands:', Object.keys(modelCommands));
+	}
+
 	switch (subcommand) {
 		case 'inspect':
 			await modelCommands.inspect(args);

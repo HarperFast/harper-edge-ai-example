@@ -181,7 +181,7 @@ async function list(args) {
 	const config = getConfig(args);
 
 	try {
-		// Call Harper REST API directly for Model table
+		// Call ModelList resource
 		const params = new URLSearchParams();
 		if (parsed.stage) params.append('stage', parsed.stage);
 		if (parsed.framework) params.append('framework', parsed.framework);
@@ -193,8 +193,8 @@ async function list(args) {
 			};
 		}
 
-		const url = `${config.url}/Model/${params.toString() ? '?' + params : ''}`;
-		const response = await fetch(url, fetchOptions);
+		const url = `${config.url}/ModelList${params.toString() ? '?' + params.toString() : ''}`;
+		const response = await globalThis.fetch(url, fetchOptions);
 
 		if (!response.ok) {
 			throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -216,7 +216,7 @@ async function list(args) {
 			m.modelVersion,
 			m.framework,
 			m.stage,
-			formatBytes(m.modelBlob?.length || 0),
+			formatBytes(m.blobSize || 0),
 		]);
 
 		printTable(tableData, ['Name', 'Version', 'Framework', 'Stage', 'Size']);
