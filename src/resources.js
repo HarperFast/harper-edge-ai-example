@@ -461,16 +461,14 @@ export class InspectModel extends Resource {
 			await ensureInitialized();
 
 			// Parse query parameters
-			if (!request || !request.url) {
-				return {
-					error: 'Invalid request: missing URL'
-				};
-			}
+			// For GET requests, Harper passes the query params in 'data' object
+			console.log('[InspectModel] Data:', JSON.stringify(data, null, 2));
+			console.log('[InspectModel] Request URL:', request?.url);
+			console.log('[InspectModel] Request search:', request?.search);
 
-			const url = new URL(request.url);
-			const source = url.searchParams.get('source');
-			const sourceReference = url.searchParams.get('sourceReference');
-			const variant = url.searchParams.get('variant');
+			const source = data?.source;
+			const sourceReference = data?.sourceReference;
+			const variant = data?.variant;
 
 			// Validation
 			if (!source || !sourceReference) {
