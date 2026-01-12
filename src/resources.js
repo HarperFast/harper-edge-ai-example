@@ -443,12 +443,12 @@ export class UploadModelBlob extends Resource {
 export class InspectModel extends Resource {
 	async get(data, request) {
 		try {
-			console.log('[InspectModel] Request received');
-			console.log('  Request object:', request ? 'exists' : 'undefined');
-			console.log('  Request type:', typeof request);
-			console.log('  Request keys:', request ? Object.keys(request) : 'n/a');
-			console.log('  Headers:', request?.headers ? JSON.stringify(request.headers, null, 2) : '(undefined)');
-			console.log('  X-Model-Fetch-Token:', request?.headers?.['x-model-fetch-token'] ? `${request.headers['x-model-fetch-token'].substring(0, 10)}...` : '(none)');
+			console.log('[InspectModel] ===== Request Debug =====');
+			console.log('[InspectModel] Request keys:', request ? Object.keys(request).join(', ') : 'request is undefined');
+			console.log('[InspectModel] Request:', JSON.stringify(request, null, 2));
+			console.log('[InspectModel] Data keys:', data ? Object.keys(data).join(', ') : 'data is undefined');
+			console.log('[InspectModel] Data:', JSON.stringify(data, null, 2));
+			console.log('[InspectModel] ===========================');
 
 			// Check authentication
 			const authError = verifyModelFetchAuth(request);
@@ -461,11 +461,6 @@ export class InspectModel extends Resource {
 			await ensureInitialized();
 
 			// Parse query parameters
-			// For GET requests, Harper passes the query params in 'data' object
-			console.log('[InspectModel] Data:', JSON.stringify(data, null, 2));
-			console.log('[InspectModel] Request URL:', request?.url);
-			console.log('[InspectModel] Request search:', request?.search);
-
 			const source = data?.source;
 			const sourceReference = data?.sourceReference;
 			const variant = data?.variant;
@@ -473,7 +468,14 @@ export class InspectModel extends Resource {
 			// Validation
 			if (!source || !sourceReference) {
 				return {
-					error: 'Missing required query parameters: source, sourceReference'
+					error: 'Missing required query parameters: source, sourceReference',
+					debug: {
+						requestKeys: request ? Object.keys(request) : null,
+						dataKeys: data ? Object.keys(data) : null,
+						source,
+						sourceReference,
+						variant
+					}
 				};
 			}
 
