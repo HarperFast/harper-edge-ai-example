@@ -103,8 +103,8 @@ check_prerequisites() {
         fi
     fi
 
-    # Check if credentials are configured
-    if [[ -z "$REMOTE_PASSWORD" ]]; then
+    # Check if credentials are configured (skip for local mode)
+    if [[ -z "$REMOTE_PASSWORD" ]] && [[ "$LOCAL_MODE" != "true" ]]; then
         log_error "REMOTE_PASSWORD not set"
         log_info "Set in .env file:"
         log_info "  DEPLOY_PASSWORD=your-password"
@@ -298,7 +298,10 @@ deploy_code() {
 
     # Export credentials as environment variables (required by Harper CLI)
     export CLI_TARGET_USERNAME="$REMOTE_USERNAME"
-    export CLI_TARGET_PASSWORD="$REMOTE_PASSWORD"
+    # Only export password if it's not empty (local instances may not need it)
+    if [[ -n "$REMOTE_PASSWORD" ]]; then
+        export CLI_TARGET_PASSWORD="$REMOTE_PASSWORD"
+    fi
 
     harperdb deploy \
         target="${REMOTE_URL}" \
@@ -328,7 +331,10 @@ restart_harper() {
 
     # Export credentials as environment variables (required by Harper CLI)
     export CLI_TARGET_USERNAME="$REMOTE_USERNAME"
-    export CLI_TARGET_PASSWORD="$REMOTE_PASSWORD"
+    # Only export password if it's not empty (local instances may not need it)
+    if [[ -n "$REMOTE_PASSWORD" ]]; then
+        export CLI_TARGET_PASSWORD="$REMOTE_PASSWORD"
+    fi
 
     # Restart using Harper CLI
     harperdb restart target="${REMOTE_URL}"
@@ -357,7 +363,10 @@ check_deployment_status() {
     # Check using Harper CLI
     log_info "Getting Harper status..."
     export CLI_TARGET_USERNAME="$REMOTE_USERNAME"
-    export CLI_TARGET_PASSWORD="$REMOTE_PASSWORD"
+    # Only export password if it's not empty (local instances may not need it)
+    if [[ -n "$REMOTE_PASSWORD" ]]; then
+        export CLI_TARGET_PASSWORD="$REMOTE_PASSWORD"
+    fi
 
     harperdb status target="${REMOTE_URL}" || true
 
@@ -613,7 +622,13 @@ if [[ "$LOCAL_MODE" == "true" ]]; then
     REMOTE_HOST="localhost"
     REMOTE_PORT="9926"
     REMOTE_USERNAME="${DEPLOY_USERNAME:-admin}"
-    REMOTE_PASSWORD="${DEPLOY_PASSWORD:-}"
+    # For local Harper instances, don't set password (uses local auth)
+    # If you need a specific password for local, set DEPLOY_PASSWORD in .env
+    if [[ -n "${DEPLOY_PASSWORD}" ]]; then
+        REMOTE_PASSWORD="${DEPLOY_PASSWORD}"
+    else
+        REMOTE_PASSWORD=""
+    fi
     # Local deployments typically don't need replication
     DEPLOY_REPLICATED=false
 fi
