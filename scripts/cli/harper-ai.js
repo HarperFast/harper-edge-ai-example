@@ -17,6 +17,7 @@
  * Global options:
  *   --url <url>       Harper instance URL (default: http://localhost:9926)
  *   --token <token>   Model Fetch API token (or set MODEL_FETCH_TOKEN env var)
+ *   --verbose         Enable verbose logging (shows config, requests, responses)
  *   --help            Show help
  */
 
@@ -24,6 +25,9 @@ import { log } from '../lib/cli-utils.js';
 import { getConfig } from '../lib/config.js';
 
 const args = process.argv.slice(2);
+
+// Check for verbose mode
+global.VERBOSE = args.includes('--verbose');
 
 // Handle help flag
 if (args.includes('--help') || args.includes('-h') || args.length === 0) {

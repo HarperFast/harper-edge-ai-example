@@ -443,11 +443,17 @@ export class UploadModelBlob extends Resource {
 export class InspectModel extends Resource {
 	async get(data, request) {
 		try {
+			console.log('[InspectModel] Request received');
+			console.log('  Headers:', JSON.stringify(request.headers, null, 2));
+			console.log('  Authorization:', request.headers?.authorization || '(none)');
+
 			// Check authentication
 			const authError = verifyModelFetchAuth(request);
 			if (authError) {
+				console.log('[InspectModel] Authentication failed:', authError);
 				return authError;
 			}
+			console.log('[InspectModel] Authentication passed');
 
 			await ensureInitialized();
 

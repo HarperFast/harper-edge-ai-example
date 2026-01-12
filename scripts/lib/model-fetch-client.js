@@ -44,13 +44,36 @@ export class ModelFetchClient {
 		}
 
 		const url = `${this.baseUrl}/InspectModel?${params}`;
-		const response = await fetch(url, this._getFetchOptions());
+		const options = this._getFetchOptions();
+
+		if (global.VERBOSE) {
+			console.log('[VERBOSE] Inspect Model Request:');
+			console.log('  URL:', url);
+			console.log('  Headers:', JSON.stringify(options.headers, null, 2));
+		}
+
+		const response = await fetch(url, options);
+
+		if (global.VERBOSE) {
+			console.log('[VERBOSE] Response:');
+			console.log('  Status:', response.status, response.statusText);
+			console.log('  Headers:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
+		}
 
 		if (!response.ok) {
+			const body = await response.text();
+			if (global.VERBOSE) {
+				console.log('[VERBOSE] Response Body:', body);
+			}
 			throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 		}
 
-		return await response.json();
+		const data = await response.json();
+		if (global.VERBOSE) {
+			console.log('[VERBOSE] Response Body:', JSON.stringify(data, null, 2));
+		}
+
+		return data;
 	}
 
 	/**
