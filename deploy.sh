@@ -225,6 +225,18 @@ select_backends() {
         fi
     fi
 
+    # Check models directory size (always excluded from deployment)
+    local models_size=0
+    if [[ -d "models" ]]; then
+        models_size=$(du -sm models 2>/dev/null | cut -f1)
+        if [[ -z "$models_size" ]]; then
+            models_size=0
+        fi
+        if [[ $models_size -gt 0 ]]; then
+            log_info "Note: models/ directory (${models_size}MB) is excluded from deployment (.gitignore)"
+        fi
+    fi
+
     # Calculate total deployment size
     local total_with_deps=$((total_size + node_modules_size))
 
