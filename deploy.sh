@@ -124,7 +124,8 @@ check_prerequisites() {
 check_remote_connection() {
     log_info "Testing connection to remote Harper instance..."
 
-    if curl -k -s --max-time 5 "${REMOTE_URL}/Status" > /dev/null; then
+    # Use /health endpoint which is always available (doesn't require app code)
+    if curl -k -s --max-time 5 "${REMOTE_URL}/health" > /dev/null; then
         log_success "Remote Harper instance is accessible"
         return 0
     else
