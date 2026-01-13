@@ -129,7 +129,7 @@ check_remote_connection() {
         log_success "Remote Harper instance is accessible"
         return 0
     else
-        log_error "Cannot connect to ${REMOTE_URL}"
+        log_error "Cannot connect to ${REMOTE_URL}/health"
         log_info "Check if Harper is running and firewall allows connections"
         return 1
     fi
