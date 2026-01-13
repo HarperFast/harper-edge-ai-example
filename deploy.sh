@@ -323,30 +323,68 @@ restore_package_json() {
     fi
 }
 
+create_deploy_staging() {
+    log_info "Creating deployment staging directory..."
+
+    # Remove old deploy directory if it exists
+    if [[ -d "deploy" ]]; then
+        rm -rf deploy
+    fi
+
+    # Create deploy directory
+    mkdir -p deploy
+
+    # Copy essential files and directories
+    log_info "Copying application files..."
+    cp -R src/ deploy/
+    cp -R scripts/ deploy/
+    cp schema.graphql deploy/
+    cp package.json deploy/
+
+    # Copy config.yaml if it exists
+    if [[ -f "config.yaml" ]]; then
+        cp config.yaml deploy/
+    fi
+
+    # Copy node_modules if not skipping
+    if [[ "${SKIP_NODE_MODULES}" != "true" ]]; then
+        log_info "Copying node_modules (this may take a moment)..."
+        cp -R node_modules/ deploy/
+    fi
+
+    # Get actual size of staging directory
+    local staging_size=$(du -sm deploy 2>/dev/null | cut -f1)
+    log_info "Staging directory size: ${staging_size}MB"
+}
+
+cleanup_deploy_staging() {
+    if [[ -d "deploy" ]]; then
+        log_info "Cleaning up staging directory..."
+        rm -rf deploy
+    fi
+}
+
 deploy_code() {
     log_info "Deploying code to ${REMOTE_URL}..."
 
     local current_branch=$(git branch --show-current)
     log_info "Current branch: ${current_branch}"
 
-    # Set up trap to restore package.json on error
-    trap restore_package_json EXIT ERR INT TERM
+    # Set up trap to clean up on error
+    trap 'cleanup_deploy_staging; restore_package_json' EXIT ERR INT TERM
 
-    # Deploy using Harper CLI
+    # Create staging directory with only files to deploy
+    create_deploy_staging
+
+    # Deploy using Harper CLI from staging directory
     log_info "Deploying via Harper CLI..."
     log_info "  Replicated: ${DEPLOY_REPLICATED}"
     log_info "  Restart: ${DEPLOY_RESTART}"
 
-    # Build deploy command with optional parameters
+    # Build deploy command
     local deploy_cmd="harperdb deploy target=\"${REMOTE_URL}\" replicated=\"${DEPLOY_REPLICATED}\" restart=\"${DEPLOY_RESTART}\""
 
-    # Add skip_node_modules if enabled
-    if [[ "${SKIP_NODE_MODULES}" == "true" ]]; then
-        log_info "Skipping node_modules upload (remote will need to run npm install)"
-        deploy_cmd="${deploy_cmd} skip_node_modules=\"true\""
-    fi
-
-    echo "DEBUG: Running command:"
+    echo "DEBUG: Running command from deploy/ directory:"
     echo "  CLI_TARGET_USERNAME=\"${REMOTE_USERNAME}\""
     echo "  CLI_TARGET_PASSWORD=\"${REMOTE_PASSWORD}\""
     echo "  ${deploy_cmd}"
@@ -355,11 +393,17 @@ deploy_code() {
     export CLI_TARGET_USERNAME="$REMOTE_USERNAME"
     export CLI_TARGET_PASSWORD="$REMOTE_PASSWORD"
 
+    # Change to deploy directory and run deployment
+    cd deploy
+
     # Capture deploy output to check for errors
     local deploy_output
     deploy_output=$(eval "${deploy_cmd}" 2>&1)
 
     local deploy_exit_code=$?
+
+    # Change back to original directory
+    cd ..
 
     # Display the output
     echo "$deploy_output"
@@ -371,6 +415,7 @@ deploy_code() {
     # Check if deploy succeeded
     if [[ $deploy_exit_code -ne 0 ]]; then
         log_error "Deployment failed with exit code $deploy_exit_code"
+        cleanup_deploy_staging
         restore_package_json
         trap - EXIT ERR INT TERM
         exit 1
@@ -380,6 +425,7 @@ deploy_code() {
     if echo "$deploy_output" | grep -q "408"; then
         log_error "Deployment timed out (408 Request Timeout)"
         log_error "Try reducing deployment size with fewer backends in DEPLOY_BACKENDS"
+        cleanup_deploy_staging
         restore_package_json
         trap - EXIT ERR INT TERM
         exit 1
@@ -388,6 +434,7 @@ deploy_code() {
     # Check for other error indicators
     if echo "$deploy_output" | grep -qE "error|Error|ERROR|failed|Failed"; then
         log_error "Deployment appears to have failed (check output above)"
+        cleanup_deploy_staging
         restore_package_json
         trap - EXIT ERR INT TERM
         exit 1
@@ -397,6 +444,9 @@ deploy_code() {
         log_info "Waiting for restart to complete..."
         sleep 5
     fi
+
+    # Clean up staging directory
+    cleanup_deploy_staging
 
     # Restore package.json
     restore_package_json
