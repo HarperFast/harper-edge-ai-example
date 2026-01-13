@@ -364,6 +364,14 @@ create_deploy_staging() {
         cp config.yaml "${staging_dir}/"
     fi
 
+    # Copy .env file for remote configuration
+    if [[ -f ".env" ]]; then
+        cp .env "${staging_dir}/"
+        log_info "Copied .env file for remote configuration"
+    else
+        log_warn ".env file not found - remote instance may need manual configuration"
+    fi
+
     # Copy node_modules if not skipping
     if [[ "${SKIP_NODE_MODULES}" != "true" ]]; then
         log_info "Copying node_modules (this may take a moment)..."
