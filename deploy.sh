@@ -214,11 +214,40 @@ select_backends() {
     fi
 
     log_info "Selected backends: ${selected_backends}"
-    log_info "Estimated deployment size: ${total_size} MB"
 
-    # Warn if >800MB
-    if [[ $total_size -gt 800 ]]; then
-        log_warn "⚠️  Deployment size (${total_size}MB) exceeds 800MB!"
+    # Calculate node_modules size if not skipping
+    local node_modules_size=0
+    if [[ "${SKIP_NODE_MODULES}" != "true" ]] && [[ -d "node_modules" ]]; then
+        # Get size in MB (du -sm gives size in MB)
+        node_modules_size=$(du -sm node_modules 2>/dev/null | cut -f1)
+        if [[ -z "$node_modules_size" ]]; then
+            node_modules_size=0
+        fi
+    fi
+
+    # Calculate total deployment size
+    local total_with_deps=$((total_size + node_modules_size))
+
+    # Auto-enable SKIP_NODE_MODULES if total exceeds 800MB
+    if [[ $total_with_deps -gt 800 ]] && [[ "${SKIP_NODE_MODULES}" != "true" ]]; then
+        log_warn "⚠️  Total deployment size would be ${total_with_deps}MB (backends: ${total_size}MB + node_modules: ${node_modules_size}MB)"
+        log_warn "This exceeds the 800MB recommended limit."
+        log_info "Automatically enabling SKIP_NODE_MODULES to reduce upload size."
+        log_info "Remote instance will need to run 'npm install' after deployment."
+        SKIP_NODE_MODULES=true
+        echo ""
+        total_with_deps=$total_size
+    fi
+
+    if [[ "${SKIP_NODE_MODULES}" == "true" ]]; then
+        log_info "Estimated deployment size: ${total_size} MB (node_modules excluded)"
+    else
+        log_info "Estimated deployment size: ${total_with_deps} MB (backends: ${total_size}MB + node_modules: ${node_modules_size}MB)"
+    fi
+
+    # Warn if still >800MB
+    if [[ $total_with_deps -gt 800 ]]; then
+        log_warn "⚠️  Deployment size (${total_with_deps}MB) exceeds 800MB!"
         log_warn "This may cause slow deployments or storage issues."
         echo ""
         # Skip confirmation in dry-run mode
