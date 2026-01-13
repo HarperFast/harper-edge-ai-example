@@ -122,20 +122,28 @@ check_prerequisites() {
 }
 
 check_remote_connection() {
-    log_info "Testing connection to remote Harper instance..."
+    local silent=${1:-false}  # Optional parameter for silent mode (used during retries)
+
+    if [[ "$silent" != "true" ]]; then
+        log_info "Testing connection to remote Harper instance..."
+    fi
 
     # Use /health endpoint which is always available (doesn't require app code)
     # Check both HTTP status code and response body
-    local response=$(curl -k -s --max-time 5 "${REMOTE_URL}/health")
-    local http_code=$(curl -k -s -o /dev/null -w "%{http_code}" --max-time 5 "${REMOTE_URL}/health")
+    local response=$(curl -k -s --max-time 5 "${REMOTE_URL}/health" 2>/dev/null)
+    local http_code=$(curl -k -s -o /dev/null -w "%{http_code}" --max-time 5 "${REMOTE_URL}/health" 2>/dev/null)
 
     if [[ "$http_code" == "200" ]] && [[ "$response" == *"HarperDB is running"* ]]; then
-        log_success "Remote Harper instance is accessible and running"
+        if [[ "$silent" != "true" ]]; then
+            log_success "Remote Harper instance is accessible and running"
+        fi
         return 0
     else
-        log_error "Cannot connect to ${REMOTE_URL}/health"
-        log_info "HTTP ${http_code}, Response: ${response}"
-        log_info "Check if Harper is running and firewall allows connections"
+        if [[ "$silent" != "true" ]]; then
+            log_error "Cannot connect to ${REMOTE_URL}/health"
+            log_info "HTTP ${http_code}, Response: ${response}"
+            log_info "Check if Harper is running and firewall allows connections"
+        fi
         return 1
     fi
 }
@@ -493,12 +501,31 @@ restart_harper() {
 check_deployment_status() {
     log_info "Checking deployment status..."
 
-    # Check Harper is responding
-    if check_remote_connection; then
-        log_success "Harper is running"
-    else
-        log_error "Harper is not responding"
-        return 1
+    # Wait for Harper to restart and become available
+    log_info "Waiting for Harper to restart (up to 60 seconds)..."
+    local max_attempts=12  # 60 seconds total (12 * 5 seconds)
+    local attempt=1
+
+    while [[ $attempt -le $max_attempts ]]; do
+        # Use silent mode to avoid spamming error messages during expected failures
+        if check_remote_connection "true"; then
+            log_success "Harper is running"
+            break
+        fi
+
+        if [[ $attempt -lt $max_attempts ]]; then
+            printf "."  # Progress indicator
+            sleep 5
+            attempt=$((attempt + 1))
+        else
+            echo ""  # New line after dots
+            log_error "Harper did not respond after $((max_attempts * 5)) seconds"
+            return 1
+        fi
+    done
+
+    if [[ $attempt -gt 1 ]]; then
+        echo ""  # New line after dots
     fi
 
     # Check using Harper CLI
