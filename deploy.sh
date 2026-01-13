@@ -354,8 +354,8 @@ create_deploy_staging() {
 
     # Copy essential files and directories
     log_info "Copying application files..."
-    cp -R src/ "${staging_dir}/"
-    cp -R scripts/ "${staging_dir}/"
+    cp -R src "${staging_dir}/"
+    cp -R scripts "${staging_dir}/"
     cp schema.graphql "${staging_dir}/"
     cp package.json "${staging_dir}/"
 
@@ -375,7 +375,7 @@ create_deploy_staging() {
     # Copy node_modules if not skipping
     if [[ "${SKIP_NODE_MODULES}" != "true" ]]; then
         log_info "Copying node_modules (this may take a moment)..."
-        cp -R node_modules/ "${staging_dir}/"
+        cp -R node_modules "${staging_dir}/"
     fi
 
     # Get actual size of staging directory
