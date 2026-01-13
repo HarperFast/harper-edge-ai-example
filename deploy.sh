@@ -401,9 +401,15 @@ deploy_code() {
     log_info "Deploying via Harper CLI..."
     log_info "  Replicated: ${DEPLOY_REPLICATED}"
     log_info "  Restart: ${DEPLOY_RESTART}"
+    log_info "  Skip node_modules: ${SKIP_NODE_MODULES}"
 
     # Build deploy command
     local deploy_cmd="harperdb deploy target=\"${REMOTE_URL}\" replicated=\"${DEPLOY_REPLICATED}\" restart=\"${DEPLOY_RESTART}\""
+
+    # Add skip_node_modules if enabled
+    if [[ "${SKIP_NODE_MODULES}" == "true" ]]; then
+        deploy_cmd="${deploy_cmd} skip_node_modules=\"true\""
+    fi
 
     echo "DEBUG: Running command from ${DEPLOY_STAGING_DIR}/ directory:"
     echo "  CLI_TARGET_USERNAME=\"${REMOTE_USERNAME}\""
