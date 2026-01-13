@@ -305,12 +305,17 @@ deploy_code() {
     export CLI_TARGET_USERNAME="$REMOTE_USERNAME"
     export CLI_TARGET_PASSWORD="$REMOTE_PASSWORD"
 
-    harperdb deploy \
+    # Capture deploy output to check for errors
+    local deploy_output
+    deploy_output=$(harperdb deploy \
         target="${REMOTE_URL}" \
         replicated="${DEPLOY_REPLICATED}" \
-        restart="${DEPLOY_RESTART}"
+        restart="${DEPLOY_RESTART}" 2>&1)
 
     local deploy_exit_code=$?
+
+    # Display the output
+    echo "$deploy_output"
 
     # Unset credentials after use
     unset CLI_TARGET_USERNAME
@@ -319,6 +324,23 @@ deploy_code() {
     # Check if deploy succeeded
     if [[ $deploy_exit_code -ne 0 ]]; then
         log_error "Deployment failed with exit code $deploy_exit_code"
+        restore_package_json
+        trap - EXIT ERR INT TERM
+        exit 1
+    fi
+
+    # Check for timeout in output (Harper CLI returns exit code 0 even on 408)
+    if echo "$deploy_output" | grep -q "408"; then
+        log_error "Deployment timed out (408 Request Timeout)"
+        log_error "Try reducing deployment size with fewer backends in DEPLOY_BACKENDS"
+        restore_package_json
+        trap - EXIT ERR INT TERM
+        exit 1
+    fi
+
+    # Check for other error indicators
+    if echo "$deploy_output" | grep -qE "error|Error|ERROR|failed|Failed"; then
+        log_error "Deployment appears to have failed (check output above)"
         restore_package_json
         trap - EXIT ERR INT TERM
         exit 1
