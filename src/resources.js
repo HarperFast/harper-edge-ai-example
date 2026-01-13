@@ -691,9 +691,12 @@ export class FetchModel extends Resource {
 			}
 
 			// Check for active job with same modelId
-			const activeJobs = await tables.ModelFetchJob.findMany({
-				where: { modelName, modelVersion, status: 'queued' }
-			});
+			const activeJobs = [];
+			for await (const job of tables.ModelFetchJob.search({
+				filter: ['modelName', '=', modelName, 'and', 'modelVersion', '=', modelVersion, 'and', 'status', '=', 'queued']
+			})) {
+				activeJobs.push(job);
+			}
 			if (activeJobs.length > 0) {
 				return {
 					error: `A job is already queued for model ${modelId}`,
@@ -829,19 +832,24 @@ export class ModelFetchJobResource extends Resource {
 			}
 
 			// List jobs with filters
-			const where = {};
-			if (status) {
-				where.status = status;
-			}
-			if (modelName) {
-				where.modelName = modelName;
+			const filter = [];
+			if (status && modelName) {
+				filter.push('status', '=', status, 'and', 'modelName', '=', modelName);
+			} else if (status) {
+				filter.push('status', '=', status);
+			} else if (modelName) {
+				filter.push('modelName', '=', modelName);
 			}
 
-			const jobs = await tables.ModelFetchJob.findMany({
-				where: Object.keys(where).length > 0 ? where : undefined,
-				orderBy: { createdAt: 'desc' },
-				limit
-			});
+			const jobs = [];
+			const searchOptions = filter.length > 0 ? { filter } : {};
+			for await (const job of tables.ModelFetchJob.search(searchOptions)) {
+				jobs.push(job);
+				if (jobs.length >= limit) break;
+			}
+
+			// Sort by createdAt desc
+			jobs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
 			return {
 				jobs,
