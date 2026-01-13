@@ -575,7 +575,7 @@ run_deployment_tests() {
 
     # Test 1: Inspect a HuggingFace model
     log_info "Test 1: Inspect model..."
-    if node scripts/cli/harper-ai.js model inspect huggingface Xenova/all-MiniLM-L6-v2 --variant quantized; then
+    if node scripts/cli/harper-ai.js model inspect huggingface Xenova/all-MiniLM-L6-v2 --variant quantized --url "${APP_URL}" --token "${MODEL_FETCH_TOKEN}"; then
         log_success "✓ Model inspection works"
     else
         log_error "✗ Model inspection failed"
@@ -584,7 +584,7 @@ run_deployment_tests() {
 
     # Test 2: List jobs
     log_info "Test 2: List jobs..."
-    if node scripts/cli/harper-ai.js job list; then
+    if node scripts/cli/harper-ai.js job list --url "${APP_URL}" --token "${MODEL_FETCH_TOKEN}"; then
         log_success "✓ Job listing works"
     else
         log_error "✗ Job listing failed"
@@ -593,7 +593,7 @@ run_deployment_tests() {
 
     # Test 3: List models
     log_info "Test 3: List models..."
-    if node scripts/cli/harper-ai.js model list; then
+    if node scripts/cli/harper-ai.js model list --url "${APP_URL}" --token "${MODEL_FETCH_TOKEN}"; then
         log_success "✓ Model listing works"
     else
         log_error "✗ Model listing failed"
