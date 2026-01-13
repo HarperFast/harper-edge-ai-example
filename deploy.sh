@@ -326,41 +326,48 @@ restore_package_json() {
 create_deploy_staging() {
     log_info "Creating deployment staging directory..."
 
-    # Remove old deploy directory if it exists
-    if [[ -d "deploy" ]]; then
-        rm -rf deploy
+    # Get parent directory name for staging directory
+    local parent_dir=$(basename "$PWD")
+    local staging_dir="${parent_dir}"
+
+    # Remove old staging directory if it exists
+    if [[ -d "${staging_dir}" ]]; then
+        rm -rf "${staging_dir}"
     fi
 
-    # Create deploy directory
-    mkdir -p deploy
+    # Create staging directory
+    mkdir -p "${staging_dir}"
 
     # Copy essential files and directories
     log_info "Copying application files..."
-    cp -R src/ deploy/
-    cp -R scripts/ deploy/
-    cp schema.graphql deploy/
-    cp package.json deploy/
+    cp -R src/ "${staging_dir}/"
+    cp -R scripts/ "${staging_dir}/"
+    cp schema.graphql "${staging_dir}/"
+    cp package.json "${staging_dir}/"
 
     # Copy config.yaml if it exists
     if [[ -f "config.yaml" ]]; then
-        cp config.yaml deploy/
+        cp config.yaml "${staging_dir}/"
     fi
 
     # Copy node_modules if not skipping
     if [[ "${SKIP_NODE_MODULES}" != "true" ]]; then
         log_info "Copying node_modules (this may take a moment)..."
-        cp -R node_modules/ deploy/
+        cp -R node_modules/ "${staging_dir}/"
     fi
 
     # Get actual size of staging directory
-    local staging_size=$(du -sm deploy 2>/dev/null | cut -f1)
-    log_info "Staging directory size: ${staging_size}MB"
+    local staging_size=$(du -sm "${staging_dir}" 2>/dev/null | cut -f1)
+    log_info "Staging directory: ${staging_dir}/ (${staging_size}MB)"
+
+    # Export for use in deploy_code
+    export DEPLOY_STAGING_DIR="${staging_dir}"
 }
 
 cleanup_deploy_staging() {
-    if [[ -d "deploy" ]]; then
+    if [[ -n "${DEPLOY_STAGING_DIR}" ]] && [[ -d "${DEPLOY_STAGING_DIR}" ]]; then
         log_info "Cleaning up staging directory..."
-        rm -rf deploy
+        rm -rf "${DEPLOY_STAGING_DIR}"
     fi
 }
 
@@ -384,7 +391,7 @@ deploy_code() {
     # Build deploy command
     local deploy_cmd="harperdb deploy target=\"${REMOTE_URL}\" replicated=\"${DEPLOY_REPLICATED}\" restart=\"${DEPLOY_RESTART}\""
 
-    echo "DEBUG: Running command from deploy/ directory:"
+    echo "DEBUG: Running command from ${DEPLOY_STAGING_DIR}/ directory:"
     echo "  CLI_TARGET_USERNAME=\"${REMOTE_USERNAME}\""
     echo "  CLI_TARGET_PASSWORD=\"${REMOTE_PASSWORD}\""
     echo "  ${deploy_cmd}"
@@ -393,8 +400,8 @@ deploy_code() {
     export CLI_TARGET_USERNAME="$REMOTE_USERNAME"
     export CLI_TARGET_PASSWORD="$REMOTE_PASSWORD"
 
-    # Change to deploy directory and run deployment
-    cd deploy
+    # Change to staging directory and run deployment
+    cd "${DEPLOY_STAGING_DIR}"
 
     # Capture deploy output to check for errors
     local deploy_output
