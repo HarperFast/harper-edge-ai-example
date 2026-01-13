@@ -296,10 +296,19 @@ deploy_code() {
     log_info "  Replicated: ${DEPLOY_REPLICATED}"
     log_info "  Restart: ${DEPLOY_RESTART}"
 
+    # Build deploy command with optional parameters
+    local deploy_cmd="harperdb deploy target=\"${REMOTE_URL}\" replicated=\"${DEPLOY_REPLICATED}\" restart=\"${DEPLOY_RESTART}\""
+
+    # Add skip_node_modules if enabled
+    if [[ "${SKIP_NODE_MODULES}" == "true" ]]; then
+        log_info "Skipping node_modules upload (remote will need to run npm install)"
+        deploy_cmd="${deploy_cmd} skip_node_modules=\"true\""
+    fi
+
     echo "DEBUG: Running command:"
     echo "  CLI_TARGET_USERNAME=\"${REMOTE_USERNAME}\""
     echo "  CLI_TARGET_PASSWORD=\"${REMOTE_PASSWORD}\""
-    echo "  harperdb deploy target=\"${REMOTE_URL}\" replicated=\"${DEPLOY_REPLICATED}\" restart=\"${DEPLOY_RESTART}\""
+    echo "  ${deploy_cmd}"
 
     # Export credentials as environment variables (required by Harper CLI)
     export CLI_TARGET_USERNAME="$REMOTE_USERNAME"
@@ -307,10 +316,7 @@ deploy_code() {
 
     # Capture deploy output to check for errors
     local deploy_output
-    deploy_output=$(harperdb deploy \
-        target="${REMOTE_URL}" \
-        replicated="${DEPLOY_REPLICATED}" \
-        restart="${DEPLOY_RESTART}" 2>&1)
+    deploy_output=$(eval "${deploy_cmd}" 2>&1)
 
     local deploy_exit_code=$?
 
