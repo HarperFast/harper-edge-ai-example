@@ -185,16 +185,12 @@ async function list(args) {
 		const params = new URLSearchParams();
 		if (parsed.stage) params.append('stage', parsed.stage);
 		if (parsed.framework) params.append('framework', parsed.framework);
-
-		const fetchOptions = {};
 		if (config.modelFetchToken) {
-			fetchOptions.headers = {
-				'X-Model-Fetch-Token': config.modelFetchToken,
-			};
+			params.append('token', config.modelFetchToken);
 		}
 
 		const url = `${config.url}/ModelList${params.toString() ? '?' + params.toString() : ''}`;
-		const response = await globalThis.fetch(url, fetchOptions);
+		const response = await globalThis.fetch(url);
 
 		if (!response.ok) {
 			throw new Error(`HTTP ${response.status}: ${response.statusText}`);

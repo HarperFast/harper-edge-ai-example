@@ -506,20 +506,11 @@ export class ModelList extends Resource {
 export class InspectModel extends Resource {
 	async get(data, request) {
 		try {
-			logger.info('[InspectModel] ===== Request Debug =====');
-			logger.info('[InspectModel] Request keys:', request ? Object.keys(request).join(', ') : 'request is undefined');
-			logger.info('[InspectModel] Request:', JSON.stringify(request, null, 2));
-			logger.info('[InspectModel] Data keys:', data ? Object.keys(data).join(', ') : 'data is undefined');
-			logger.info('[InspectModel] Data:', JSON.stringify(data, null, 2));
-			logger.info('[InspectModel] ===========================');
-
-			// Check authentication
-			const authError = verifyModelFetchAuth(request);
+			// Check authentication using query parameter
+			const authError = verifyModelFetchAuth(data);
 			if (authError) {
-				logger.info('[InspectModel] Authentication failed:', authError);
 				return authError;
 			}
-			logger.info('[InspectModel] Authentication passed');
 
 			await ensureInitialized();
 
@@ -641,7 +632,7 @@ export class FetchModel extends Resource {
 	async post(data, request) {
 		try {
 			// Check authentication
-			const authError = verifyModelFetchAuth(request);
+			const authError = verifyModelFetchAuth(data);
 			if (authError) {
 				return authError;
 			}
@@ -826,7 +817,7 @@ export class ModelFetchJobResource extends Resource {
 	async get(data, request) {
 		try {
 			// Check authentication
-			const authError = verifyModelFetchAuth(request);
+			const authError = verifyModelFetchAuth(data);
 			if (authError) {
 				return authError;
 			}
@@ -886,7 +877,7 @@ export class ModelFetchJobResource extends Resource {
 	async post(data, request) {
 		try {
 			// Check authentication
-			const authError = verifyModelFetchAuth(request);
+			const authError = verifyModelFetchAuth(data);
 			if (authError) {
 				return authError;
 			}
@@ -959,7 +950,7 @@ export class WorkerControl extends Resource {
 	async get(data, request) {
 		try {
 			// Check authentication
-			const authError = verifyModelFetchAuth(request);
+			const authError = verifyModelFetchAuth(data);
 			if (authError) {
 				return authError;
 			}
@@ -995,7 +986,7 @@ export class WorkerControl extends Resource {
 	async post(data, request) {
 		try {
 			// Check authentication
-			const authError = verifyModelFetchAuth(request);
+			const authError = verifyModelFetchAuth(data);
 			if (authError) {
 				return authError;
 			}

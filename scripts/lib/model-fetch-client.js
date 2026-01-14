@@ -11,23 +11,16 @@ export class ModelFetchClient {
 	}
 
 	/**
-	 * Create fetch options with auth headers
+	 * Create fetch options (headers only, token goes in query/body)
 	 * @private
 	 */
 	_getFetchOptions(additionalOptions = {}) {
-		const options = {
+		return {
 			...additionalOptions,
 			headers: {
 				...additionalOptions.headers,
 			},
 		};
-
-		if (this.token) {
-			// Use custom header to avoid conflicts with Harper's built-in JWT auth
-			options.headers['X-Model-Fetch-Token'] = this.token;
-		}
-
-		return options;
 	}
 
 	/**
@@ -42,6 +35,9 @@ export class ModelFetchClient {
 		const params = new URLSearchParams({ source, sourceReference });
 		if (variant) {
 			params.append('variant', variant);
+		}
+		if (this.token) {
+			params.append('token', this.token);
 		}
 
 		const url = `${this.baseUrl}/InspectModel?${params}`;
@@ -85,12 +81,16 @@ export class ModelFetchClient {
 	 */
 	async fetchModel(data) {
 		const url = `${this.baseUrl}/FetchModel`;
+		const requestData = { ...data };
+		if (this.token) {
+			requestData.token = this.token;
+		}
 		const response = await fetch(
 			url,
 			this._getFetchOptions({
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(data),
+				body: JSON.stringify(requestData),
 			})
 		);
 
@@ -109,6 +109,9 @@ export class ModelFetchClient {
 	 */
 	async getJob(jobId) {
 		const params = new URLSearchParams({ id: jobId });
+		if (this.token) {
+			params.append('token', this.token);
+		}
 		const url = `${this.baseUrl}/ModelFetchJob?${params}`;
 		const response = await fetch(url, this._getFetchOptions());
 
@@ -130,6 +133,9 @@ export class ModelFetchClient {
 		if (filters.status) params.append('status', filters.status);
 		if (filters.modelName) params.append('modelName', filters.modelName);
 		if (filters.limit) params.append('limit', filters.limit);
+		if (this.token) {
+			params.append('token', this.token);
+		}
 
 		const url = `${this.baseUrl}/ModelFetchJob?${params}`;
 		const response = await fetch(url, this._getFetchOptions());
@@ -149,15 +155,19 @@ export class ModelFetchClient {
 	 */
 	async retryJob(jobId) {
 		const url = `${this.baseUrl}/ModelFetchJob`;
+		const requestData = {
+			jobId,
+			action: 'retry',
+		};
+		if (this.token) {
+			requestData.token = this.token;
+		}
 		const response = await fetch(
 			url,
 			this._getFetchOptions({
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					jobId,
-					action: 'retry',
-				}),
+				body: JSON.stringify(requestData),
 			})
 		);
 
