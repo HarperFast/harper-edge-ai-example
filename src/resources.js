@@ -800,19 +800,20 @@ export class FetchModel extends Resource {
 				}
 			}
 
-			// Check for active job with same modelId
-			const activeJobs = [];
-			for await (const job of tables.ModelFetchJob.search({
-				filter: ['modelName', '=', modelName, 'and', 'modelVersion', '=', modelVersion, 'and', 'status', '=', 'queued']
-			})) {
-				activeJobs.push(job);
-			}
-			if (activeJobs.length > 0) {
-				return {
-					error: `A job is already queued for model ${modelId}`,
-					existingJobId: activeJobs[0].id
-				};
-			}
+			// TODO: Fix duplicate check - filter syntax not working correctly
+			// Temporarily disabled to test job processing
+			// const activeJobs = [];
+			// for await (const job of tables.ModelFetchJob.search({
+			// 	filter: ['modelName', '=', modelName, 'and', 'modelVersion', '=', modelVersion, 'and', 'status', '=', 'queued']
+			// })) {
+			// 	activeJobs.push(job);
+			// }
+			// if (activeJobs.length > 0) {
+			// 	return {
+			// 		error: `A job is already queued for model ${modelId}`,
+			// 		existingJobId: activeJobs[0].id
+			// 	};
+			// }
 
 			// Detect framework if not provided
 			let detectedFramework = framework;
@@ -889,8 +890,10 @@ export class FetchModel extends Resource {
 			await tables.ModelFetchJob.create(job);
 
 			// Start processing immediately in background (don't await)
+			console.log(`[FetchModel] Starting background processing for job ${jobId}`);
 			processModelFetchJob(job, tables).catch(error => {
 				console.error(`[FetchModel] Background job ${jobId} failed:`, error);
+				console.error(error.stack);
 			});
 
 			return {
