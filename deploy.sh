@@ -358,8 +358,7 @@ create_deploy_staging() {
     # Copy essential files and directories
     log_info "Copying application files..."
     cp -R src "${staging_dir}/"
-    cp -R scripts "${staging_dir}/"
-    cp schema.graphql "${staging_dir}/"
+    cp schemas.graphql "${staging_dir}/"
     cp package.json "${staging_dir}/"
 
     # Copy config.yaml if it exists
@@ -567,7 +566,7 @@ run_deployment_tests() {
 
     # Test 1: Inspect a HuggingFace model
     log_info "Test 1: Inspect model..."
-    if node scripts/cli/harper-ai.js model inspect huggingface Xenova/all-MiniLM-L6-v2 --variant quantized --url "${APP_URL}" --token "${MODEL_FETCH_TOKEN}"; then
+    if node scripts/cli/harper-ai.js model inspect huggingface Xenova/all-MiniLM-L6-v2 --variant quantized --url "${APP_URL}" --token "${MODEL_FETCH_TOKEN}" --username "${REMOTE_USERNAME}" --password "${REMOTE_PASSWORD}"; then
         log_success "✓ Model inspection works"
     else
         log_error "✗ Model inspection failed"
@@ -576,7 +575,7 @@ run_deployment_tests() {
 
     # Test 2: List jobs
     log_info "Test 2: List jobs..."
-    if node scripts/cli/harper-ai.js job list --url "${APP_URL}" --token "${MODEL_FETCH_TOKEN}"; then
+    if node scripts/cli/harper-ai.js job list --url "${APP_URL}" --token "${MODEL_FETCH_TOKEN}" --username "${REMOTE_USERNAME}" --password "${REMOTE_PASSWORD}"; then
         log_success "✓ Job listing works"
     else
         log_error "✗ Job listing failed"
@@ -585,7 +584,7 @@ run_deployment_tests() {
 
     # Test 3: List models
     log_info "Test 3: List models..."
-    if node scripts/cli/harper-ai.js model list --url "${APP_URL}" --token "${MODEL_FETCH_TOKEN}"; then
+    if node scripts/cli/harper-ai.js model list --url "${APP_URL}" --token "${MODEL_FETCH_TOKEN}" --username "${REMOTE_USERNAME}" --password "${REMOTE_PASSWORD}"; then
         log_success "✓ Model listing works"
     else
         log_error "✗ Model listing failed"
@@ -872,6 +871,6 @@ echo ""
 
 log_info "Next steps:"
 log_info "  1. Check status: ./deploy.sh --status"
-log_info "  2. Test CLI: harper-ai model list --url ${REMOTE_URL}"
+log_info "  2. Test CLI: npm exec harper-ai model list --url ${REMOTE_URL}"
 log_info "  3. View docs: docs/DEPLOYMENT.md"
 echo ""

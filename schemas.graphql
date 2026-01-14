@@ -10,6 +10,7 @@ type Model @table @export {
 	stage: String @indexed # "development" | "staging" | "production"
 	# Model binary data (use Blob for large ONNX/TF models)
 	modelBlob: Blob
+	blobSize: Long # Size of modelBlob in bytes (for display without loading full blob)
 
 	# Schema definitions (JSON stringified)
 	inputSchema: String

@@ -5,22 +5,32 @@
  */
 
 export class ModelFetchClient {
-	constructor(baseUrl, token = undefined) {
+	constructor(baseUrl, token = undefined, username = undefined, password = undefined) {
 		this.baseUrl = baseUrl;
 		this.token = token;
+		this.username = username;
+		this.password = password;
 	}
 
 	/**
-	 * Create fetch options (headers only, token goes in query/body)
+	 * Create fetch options with Basic Auth if credentials provided
 	 * @private
 	 */
 	_getFetchOptions(additionalOptions = {}) {
-		return {
+		const options = {
 			...additionalOptions,
 			headers: {
 				...additionalOptions.headers,
 			},
 		};
+
+		// Add Basic Auth for Harper authentication if credentials provided
+		if (this.username && this.password) {
+			const auth = Buffer.from(`${this.username}:${this.password}`).toString('base64');
+			options.headers['Authorization'] = `Basic ${auth}`;
+		}
+
+		return options;
 	}
 
 	/**
@@ -112,7 +122,7 @@ export class ModelFetchClient {
 		if (this.token) {
 			params.append('token', this.token);
 		}
-		const url = `${this.baseUrl}/ModelFetchJob?${params}`;
+		const url = `${this.baseUrl}/ModelFetchJobs?${params}`;
 		const response = await fetch(url, this._getFetchOptions());
 
 		if (!response.ok) {
@@ -137,7 +147,7 @@ export class ModelFetchClient {
 			params.append('token', this.token);
 		}
 
-		const url = `${this.baseUrl}/ModelFetchJob?${params}`;
+		const url = `${this.baseUrl}/ModelFetchJobs?${params}`;
 		const response = await fetch(url, this._getFetchOptions());
 
 		if (!response.ok) {
@@ -154,7 +164,7 @@ export class ModelFetchClient {
 	 * @returns {Promise<Object>} Updated job status
 	 */
 	async retryJob(jobId) {
-		const url = `${this.baseUrl}/ModelFetchJob`;
+		const url = `${this.baseUrl}/ModelFetchJobs`;
 		const requestData = {
 			jobId,
 			action: 'retry',

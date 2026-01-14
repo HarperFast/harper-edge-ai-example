@@ -5,7 +5,7 @@
  */
 
 import { log, printTable } from '../../lib/cli-utils.js';
-import { getConfig } from '../../lib/config.js';
+import { getConfig, getFetchOptions } from '../../lib/config.js';
 import { ModelFetchClient } from '../../lib/model-fetch-client.js';
 
 /**
@@ -53,7 +53,7 @@ async function inspect(args) {
 	}
 
 	const config = getConfig(args);
-	const client = new ModelFetchClient(config.url, config.modelFetchToken);
+	const client = new ModelFetchClient(config.url, config.modelFetchToken, config.username, config.password);
 
 	try {
 		log.info(`Inspecting model: ${sourceReference}...`);
@@ -131,7 +131,7 @@ async function fetch(args) {
 	}
 
 	const config = getConfig(args);
-	const client = new ModelFetchClient(config.url, config.modelFetchToken);
+	const client = new ModelFetchClient(config.url, config.modelFetchToken, config.username, config.password);
 
 	try {
 		const fetchData = {
@@ -190,7 +190,7 @@ async function list(args) {
 		}
 
 		const url = `${config.url}/ModelList${params.toString() ? '?' + params.toString() : ''}`;
-		const response = await globalThis.fetch(url);
+		const response = await globalThis.fetch(url, getFetchOptions(config));
 
 		if (!response.ok) {
 			throw new Error(`HTTP ${response.status}: ${response.statusText}`);

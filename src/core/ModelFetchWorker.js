@@ -266,19 +266,23 @@ export class ModelFetchWorker {
 	 */
 	async fetchQueuedJobs(limit) {
 		const jobs = [];
-		for await (const job of this.tables.ModelFetchJob.search({
-			filter: ['status', '=', 'queued'],
-		})) {
-			logger.info(`[ModelFetchWorker] Found job ${job.id} with status='${job.status}' (filter was 'queued')`);
-			jobs.push(job);
-			if (jobs.length >= limit) break;
+
+		// Harper's indexed search is unreliable - fetch all jobs and filter manually
+		for await (const job of this.tables.ModelFetchJob.search({})) {
+			// Manual filter for queued status (index may be stale)
+			if (job.status === 'queued') {
+				logger.info(`[ModelFetchWorker] Found queued job ${job.id}`);
+				jobs.push(job);
+			}
 		}
 
 		// Sort by createdAt (FIFO)
 		jobs.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 
-		logger.info(`[ModelFetchWorker] Fetched ${jobs.length} queued jobs`);
-		return jobs;
+		// Return up to limit
+		const result = jobs.slice(0, limit);
+		logger.info(`[ModelFetchWorker] Fetched ${result.length} queued jobs (from ${jobs.length} total queued)`);
+		return result;
 	}
 
 	/**
@@ -434,19 +438,21 @@ export class ModelFetchWorker {
 	async storeModel(job, modelBlob, metadata) {
 		const modelId = `${job.modelName}:${job.modelVersion}`;
 
-		// Create Model record
-		await this.tables.Model.create({
+		// Use put() instead of create() - triggers file-backed blob storage for large files
+		await this.tables.Model.put({
 			id: modelId,
 			modelName: job.modelName,
 			modelVersion: job.modelVersion,
 			framework: job.framework,
 			stage: job.stage || 'development',
-			modelBlob,
+			modelBlob: modelBlob,
+			blobSize: modelBlob.length,
 			inputSchema: null, // TODO: Extract from model if possible
 			outputSchema: null, // TODO: Extract from model if possible
 			metadata: JSON.stringify(metadata),
 		});
 
+		logger.info(`[ModelFetchWorker] Stored model ${modelId} (${modelBlob.length} bytes)`);
 		return modelId;
 	}
 

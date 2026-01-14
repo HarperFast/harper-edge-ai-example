@@ -419,6 +419,7 @@ export class UploadModelBlob extends Resource {
 				stage,
 				metadata,
 				modelBlob: blobBuffer,
+				blobSize: blobBuffer.length,
 			});
 
 			return {
@@ -447,7 +448,7 @@ export class ModelList extends Resource {
 	async get(data, request) {
 		try {
 			// Check authentication
-			const authError = verifyModelFetchAuth(request);
+			const authError = verifyModelFetchAuth(data);
 			if (authError) {
 				return authError;
 			}
@@ -473,7 +474,7 @@ export class ModelList extends Resource {
 					modelVersion: model.modelVersion,
 					framework: model.framework,
 					stage: model.stage,
-					blobSize: model.modelBlob?.length || 0,
+					blobSize: model.blobSize || 0,
 					uploadedAt: model.uploadedAt,
 					metadata: model.metadata
 				});
@@ -806,14 +807,14 @@ export class FetchModel extends Resource {
 }
 
 /**
- * ModelFetchJob Resource
+ * ModelFetchJobs Resource
  *
- * GET /ModelFetchJob?id={jobId} - Get job status by ID
- * GET /ModelFetchJob?status={status} - List jobs by status
- * GET /ModelFetchJob?modelName={name} - List jobs by model name
- * POST /ModelFetchJob - Retry a failed job
+ * GET /ModelFetchJobs?id={jobId} - Get job status by ID
+ * GET /ModelFetchJobs?status={status} - List jobs by status
+ * GET /ModelFetchJobs?modelName={name} - List jobs by model name
+ * POST /ModelFetchJobs - Retry a failed job
  */
-export class ModelFetchJobResource extends Resource {
+export class ModelFetchJobs extends Resource {
 	async get(data, request) {
 		try {
 			// Check authentication
@@ -825,7 +826,7 @@ export class ModelFetchJobResource extends Resource {
 			await ensureInitialized();
 
 			// Parse query parameters
-			const searchParams = new URLSearchParams(request.search || '');
+			const searchParams = new URLSearchParams(data.search || '');
 			const jobId = searchParams.get('id');
 			const status = searchParams.get('status');
 			const modelName = searchParams.get('modelName');

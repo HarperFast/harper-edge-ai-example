@@ -41,7 +41,7 @@ function parseArgs(args) {
 async function list(args) {
 	const parsed = parseArgs(args);
 	const config = getConfig(args);
-	const client = new ModelFetchClient(config.url, config.modelFetchToken);
+	const client = new ModelFetchClient(config.url, config.modelFetchToken, config.username, config.password);
 
 	try {
 		const filters = {};
@@ -101,7 +101,7 @@ async function get(args) {
 	}
 
 	const config = getConfig(args);
-	const client = new ModelFetchClient(config.url, config.modelFetchToken);
+	const client = new ModelFetchClient(config.url, config.modelFetchToken, config.username, config.password);
 
 	try {
 		const job = await client.getJob(jobId);
@@ -178,7 +178,7 @@ async function watch(args) {
 	}
 
 	const config = getConfig(args);
-	const client = new ModelFetchClient(config.url, config.modelFetchToken);
+	const client = new ModelFetchClient(config.url, config.modelFetchToken, config.username, config.password);
 
 	console.log('');
 	log.info(`Watching job ${jobId}...`);
@@ -256,7 +256,7 @@ async function retry(args) {
 	}
 
 	const config = getConfig(args);
-	const client = new ModelFetchClient(config.url, config.modelFetchToken);
+	const client = new ModelFetchClient(config.url, config.modelFetchToken, config.username, config.password);
 
 	try {
 		log.info(`Retrying job ${jobId}...`);
