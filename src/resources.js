@@ -623,10 +623,9 @@ export class InspectModel extends Resource {
  * Uses Harper's native concurrency instead of polling
  */
 async function processModelFetchJob(job, tables) {
-	console.log(`[ProcessJob] Starting job ${job.id} (${job.source}:${job.sourceReference})`);
-
+	// Simplified version for debugging
 	try {
-		// Update status to "downloading"
+		// Just try to update status to see if function runs
 		await tables.ModelFetchJob.put({
 			...job,
 			status: 'downloading',
@@ -889,11 +888,14 @@ export class FetchModel extends Resource {
 
 			await tables.ModelFetchJob.create(job);
 
-			// Start processing immediately in background (don't await)
-			console.log(`[FetchModel] Starting background processing for job ${jobId}`);
-			processModelFetchJob(job, tables).catch(error => {
-				console.error(`[FetchModel] Background job ${jobId} failed:`, error);
-				console.error(error.stack);
+			// Start processing immediately in background using setImmediate
+			// This ensures it runs after the response is sent
+			setImmediate(() => {
+				console.log(`[FetchModel] setImmediate callback running for job ${jobId}`);
+				processModelFetchJob(job, tables).catch(error => {
+					console.error(`[FetchModel] Background job ${jobId} failed:`, error);
+					console.error(error.stack);
+				});
 			});
 
 			return {
