@@ -41,6 +41,7 @@ async function getPersonalizationEngine(modelName, modelVersion) {
 let monitoringBackend;
 let inferenceEngine;
 let benchmarkEngine;
+let modelFetchWorker;
 
 async function ensureInitialized() {
 	if (!inferenceEngine) {
@@ -54,7 +55,21 @@ async function ensureInitialized() {
 	if (!benchmarkEngine) {
 		benchmarkEngine = new BenchmarkEngine(inferenceEngine);
 	}
-	// ModelFetchWorker removed - using Harper's native concurrency instead
+	// Initialize Model Fetch Worker (once)
+	if (!modelFetchWorker && process.env.MODEL_FETCH_WORKER !== 'false') {
+		try {
+			modelFetchWorker = new ModelFetchWorker();
+			await modelFetchWorker.start();
+			globals.set('modelFetchWorker', modelFetchWorker);
+			if (typeof logger !== 'undefined') {
+				logger.info('[ensureInitialized] ModelFetchWorker started');
+			}
+		} catch (error) {
+			if (typeof logger !== 'undefined') {
+				logger.error('[ensureInitialized] Failed to start ModelFetchWorker:', error);
+			}
+		}
+	}
 }
 
 /**
@@ -928,44 +943,3 @@ export class ModelFetchJobResource extends Resource {
 	}
 }
 
-/**
- * Initialize application on Harper startup
- *
- * Called by Harper when the application starts. Initializes background workers
- * and stores them in globals for access by resources.
- *
- * Pattern from bigquery-ingestor for proper worker lifecycle management.
- *
- * @param {Object} scope - Harper scope object with logger, options, etc.
- */
-export async function handleApplication(scope) {
-	const scopeLogger = scope.logger;
-	const options = scope.options.getAll();
-
-	scopeLogger.info('[handleApplication] Initializing Edge AI Ops application...');
-
-	// Check if Model Fetch worker should be enabled
-	const workerEnabled = options.MODEL_FETCH_WORKER !== 'false';
-
-	if (workerEnabled) {
-		try {
-			// Initialize Model Fetch Worker
-			// Note: Uses Harper's global tables object
-			const modelFetchWorker = new ModelFetchWorker();
-			await modelFetchWorker.start();
-
-			// Store in globals for access from resources
-			globals.set('modelFetchWorker', modelFetchWorker);
-
-			scopeLogger.info('[handleApplication] ModelFetchWorker initialized and started');
-		} catch (error) {
-			scopeLogger.error(`[handleApplication] Failed to initialize ModelFetchWorker: ${error.message}`);
-			scopeLogger.error(error.stack);
-			throw error;
-		}
-	} else {
-		scopeLogger.info('[handleApplication] ModelFetchWorker disabled (MODEL_FETCH_WORKER=false)');
-	}
-
-	scopeLogger.info('[handleApplication] Application initialized successfully');
-}
