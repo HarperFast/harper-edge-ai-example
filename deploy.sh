@@ -594,57 +594,67 @@ run_deployment_tests() {
     # Test 4: Fetch model and test inference
     log_info "Test 4: Fetch model and test inference..."
 
-    # Fetch a small quantized model for testing
+    # Check if model already exists
     local TEST_MODEL="deploy-test-inference"
-    log_info "Fetching model ${TEST_MODEL}..."
-    local FETCH_OUTPUT
-    FETCH_OUTPUT=$(node scripts/cli/harper-ai.js model fetch huggingface Xenova/all-MiniLM-L6-v2 \
-        --name "${TEST_MODEL}" \
-        --variant quantized \
+    local MODEL_LIST
+    MODEL_LIST=$(node scripts/cli/harper-ai.js model list \
         --url "${APP_URL}" \
         --token "${MODEL_FETCH_TOKEN}" \
         --username "${REMOTE_USERNAME}" \
         --password "${REMOTE_PASSWORD}" 2>&1)
 
-    if echo "${FETCH_OUTPUT}" | grep -q "already exists"; then
-        log_info "Model already exists, using existing model"
-    elif echo "${FETCH_OUTPUT}" | grep -q "Fetch job created"; then
-        local JOB_ID
-        JOB_ID=$(echo "${FETCH_OUTPUT}" | grep "Job ID:" | awk '{print $NF}')
-        log_info "Job created: ${JOB_ID}, waiting for completion..."
+    if echo "${MODEL_LIST}" | grep -q "${TEST_MODEL}"; then
+        log_info "Model ${TEST_MODEL} already exists, skipping fetch"
+    else
+        # Fetch a small quantized model for testing
+        log_info "Fetching model ${TEST_MODEL}..."
+        local FETCH_OUTPUT
+        FETCH_OUTPUT=$(node scripts/cli/harper-ai.js model fetch huggingface Xenova/all-MiniLM-L6-v2 \
+            --name "${TEST_MODEL}" \
+            --variant quantized \
+            --url "${APP_URL}" \
+            --token "${MODEL_FETCH_TOKEN}" \
+            --username "${REMOTE_USERNAME}" \
+            --password "${REMOTE_PASSWORD}" 2>&1)
 
-        # Wait for job to complete (max 60 seconds)
-        local TIMEOUT=60
-        local ELAPSED=0
-        while [ $ELAPSED -lt $TIMEOUT ]; do
-            local JOB_STATUS
-            JOB_STATUS=$(node scripts/cli/harper-ai.js job get "${JOB_ID}" \
-                --url "${APP_URL}" \
-                --token "${MODEL_FETCH_TOKEN}" \
-                --username "${REMOTE_USERNAME}" \
-                --password "${REMOTE_PASSWORD}" 2>&1)
+        if echo "${FETCH_OUTPUT}" | grep -q "Fetch job created"; then
+            local JOB_ID
+            JOB_ID=$(echo "${FETCH_OUTPUT}" | grep "Job ID:" | awk '{print $NF}')
+            log_info "Job created: ${JOB_ID}, waiting for completion..."
 
-            if echo "${JOB_STATUS}" | grep -q "Status:.*completed"; then
-                log_info "Model fetch completed"
-                break
-            elif echo "${JOB_STATUS}" | grep -q "Status:.*failed"; then
-                log_error "✗ Model fetch failed"
-                echo "${JOB_STATUS}"
+            # Wait for job to complete (max 60 seconds)
+            local TIMEOUT=60
+            local ELAPSED=0
+            while [ $ELAPSED -lt $TIMEOUT ]; do
+                local JOB_STATUS
+                JOB_STATUS=$(node scripts/cli/harper-ai.js job get "${JOB_ID}" \
+                    --url "${APP_URL}" \
+                    --token "${MODEL_FETCH_TOKEN}" \
+                    --username "${REMOTE_USERNAME}" \
+                    --password "${REMOTE_PASSWORD}" 2>&1)
+
+                if echo "${JOB_STATUS}" | grep -q "Status:.*completed"; then
+                    log_info "Model fetch completed"
+                    break
+                elif echo "${JOB_STATUS}" | grep -q "Status:.*failed"; then
+                    log_error "✗ Model fetch failed"
+                    echo "${JOB_STATUS}"
+                    return 1
+                fi
+
+                sleep 5
+                ELAPSED=$((ELAPSED + 5))
+            done
+
+            if [ $ELAPSED -ge $TIMEOUT ]; then
+                log_error "✗ Model fetch timed out after ${TIMEOUT} seconds"
                 return 1
             fi
-
-            sleep 5
-            ELAPSED=$((ELAPSED + 5))
-        done
-
-        if [ $ELAPSED -ge $TIMEOUT ]; then
-            log_error "✗ Model fetch timed out after ${TIMEOUT} seconds"
+        else
+            log_error "✗ Unexpected fetch output:"
+            echo "${FETCH_OUTPUT}"
             return 1
         fi
-    else
-        log_error "✗ Unexpected fetch output:"
-        echo "${FETCH_OUTPUT}"
-        return 1
     fi
 
     # Test inference on the fetched model
