@@ -126,9 +126,9 @@ type ModelFetchJob @table @export {
 	webhookUrl: String # Optional callback URL
 
 	# Timestamps
-	createdAt: Long @createdTime @indexed # FIFO queue ordering
-	startedAt: Long
-	completedAt: Long
+	createdAt: Date @createdTime @indexed # FIFO queue ordering
+	startedAt: Date
+	completedAt: Date
 
 	# Result
 	resultModelId: String @indexed # Reference to Model table
