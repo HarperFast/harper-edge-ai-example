@@ -340,9 +340,12 @@ restore_package_json() {
 create_deploy_staging() {
     log_info "Creating deployment staging directory..."
 
-    # Get parent directory name for staging directory
-    local parent_dir=$(basename "$PWD")
-    local staging_dir="${parent_dir}"
+    # Get project name (parent directory name) for Harper CLI project parameter
+    local project_name=$(basename "$PWD")
+    export DEPLOY_PROJECT_NAME="${project_name}"
+
+    # Use fixed staging directory name
+    local staging_dir="dist"
 
     # Remove old staging directory if it exists
     if [[ -d "${staging_dir}" ]]; then
@@ -407,34 +410,27 @@ deploy_code() {
 
     # Deploy using Harper CLI from staging directory
     log_info "Deploying via Harper CLI..."
+    log_info "  Project: ${DEPLOY_PROJECT_NAME}"
     log_info "  Replicated: ${DEPLOY_REPLICATED}"
     log_info "  Restart: ${DEPLOY_RESTART}"
     log_info "  Skip node_modules: ${SKIP_NODE_MODULES}"
 
-    # Build deploy command
-    local deploy_cmd="harperdb deploy target=\"${REMOTE_URL}\" replicated=\"${DEPLOY_REPLICATED}\" restart=\"${DEPLOY_RESTART}\""
+    # Build deploy command with all parameters
+    local deploy_cmd="harperdb deploy project=\"${DEPLOY_PROJECT_NAME}\" target=\"${REMOTE_URL}\" username=\"${REMOTE_USERNAME}\" password=\"${REMOTE_PASSWORD}\" replicated=\"${DEPLOY_REPLICATED}\" restart=\"${DEPLOY_RESTART}\""
 
     # Add skip_node_modules if enabled
     if [[ "${SKIP_NODE_MODULES}" == "true" ]]; then
         deploy_cmd="${deploy_cmd} skip_node_modules=\"true\""
     fi
 
-    echo "DEBUG: Running command from ${DEPLOY_STAGING_DIR}/ directory:"
-    echo "  CLI_TARGET_USERNAME=\"${REMOTE_USERNAME}\""
-    echo "  CLI_TARGET_PASSWORD=\"${REMOTE_PASSWORD}\""
-    echo "  ${deploy_cmd}"
-
-    # Export credentials as environment variables (required by Harper CLI)
-    export CLI_TARGET_USERNAME="$REMOTE_USERNAME"
-    export CLI_TARGET_PASSWORD="$REMOTE_PASSWORD"
+    log_info "Deploying project '${DEPLOY_PROJECT_NAME}' to ${REMOTE_URL}..."
 
     # Change to staging directory and run deployment
     cd "${DEPLOY_STAGING_DIR}"
 
-    # Capture deploy output to check for errors
+    # Run deployment
     local deploy_output
     deploy_output=$(eval "${deploy_cmd}" 2>&1)
-
     local deploy_exit_code=$?
 
     # Change back to original directory
@@ -442,10 +438,6 @@ deploy_code() {
 
     # Display the output
     echo "$deploy_output"
-
-    # Unset credentials after use
-    unset CLI_TARGET_USERNAME
-    unset CLI_TARGET_PASSWORD
 
     # Check if deploy succeeded
     if [[ $deploy_exit_code -ne 0 ]]; then
