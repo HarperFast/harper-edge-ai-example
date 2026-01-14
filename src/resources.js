@@ -2,6 +2,8 @@
  * Harper Edge AI - Product Personalization using Universal Sentence Encoder
  */
 
+/* global tables, Resource, server, logger */
+
 import { PersonalizationEngine } from './PersonalizationEngine.js';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -9,6 +11,7 @@ import {
 	MonitoringBackend,
 	BenchmarkEngine
 } from './core/index.js';
+import { globals } from './globals.js';
 import { LocalFilesystemAdapter } from './core/fetchers/LocalFilesystemAdapter.js';
 import { HttpUrlAdapter } from './core/fetchers/HttpUrlAdapter.js';
 import { HuggingFaceAdapter } from './core/fetchers/HuggingFaceAdapter.js';
@@ -108,7 +111,7 @@ export class Personalize extends Resource {
 				responseTime: Date.now() - startTime
 			};
 		} catch (error) {
-			console.error('Personalization failed:', error);
+			logger.error('Personalization failed:', error);
 			return {
 				error: error.message,
 				requestId
@@ -196,7 +199,7 @@ export class Predict extends Resource {
 				latencyMs: result.latencyMs
 			};
 		} catch (error) {
-			console.error('Prediction failed:', error);
+			logger.error('Prediction failed:', error);
 			return {
 				error: error.message
 			};
@@ -249,7 +252,7 @@ export class Monitoring extends Resource {
 				...metrics
 			};
 		} catch (error) {
-			console.error('Get metrics failed:', error);
+			logger.error('Get metrics failed:', error);
 			return {
 				error: error.message
 			};
@@ -316,7 +319,7 @@ export class Benchmark extends Resource {
 
 			return result;
 		} catch (error) {
-			console.error('Benchmark comparison failed:', error);
+			logger.error('Benchmark comparison failed:', error);
 			return {
 				error: error.message
 			};
@@ -342,7 +345,7 @@ export class Benchmark extends Resource {
 				results: history
 			};
 		} catch (error) {
-			console.error('Get benchmark history failed:', error);
+			logger.error('Get benchmark history failed:', error);
 			return {
 				error: error.message
 			};
@@ -408,7 +411,7 @@ export class UploadModelBlob extends Resource {
 				size: blobBuffer.length
 			};
 		} catch (error) {
-			console.error('UploadModelBlob failed:', error);
+			logger.error('UploadModelBlob failed:', error);
 			return {
 				success: false,
 				error: error.message
@@ -462,7 +465,7 @@ export class ModelList extends Resource {
 
 			return models;
 		} catch (error) {
-			console.error('[ModelList] Error:', error);
+			logger.error('[ModelList] Error:', error);
 			return {
 				error: error.message,
 				code: error.code || 'LIST_FAILED'
@@ -487,20 +490,20 @@ export class ModelList extends Resource {
 export class InspectModel extends Resource {
 	async get(data, request) {
 		try {
-			console.log('[InspectModel] ===== Request Debug =====');
-			console.log('[InspectModel] Request keys:', request ? Object.keys(request).join(', ') : 'request is undefined');
-			console.log('[InspectModel] Request:', JSON.stringify(request, null, 2));
-			console.log('[InspectModel] Data keys:', data ? Object.keys(data).join(', ') : 'data is undefined');
-			console.log('[InspectModel] Data:', JSON.stringify(data, null, 2));
-			console.log('[InspectModel] ===========================');
+			logger.info('[InspectModel] ===== Request Debug =====');
+			logger.info('[InspectModel] Request keys:', request ? Object.keys(request).join(', ') : 'request is undefined');
+			logger.info('[InspectModel] Request:', JSON.stringify(request, null, 2));
+			logger.info('[InspectModel] Data keys:', data ? Object.keys(data).join(', ') : 'data is undefined');
+			logger.info('[InspectModel] Data:', JSON.stringify(data, null, 2));
+			logger.info('[InspectModel] ===========================');
 
 			// Check authentication
 			const authError = verifyModelFetchAuth(request);
 			if (authError) {
-				console.log('[InspectModel] Authentication failed:', authError);
+				logger.info('[InspectModel] Authentication failed:', authError);
 				return authError;
 			}
-			console.log('[InspectModel] Authentication passed');
+			logger.info('[InspectModel] Authentication passed');
 
 			await ensureInitialized();
 
@@ -518,7 +521,7 @@ export class InspectModel extends Resource {
 			}
 
 			// Get adapter
-			console.log('[InspectModel] Creating adapters');
+			logger.info('[InspectModel] Creating adapters');
 			const adapters = {
 				filesystem: new LocalFilesystemAdapter(),
 				url: new HttpUrlAdapter(),
@@ -535,11 +538,11 @@ export class InspectModel extends Resource {
 			// Detect framework
 			let framework;
 			try {
-				console.log('[InspectModel] Calling detectFramework');
+				logger.info('[InspectModel] Calling detectFramework');
 				framework = await adapter.detectFramework(sourceReference, variant);
-				console.log('[InspectModel] Framework detected:', framework);
+				logger.info('[InspectModel] Framework detected:', framework);
 			} catch (error) {
-				console.error('[InspectModel] detectFramework failed:', error);
+				logger.error('[InspectModel] detectFramework failed:', error);
 				return {
 					error: `Failed to detect framework: ${error.message}`,
 					code: error.code || 'DETECTION_FAILED'
@@ -549,11 +552,11 @@ export class InspectModel extends Resource {
 			// List variants
 			let variants;
 			try {
-				console.log('[InspectModel] Calling listVariants');
+				logger.info('[InspectModel] Calling listVariants');
 				variants = await adapter.listVariants(sourceReference);
-				console.log('[InspectModel] Variants found:', variants.length);
+				logger.info('[InspectModel] Variants found:', variants.length);
 			} catch (error) {
-				console.error('[InspectModel] listVariants failed:', error);
+				logger.error('[InspectModel] listVariants failed:', error);
 				return {
 					error: `Failed to list variants: ${error.message}`,
 					code: error.code || 'LIST_VARIANTS_FAILED'
@@ -565,7 +568,7 @@ export class InspectModel extends Resource {
 			try {
 				inferredMetadata = await adapter.inferMetadata(sourceReference, variant);
 			} catch (error) {
-				console.warn('[InspectModel] Failed to infer metadata:', error.message);
+				logger.warn('[InspectModel] Failed to infer metadata:', error.message);
 				inferredMetadata = {};
 			}
 
@@ -586,7 +589,7 @@ export class InspectModel extends Resource {
 				suggestedModelName
 			};
 		} catch (error) {
-			console.error('[InspectModel] Error:', error);
+			logger.error('[InspectModel] Error:', error);
 			return {
 				error: error.message,
 				code: error.code || 'INSPECT_FAILED'
@@ -617,124 +620,6 @@ export class InspectModel extends Resource {
  *     maxRetries: 3 (optional, default: 3)
  *   }
  */
-
-/**
- * Process a model fetch job in the background
- * Uses Harper's native concurrency instead of polling
- */
-async function processModelFetchJob(job, tables) {
-	// Simplified version for debugging
-	try {
-		// Just try to update status to see if function runs
-		await tables.ModelFetchJob.put({
-			...job,
-			status: 'downloading',
-			startedAt: Date.now()
-		});
-
-		// Get adapter for source
-		const adapters = {
-			huggingface: new HuggingFaceAdapter(),
-			url: new HttpUrlAdapter(),
-			filesystem: new LocalFilesystemAdapter()
-		};
-
-		const adapter = adapters[job.source];
-		if (!adapter) {
-			throw new Error(`Unsupported source: ${job.source}`);
-		}
-
-		// Download model with progress tracking
-		const onProgress = (downloadedBytes, totalBytes) => {
-			tables.ModelFetchJob.put({
-				...job,
-				downloadedBytes,
-				totalBytes,
-				progress: totalBytes > 0 ? Math.round((downloadedBytes / totalBytes) * 100) : 0
-			}).catch(error => {
-				console.error(`[ProcessJob] Error updating progress for job ${job.id}:`, error);
-			});
-		};
-
-		const modelBlob = await adapter.download(job.sourceReference, job.variant, onProgress);
-
-		// Merge inferred and user metadata
-		const finalMetadata = {
-			...JSON.parse(job.inferredMetadata || '{}'),
-			...JSON.parse(job.userMetadata || '{}'),
-			fetchSource: job.source,
-			fetchReference: job.sourceReference,
-			fetchVariant: job.variant,
-			fetchedAt: new Date().toISOString()
-		};
-
-		// Store model in Model table
-		const modelId = `${job.modelName}:${job.modelVersion}`;
-		await tables.Model.put({
-			id: modelId,
-			name: job.modelName,
-			version: job.modelVersion,
-			framework: job.framework,
-			stage: job.stage || 'development',
-			modelBlob,
-			metadata: JSON.stringify(finalMetadata),
-			createdAt: Date.now()
-		});
-
-		// Mark job as completed
-		await tables.ModelFetchJob.put({
-			...job,
-			status: 'completed',
-			progress: 100,
-			completedAt: Date.now(),
-			resultModelId: modelId
-		});
-
-		// Call webhook if provided
-		if (job.webhookUrl) {
-			fetch(job.webhookUrl, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					jobId: job.id,
-					status: 'completed',
-					modelId
-				})
-			}).catch(error => {
-				console.error(`[ProcessJob] Webhook call failed for job ${job.id}:`, error);
-			});
-		}
-
-		console.log(`[ProcessJob] Job ${job.id} completed successfully`);
-	} catch (error) {
-		console.error(`[ProcessJob] Job ${job.id} failed:`, error.message);
-
-		// Mark job as failed
-		await tables.ModelFetchJob.put({
-			...job,
-			status: 'failed',
-			lastError: error.message,
-			errorCode: error.code || 'DOWNLOAD_FAILED',
-			retryable: false,
-			completedAt: Date.now()
-		});
-
-		// Call webhook if provided
-		if (job.webhookUrl) {
-			fetch(job.webhookUrl, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					jobId: job.id,
-					status: 'failed',
-					error: error.message
-				})
-			}).catch(err => {
-				console.error(`[ProcessJob] Webhook call failed for job ${job.id}:`, err);
-			});
-		}
-	}
-}
 
 export class FetchModel extends Resource {
 	async post(data, request) {
@@ -853,7 +738,7 @@ export class FetchModel extends Resource {
 				const adapter = adapters[source];
 				inferredMetadata = await adapter.inferMetadata(sourceReference, variant);
 			} catch (error) {
-				console.warn('[FetchModel] Failed to infer metadata:', error.message);
+				logger.warn('[FetchModel] Failed to infer metadata:', error.message);
 			}
 
 			// Create job
@@ -888,24 +773,17 @@ export class FetchModel extends Resource {
 
 			await tables.ModelFetchJob.create(job);
 
-			// Start processing immediately in background using setImmediate
-			// This ensures it runs after the response is sent
-			setImmediate(() => {
-				console.log(`[FetchModel] setImmediate callback running for job ${jobId}`);
-				processModelFetchJob(job, tables).catch(error => {
-					console.error(`[FetchModel] Background job ${jobId} failed:`, error);
-					console.error(error.stack);
-				});
-			});
+			logger.info(`[FetchModel] Created job ${jobId} for model ${modelId} (${source}:${sourceReference})`);
 
+			// Worker will pick up the job automatically from the queue
 			return {
 				jobId,
 				status: 'queued',
-				message: 'Job created successfully. Download started in background. Use GET /ModelFetchJob?id={jobId} to track progress.',
+				message: 'Job created successfully. Worker will process it shortly. Use GET /ModelFetchJob?id={jobId} to track progress.',
 				modelId
 			};
 		} catch (error) {
-			console.error('[FetchModel] Error:', error);
+			logger.error('[FetchModel] Error:', error);
 			return {
 				error: error.message,
 				code: error.code || 'FETCH_FAILED'
@@ -976,7 +854,7 @@ export class ModelFetchJobResource extends Resource {
 				count: jobs.length
 			};
 		} catch (error) {
-			console.error('[ModelFetchJob] GET Error:', error);
+			logger.error('[ModelFetchJob] GET Error:', error);
 			return {
 				error: error.message
 			};
@@ -1041,7 +919,7 @@ export class ModelFetchJobResource extends Resource {
 				error: `Unknown action: ${action}. Supported: retry`
 			};
 		} catch (error) {
-			console.error('[ModelFetchJob] POST Error:', error);
+			logger.error('[ModelFetchJob] POST Error:', error);
 			return {
 				error: error.message
 			};

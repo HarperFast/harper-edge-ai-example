@@ -24,7 +24,11 @@
  *   await worker.start();
  *   // ... worker runs in background ...
  *   await worker.stop();
+ *
+ * Note: Uses Harper's global logger and tables objects. Initialized via handleApplication.
  */
+
+/* global tables, logger */
 
 import { v4 as uuidv4 } from 'uuid';
 import { HuggingFaceAdapter } from './fetchers/HuggingFaceAdapter.js';
@@ -44,14 +48,14 @@ import {
 export class ModelFetchWorker {
 	/**
 	 * Create a model fetch worker
-	 * @param {Object} tablesParam - Harper tables object (injected dependency)
+	 * Uses Harper's global tables and logger objects
 	 */
-	constructor(tablesParam = null) {
-		// Inject tables dependency (for testing and server integration)
-		this.tables = tablesParam || (typeof tables !== 'undefined' ? tables : null);
-		if (!this.tables) {
-			throw new Error('ModelFetchWorker requires tables object');
+	constructor() {
+		// Use Harper's global tables object
+		if (typeof tables === 'undefined') {
+			throw new Error('ModelFetchWorker requires Harper tables global');
 		}
+		this.tables = tables;
 
 		// Configuration from environment variables
 		this.maxConcurrent = parseInt(process.env.MODEL_FETCH_MAX_CONCURRENT) || 3;
@@ -85,11 +89,11 @@ export class ModelFetchWorker {
 	 */
 	async start() {
 		if (this.running) {
-			console.log('[ModelFetchWorker] Already running');
+			logger.info('[ModelFetchWorker] Already running');
 			return;
 		}
 
-		console.log('[ModelFetchWorker] Starting...');
+		logger.info('[ModelFetchWorker] Starting...');
 		this.running = true;
 
 		// Recover any jobs that were stuck in "downloading" state from previous crash
@@ -98,11 +102,11 @@ export class ModelFetchWorker {
 		// Start polling loop
 		this.intervalHandle = setInterval(() => {
 			this.processQueue().catch((error) => {
-				console.error('[ModelFetchWorker] Error processing queue:', error);
+				logger.error('[ModelFetchWorker] Error processing queue:', error);
 			});
 		}, this.pollInterval);
 
-		console.log(
+		logger.info(
 			`[ModelFetchWorker] Started (polling every ${this.pollInterval}ms, max ${this.maxConcurrent} concurrent jobs)`
 		);
 	}
@@ -117,7 +121,7 @@ export class ModelFetchWorker {
 			return;
 		}
 
-		console.log('[ModelFetchWorker] Stopping...');
+		logger.info('[ModelFetchWorker] Stopping...');
 		this.running = false;
 
 		// Stop polling
@@ -134,11 +138,11 @@ export class ModelFetchWorker {
 		}
 
 		if (this.activeJobs.size > 0) {
-			console.warn(
+			logger.warn(
 				`[ModelFetchWorker] Stopped with ${this.activeJobs.size} active jobs still running`
 			);
 		} else {
-			console.log('[ModelFetchWorker] Stopped gracefully');
+			logger.info('[ModelFetchWorker] Stopped gracefully');
 		}
 	}
 
@@ -153,15 +157,18 @@ export class ModelFetchWorker {
 	async recoverCrashedJobs() {
 		try {
 			// Find all jobs stuck in "downloading" state
-			const stuckJobs = await this.tables.ModelFetchJob.findMany({
-				where: { status: 'downloading' },
-			});
+			const stuckJobs = [];
+			for await (const job of this.tables.ModelFetchJob.search({
+				filter: ['status', '=', 'downloading'],
+			})) {
+				stuckJobs.push(job);
+			}
 
 			if (stuckJobs.length === 0) {
 				return;
 			}
 
-			console.log(`[ModelFetchWorker] Recovering ${stuckJobs.length} crashed jobs...`);
+			logger.info(`[ModelFetchWorker] Recovering ${stuckJobs.length} crashed jobs...`);
 
 			// Reset them to "queued" so they can be retried
 			for (const job of stuckJobs) {
@@ -170,9 +177,9 @@ export class ModelFetchWorker {
 				});
 			}
 
-			console.log(`[ModelFetchWorker] Recovered ${stuckJobs.length} jobs`);
+			logger.info(`[ModelFetchWorker] Recovered ${stuckJobs.length} jobs`);
 		} catch (error) {
-			console.error('[ModelFetchWorker] Error recovering crashed jobs:', error);
+			logger.error('[ModelFetchWorker] Error recovering crashed jobs:', error);
 		}
 	}
 
@@ -208,7 +215,7 @@ export class ModelFetchWorker {
 				// Start processing job (don't await - runs in background)
 				const jobPromise = this.processJob(job)
 					.catch((error) => {
-						console.error(`[ModelFetchWorker] Error processing job ${job.id}:`, error);
+						logger.error(`[ModelFetchWorker] Error processing job ${job.id}:`, error);
 					})
 					.finally(() => {
 						// Remove from active jobs when done
@@ -219,7 +226,7 @@ export class ModelFetchWorker {
 				this.activeJobs.set(job.id, jobPromise);
 			}
 		} catch (error) {
-			console.error('[ModelFetchWorker] Error fetching queued jobs:', error);
+			logger.error('[ModelFetchWorker] Error fetching queued jobs:', error);
 		}
 	}
 
@@ -231,11 +238,16 @@ export class ModelFetchWorker {
 	 * @private
 	 */
 	async fetchQueuedJobs(limit) {
-		const jobs = await this.tables.ModelFetchJob.findMany({
-			where: { status: 'queued' },
-			orderBy: { createdAt: 'asc' }, // FIFO
-			limit,
-		});
+		const jobs = [];
+		for await (const job of this.tables.ModelFetchJob.search({
+			filter: ['status', '=', 'queued'],
+		})) {
+			jobs.push(job);
+			if (jobs.length >= limit) break;
+		}
+
+		// Sort by createdAt (FIFO)
+		jobs.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 
 		return jobs;
 	}
@@ -249,7 +261,7 @@ export class ModelFetchWorker {
 	 * @private
 	 */
 	async processJob(job) {
-		console.log(`[ModelFetchWorker] Processing job ${job.id} (${job.source}:${job.sourceReference})`);
+		logger.info(`[ModelFetchWorker] Processing job ${job.id} (${job.source}:${job.sourceReference})`);
 
 		try {
 			// Update status to "downloading"
@@ -269,7 +281,7 @@ export class ModelFetchWorker {
 			// Download model with progress tracking
 			const onProgress = (downloadedBytes, totalBytes) => {
 				this.updateProgress(job.id, downloadedBytes, totalBytes).catch((error) => {
-					console.error(`[ModelFetchWorker] Error updating progress for job ${job.id}:`, error);
+					logger.error(`[ModelFetchWorker] Error updating progress for job ${job.id}:`, error);
 				});
 			};
 
@@ -305,9 +317,9 @@ export class ModelFetchWorker {
 				});
 			}
 
-			console.log(`[ModelFetchWorker] Job ${job.id} completed successfully`);
+			logger.info(`[ModelFetchWorker] Job ${job.id} completed successfully`);
 		} catch (error) {
-			console.error(`[ModelFetchWorker] Job ${job.id} failed:`, error.message);
+			logger.error(`[ModelFetchWorker] Job ${job.id} failed:`, error.message);
 			await this.handleFailure(job, error);
 		}
 	}
@@ -339,7 +351,7 @@ export class ModelFetchWorker {
 			// Calculate exponential backoff delay
 			const delayMs = this.initialRetryDelayMs * Math.pow(2, retryCount - 1);
 
-			console.log(
+			logger.info(
 				`[ModelFetchWorker] Job ${job.id} will retry (${retryCount}/${maxRetries}) after ${delayMs}ms`
 			);
 
@@ -377,7 +389,7 @@ export class ModelFetchWorker {
 				});
 			}
 
-			console.log(`[ModelFetchWorker] Job ${job.id} failed permanently after ${retryCount} attempts`);
+			logger.info(`[ModelFetchWorker] Job ${job.id} failed permanently after ${retryCount} attempts`);
 		}
 	}
 
@@ -418,9 +430,17 @@ export class ModelFetchWorker {
 	 * @private
 	 */
 	async updateJobStatus(jobId, status, updates = {}) {
-		await this.tables.ModelFetchJob.update({
-			where: { id: jobId },
-			data: { status, ...updates },
+		// Get current job
+		const job = await this.tables.ModelFetchJob.get(jobId);
+		if (!job) {
+			throw new Error(`Job ${jobId} not found`);
+		}
+
+		// Update with new status and fields
+		await this.tables.ModelFetchJob.put({
+			...job,
+			status,
+			...updates,
 		});
 	}
 
@@ -435,13 +455,18 @@ export class ModelFetchWorker {
 	async updateProgress(jobId, downloadedBytes, totalBytes) {
 		const progress = Math.round((downloadedBytes / totalBytes) * 100);
 
-		await this.tables.ModelFetchJob.update({
-			where: { id: jobId },
-			data: {
-				downloadedBytes,
-				totalBytes,
-				progress,
-			},
+		// Get current job
+		const job = await this.tables.ModelFetchJob.get(jobId);
+		if (!job) {
+			throw new Error(`Job ${jobId} not found`);
+		}
+
+		// Update progress fields
+		await this.tables.ModelFetchJob.put({
+			...job,
+			downloadedBytes,
+			totalBytes,
+			progress,
 		});
 	}
 
@@ -478,10 +503,10 @@ export class ModelFetchWorker {
 			});
 
 			if (!response.ok) {
-				console.warn(`[ModelFetchWorker] Webhook failed: ${response.status} ${response.statusText}`);
+				logger.warn(`[ModelFetchWorker] Webhook failed: ${response.status} ${response.statusText}`);
 			}
 		} catch (error) {
-			console.error('[ModelFetchWorker] Error calling webhook:', error.message);
+			logger.error('[ModelFetchWorker] Error calling webhook:', error.message);
 		}
 	}
 
