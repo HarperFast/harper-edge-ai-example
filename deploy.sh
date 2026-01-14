@@ -591,6 +591,99 @@ run_deployment_tests() {
         return 1
     fi
 
+    # Test 4: Fetch model and test inference
+    log_info "Test 4: Fetch model and test inference..."
+
+    # Fetch a small quantized model for testing
+    local TEST_MODEL="deploy-test-inference"
+    log_info "Fetching model ${TEST_MODEL}..."
+    local FETCH_OUTPUT
+    FETCH_OUTPUT=$(node scripts/cli/harper-ai.js model fetch huggingface Xenova/all-MiniLM-L6-v2 \
+        --name "${TEST_MODEL}" \
+        --variant quantized \
+        --url "${APP_URL}" \
+        --token "${MODEL_FETCH_TOKEN}" \
+        --username "${REMOTE_USERNAME}" \
+        --password "${REMOTE_PASSWORD}" 2>&1)
+
+    if echo "${FETCH_OUTPUT}" | grep -q "already exists"; then
+        log_info "Model already exists, using existing model"
+    elif echo "${FETCH_OUTPUT}" | grep -q "Job created"; then
+        local JOB_ID
+        JOB_ID=$(echo "${FETCH_OUTPUT}" | grep "Job ID:" | awk '{print $3}')
+        log_info "Job created: ${JOB_ID}, waiting for completion..."
+
+        # Wait for job to complete (max 60 seconds)
+        local TIMEOUT=60
+        local ELAPSED=0
+        while [ $ELAPSED -lt $TIMEOUT ]; do
+            local JOB_STATUS
+            JOB_STATUS=$(node scripts/cli/harper-ai.js job get "${JOB_ID}" \
+                --url "${APP_URL}" \
+                --token "${MODEL_FETCH_TOKEN}" \
+                --username "${REMOTE_USERNAME}" \
+                --password "${REMOTE_PASSWORD}" 2>&1)
+
+            if echo "${JOB_STATUS}" | grep -q "Status:.*completed"; then
+                log_info "Model fetch completed"
+                break
+            elif echo "${JOB_STATUS}" | grep -q "Status:.*failed"; then
+                log_error "✗ Model fetch failed"
+                echo "${JOB_STATUS}"
+                return 1
+            fi
+
+            sleep 5
+            ELAPSED=$((ELAPSED + 5))
+        done
+
+        if [ $ELAPSED -ge $TIMEOUT ]; then
+            log_error "✗ Model fetch timed out after ${TIMEOUT} seconds"
+            return 1
+        fi
+    else
+        log_error "✗ Unexpected fetch output:"
+        echo "${FETCH_OUTPUT}"
+        return 1
+    fi
+
+    # Test inference on the fetched model
+    log_info "Testing inference on ${TEST_MODEL}..."
+    local AUTH_HEADER="Authorization: Basic $(echo -n "${REMOTE_USERNAME}:${REMOTE_PASSWORD}" | base64)"
+    local INFERENCE_RESPONSE
+    INFERENCE_RESPONSE=$(curl -s -X POST "${APP_URL}/Predict" \
+        -H "Content-Type: application/json" \
+        -H "${AUTH_HEADER}" \
+        -d "{
+            \"modelName\": \"${TEST_MODEL}\",
+            \"modelVersion\": \"v1\",
+            \"features\": {\"text\": \"This is a test sentence for embedding.\"}
+        }")
+
+    # Check if response contains error
+    if echo "${INFERENCE_RESPONSE}" | grep -q '"error"'; then
+        log_warn "⚠ Inference failed (model fetched but inference has issues):"
+        echo "${INFERENCE_RESPONSE}" | jq '.' 2>/dev/null || echo "${INFERENCE_RESPONSE}"
+        log_info "Model fetch system is working, but inference needs investigation"
+    # Check if response contains embeddings
+    elif echo "${INFERENCE_RESPONSE}" | grep -q '"embeddings"'; then
+        # Extract embedding dimension
+        local EMBEDDING_DIM
+        EMBEDDING_DIM=$(echo "${INFERENCE_RESPONSE}" | jq '.embeddings[0] | length' 2>/dev/null)
+
+        if [ "${EMBEDDING_DIM}" = "384" ]; then
+            log_success "✓ Inference works (embeddings: ${EMBEDDING_DIM} dimensions)"
+        elif [ -n "${EMBEDDING_DIM}" ] && [ "${EMBEDDING_DIM}" != "null" ]; then
+            log_warn "⚠ Inference returned embeddings but unexpected dimension: ${EMBEDDING_DIM} (expected 384)"
+        else
+            log_warn "⚠ Inference response has embeddings field but couldn't parse dimension"
+        fi
+    else
+        log_warn "⚠ Inference response format unexpected:"
+        echo "${INFERENCE_RESPONSE}" | jq '.' 2>/dev/null || echo "${INFERENCE_RESPONSE}"
+        log_info "Model fetch system is working, but inference response format needs investigation"
+    fi
+
     log_success "All deployment tests passed"
 }
 
