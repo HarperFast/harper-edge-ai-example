@@ -172,7 +172,7 @@ export class ModelFetchWorker {
 
 			// Reset them to "queued" so they can be retried
 			for (const job of stuckJobs) {
-				await this.updateJobStatus(job.id, 'queued', {
+				await this.updateJobStatus(job, 'queued', {
 					lastError: 'Worker crashed during download, retrying...',
 				});
 			}
@@ -265,7 +265,7 @@ export class ModelFetchWorker {
 
 		try {
 			// Update status to "downloading"
-			await this.updateJobStatus(job.id, 'downloading', {
+			await this.updateJobStatus(job, 'downloading', {
 				startedAt: Date.now(),
 			});
 
@@ -280,7 +280,7 @@ export class ModelFetchWorker {
 
 			// Download model with progress tracking
 			const onProgress = (downloadedBytes, totalBytes) => {
-				this.updateProgress(job.id, downloadedBytes, totalBytes).catch((error) => {
+				this.updateProgress(job, downloadedBytes, totalBytes).catch((error) => {
 					logger.error(`[ModelFetchWorker] Error updating progress for job ${job.id}:`, error);
 				});
 			};
@@ -356,7 +356,7 @@ export class ModelFetchWorker {
 			);
 
 			// Update job status to "queued" for retry
-			await this.updateJobStatus(job.id, 'queued', {
+			await this.updateJobStatus(job, 'queued', {
 				retryCount,
 				lastError: error.message,
 				errorCode: error.code || 'UNKNOWN_ERROR',
@@ -370,7 +370,7 @@ export class ModelFetchWorker {
 			}, delayMs);
 		} else {
 			// Mark job as failed (no more retries)
-			await this.updateJobStatus(job.id, 'failed', {
+			await this.updateJobStatus(job, 'failed', {
 				retryCount,
 				lastError: error.message,
 				errorCode: error.code || 'UNKNOWN_ERROR',
@@ -424,22 +424,16 @@ export class ModelFetchWorker {
 	/**
 	 * Update job status in database
 	 *
-	 * @param {string} jobId - Job ID
+	 * @param {Object} job - Full job object (to preserve all fields)
 	 * @param {string} status - New status
 	 * @param {Object} updates - Additional fields to update
 	 * @private
 	 */
-	async updateJobStatus(jobId, status, updates = {}) {
-		// Get current job
-		const job = await this.tables.ModelFetchJob.get(jobId);
-		if (!job) {
-			throw new Error(`Job ${jobId} not found`);
-		}
-
-		// Update with new status and fields, ensuring id is preserved
+	async updateJobStatus(job, status, updates = {}) {
+		// Update with new status and fields, preserving all existing fields
 		await this.tables.ModelFetchJob.put({
 			...job,
-			id: jobId, // Ensure primary key is always set
+			id: job.id, // Ensure primary key is always set
 			status,
 			...updates,
 		});
@@ -448,24 +442,18 @@ export class ModelFetchWorker {
 	/**
 	 * Update job progress
 	 *
-	 * @param {string} jobId - Job ID
+	 * @param {Object} job - Full job object (to preserve all fields)
 	 * @param {number} downloadedBytes - Downloaded bytes
 	 * @param {number} totalBytes - Total bytes
 	 * @private
 	 */
-	async updateProgress(jobId, downloadedBytes, totalBytes) {
+	async updateProgress(job, downloadedBytes, totalBytes) {
 		const progress = Math.round((downloadedBytes / totalBytes) * 100);
 
-		// Get current job
-		const job = await this.tables.ModelFetchJob.get(jobId);
-		if (!job) {
-			throw new Error(`Job ${jobId} not found`);
-		}
-
-		// Update progress fields, ensuring id is preserved
+		// Update progress fields, preserving all existing fields
 		await this.tables.ModelFetchJob.put({
 			...job,
-			id: jobId, // Ensure primary key is always set
+			id: job.id, // Ensure primary key is always set
 			downloadedBytes,
 			totalBytes,
 			progress,
