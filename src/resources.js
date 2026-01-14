@@ -791,7 +791,13 @@ export class FetchModel extends Resource {
 
 			logger.info(`[FetchModel] Created job ${jobId} for model ${modelId} (${source}:${sourceReference})`);
 
-			// Worker will pick up the job automatically from the queue
+			// Trigger on-demand processing
+			if (modelFetchWorker) {
+				modelFetchWorker.triggerProcessing().catch((error) => {
+					logger.error('[FetchModel] Error triggering worker:', error);
+				});
+			}
+
 			return {
 				jobId,
 				status: 'queued',

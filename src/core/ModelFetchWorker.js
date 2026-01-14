@@ -85,36 +85,46 @@ export class ModelFetchWorker {
 	/**
 	 * Start the worker
 	 *
-	 * Recovers crashed jobs and begins polling the job queue.
+	 * Recovers crashed jobs. No longer polls - worker is triggered on-demand when jobs are created.
 	 */
 	async start() {
 		if (this.running) {
-			logger.info('[ModelFetchWorker] Already running');
+			logger.info('[ModelFetchWorker] Already initialized');
 			return;
 		}
 
-		logger.info('[ModelFetchWorker] Starting...');
+		logger.info('[ModelFetchWorker] Initializing on-demand worker...');
 		this.running = true;
 
 		// Recover any jobs that were stuck in "downloading" state from previous crash
 		await this.recoverCrashedJobs();
 
-		// Start polling loop
-		this.intervalHandle = setInterval(() => {
-			this.processQueue().catch((error) => {
-				logger.error('[ModelFetchWorker] Error processing queue:', error);
-			});
-		}, this.pollInterval);
+		// Trigger processing for any recovered jobs
+		await this.triggerProcessing();
 
-		logger.info(
-			`[ModelFetchWorker] Started (polling every ${this.pollInterval}ms, max ${this.maxConcurrent} concurrent jobs)`
-		);
+		logger.info(`[ModelFetchWorker] Worker initialized (on-demand mode, max ${this.maxConcurrent} concurrent jobs)`);
+	}
+
+	/**
+	 * Trigger processing of available jobs
+	 *
+	 * Processes jobs until the queue is empty or max concurrent limit is reached.
+	 * This is called when a new job is created or when recovered jobs need processing.
+	 */
+	async triggerProcessing() {
+		if (!this.running) {
+			logger.warn('[ModelFetchWorker] Cannot trigger processing - worker not initialized');
+			return;
+		}
+
+		// Process queue once
+		await this.processQueue();
 	}
 
 	/**
 	 * Stop the worker gracefully
 	 *
-	 * Waits for active jobs to complete (with timeout), then stops polling.
+	 * Waits for active jobs to complete (with timeout).
 	 */
 	async stop() {
 		if (!this.running) {
@@ -123,12 +133,6 @@ export class ModelFetchWorker {
 
 		logger.info('[ModelFetchWorker] Stopping...');
 		this.running = false;
-
-		// Stop polling
-		if (this.intervalHandle) {
-			clearInterval(this.intervalHandle);
-			this.intervalHandle = null;
-		}
 
 		// Wait for active jobs to complete (with timeout)
 		const timeout = 30000; // 30 seconds
@@ -161,7 +165,13 @@ export class ModelFetchWorker {
 			for await (const job of this.tables.ModelFetchJob.search({
 				filter: ['status', '=', 'downloading'],
 			})) {
-				stuckJobs.push(job);
+				// Extra safety: Only recover jobs that are actually in downloading state
+				// (Harper's filter sometimes returns wrong results due to stale indexes)
+				if (job.status === 'downloading') {
+					stuckJobs.push(job);
+				} else {
+					logger.warn(`[ModelFetchWorker] Job ${job.id} has status='${job.status}' but was returned by downloading filter - skipping recovery`);
+				}
 			}
 
 			if (stuckJobs.length === 0) {
@@ -212,6 +222,21 @@ export class ModelFetchWorker {
 
 			// Process each job concurrently
 			for (const job of queuedJobs) {
+				// Skip if already processing this job
+				if (this.activeJobs.has(job.id)) {
+					logger.info(`[ModelFetchWorker] Job ${job.id} already in progress, skipping`);
+					continue;
+				}
+
+				// Extra safety: Skip if job status is not actually 'queued'
+				// (Harper's filter sometimes returns wrong results due to stale indexes)
+				if (job.status !== 'queued') {
+					logger.warn(`[ModelFetchWorker] Job ${job.id} has status='${job.status}' but was returned by queued filter - skipping!`);
+					continue;
+				}
+
+				logger.info(`[ModelFetchWorker] Starting to process job ${job.id}`);
+
 				// Start processing job (don't await - runs in background)
 				const jobPromise = this.processJob(job)
 					.catch((error) => {
@@ -219,11 +244,13 @@ export class ModelFetchWorker {
 					})
 					.finally(() => {
 						// Remove from active jobs when done
+						logger.info(`[ModelFetchWorker] Removing job ${job.id} from activeJobs`);
 						this.activeJobs.delete(job.id);
 					});
 
 				// Track active job
 				this.activeJobs.set(job.id, jobPromise);
+				logger.info(`[ModelFetchWorker] Added job ${job.id} to activeJobs (total: ${this.activeJobs.size})`);
 			}
 		} catch (error) {
 			logger.error('[ModelFetchWorker] Error fetching queued jobs:', error);
@@ -242,6 +269,7 @@ export class ModelFetchWorker {
 		for await (const job of this.tables.ModelFetchJob.search({
 			filter: ['status', '=', 'queued'],
 		})) {
+			logger.info(`[ModelFetchWorker] Found job ${job.id} with status='${job.status}' (filter was 'queued')`);
 			jobs.push(job);
 			if (jobs.length >= limit) break;
 		}
@@ -249,6 +277,7 @@ export class ModelFetchWorker {
 		// Sort by createdAt (FIFO)
 		jobs.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 
+		logger.info(`[ModelFetchWorker] Fetched ${jobs.length} queued jobs`);
 		return jobs;
 	}
 
@@ -306,7 +335,7 @@ export class ModelFetchWorker {
 			const modelId = await this.storeModel(job, modelBlob, finalMetadata);
 
 			// Mark job as completed
-			await this.completeJob(job.id, modelId);
+			await this.completeJob(job, modelId);
 
 			// Call webhook if provided
 			if (job.webhookUrl) {
@@ -430,13 +459,28 @@ export class ModelFetchWorker {
 	 * @private
 	 */
 	async updateJobStatus(job, status, updates = {}) {
-		// Update with new status and fields, preserving all existing fields
-		await this.tables.ModelFetchJob.put({
-			...job,
-			id: job.id, // Ensure primary key is always set
-			status,
-			...updates,
-		});
+		try {
+			// Update with new status and fields, preserving all existing fields
+			logger.info(`[ModelFetchWorker] Updating job ${job.id} status: ${job.status} → ${status}`);
+
+			// Convert date strings to timestamps (Harper needs integers for Date fields)
+			const jobData = { ...job, status, ...updates };
+			if (typeof jobData.createdAt === 'string') {
+				jobData.createdAt = new Date(jobData.createdAt).getTime();
+			}
+			if (typeof jobData.startedAt === 'string') {
+				jobData.startedAt = new Date(jobData.startedAt).getTime();
+			}
+			if (typeof jobData.completedAt === 'string') {
+				jobData.completedAt = new Date(jobData.completedAt).getTime();
+			}
+
+			await this.tables.ModelFetchJob.put(jobData);
+			logger.info(`[ModelFetchWorker] Job ${job.id} status updated to ${status}`);
+		} catch (error) {
+			logger.error(`[ModelFetchWorker] Failed to update job ${job.id} status:`, error);
+			throw error;
+		}
 	}
 
 	/**
@@ -451,24 +495,37 @@ export class ModelFetchWorker {
 		const progress = Math.round((downloadedBytes / totalBytes) * 100);
 
 		// Update progress fields, preserving all existing fields
-		await this.tables.ModelFetchJob.put({
+		const jobData = {
 			...job,
 			id: job.id, // Ensure primary key is always set
 			downloadedBytes,
 			totalBytes,
 			progress,
-		});
+		};
+
+		// Convert date strings to timestamps (Harper needs integers for Date fields)
+		if (typeof jobData.createdAt === 'string') {
+			jobData.createdAt = new Date(jobData.createdAt).getTime();
+		}
+		if (typeof jobData.startedAt === 'string') {
+			jobData.startedAt = new Date(jobData.startedAt).getTime();
+		}
+		if (typeof jobData.completedAt === 'string') {
+			jobData.completedAt = new Date(jobData.completedAt).getTime();
+		}
+
+		await this.tables.ModelFetchJob.put(jobData);
 	}
 
 	/**
 	 * Mark job as completed
 	 *
-	 * @param {string} jobId - Job ID
+	 * @param {Object} job - Full job object (to preserve all fields)
 	 * @param {string} modelId - Resulting model ID
 	 * @private
 	 */
-	async completeJob(jobId, modelId) {
-		await this.updateJobStatus(jobId, 'completed', {
+	async completeJob(job, modelId) {
+		await this.updateJobStatus(job, 'completed', {
 			resultModelId: modelId,
 			progress: 100,
 			completedAt: Date.now(),
