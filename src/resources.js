@@ -12,6 +12,7 @@ import {
 	BenchmarkEngine
 } from './core/index.js';
 import { globals } from './globals.js';
+import { ModelFetchWorker } from './core/ModelFetchWorker.js';
 import { LocalFilesystemAdapter } from './core/fetchers/LocalFilesystemAdapter.js';
 import { HttpUrlAdapter } from './core/fetchers/HttpUrlAdapter.js';
 import { HuggingFaceAdapter } from './core/fetchers/HuggingFaceAdapter.js';
@@ -925,4 +926,46 @@ export class ModelFetchJobResource extends Resource {
 			};
 		}
 	}
+}
+
+/**
+ * Initialize application on Harper startup
+ *
+ * Called by Harper when the application starts. Initializes background workers
+ * and stores them in globals for access by resources.
+ *
+ * Pattern from bigquery-ingestor for proper worker lifecycle management.
+ *
+ * @param {Object} scope - Harper scope object with logger, options, etc.
+ */
+export async function handleApplication(scope) {
+	const scopeLogger = scope.logger;
+	const options = scope.options.getAll();
+
+	scopeLogger.info('[handleApplication] Initializing Edge AI Ops application...');
+
+	// Check if Model Fetch worker should be enabled
+	const workerEnabled = options.MODEL_FETCH_WORKER !== 'false';
+
+	if (workerEnabled) {
+		try {
+			// Initialize Model Fetch Worker
+			// Note: Uses Harper's global tables object
+			const modelFetchWorker = new ModelFetchWorker();
+			await modelFetchWorker.start();
+
+			// Store in globals for access from resources
+			globals.set('modelFetchWorker', modelFetchWorker);
+
+			scopeLogger.info('[handleApplication] ModelFetchWorker initialized and started');
+		} catch (error) {
+			scopeLogger.error(`[handleApplication] Failed to initialize ModelFetchWorker: ${error.message}`);
+			scopeLogger.error(error.stack);
+			throw error;
+		}
+	} else {
+		scopeLogger.info('[handleApplication] ModelFetchWorker disabled (MODEL_FETCH_WORKER=false)');
+	}
+
+	scopeLogger.info('[handleApplication] Application initialized successfully');
 }
