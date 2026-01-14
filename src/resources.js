@@ -943,3 +943,110 @@ export class ModelFetchJobResource extends Resource {
 	}
 }
 
+/**
+ * WorkerControl Resource
+ *
+ * GET /WorkerControl - Get worker status
+ * POST /WorkerControl - Start/restart worker manually
+ */
+export class WorkerControl extends Resource {
+	async get(data, request) {
+		try {
+			// Check authentication
+			const authError = verifyModelFetchAuth(request);
+			if (authError) {
+				return authError;
+			}
+
+			await ensureInitialized();
+
+			const worker = globals.get('modelFetchWorker');
+
+			if (!worker) {
+				return {
+					running: false,
+					message: 'Worker not initialized (MODEL_FETCH_WORKER=false or initialization failed)'
+				};
+			}
+
+			const status = worker.getStatus();
+
+			return {
+				running: status.running,
+				activeJobs: status.activeJobs,
+				maxConcurrent: status.maxConcurrent,
+				pollInterval: status.pollInterval,
+				rateLimitedSources: status.rateLimitedSources
+			};
+		} catch (error) {
+			logger.error('[WorkerControl] GET Error:', error);
+			return {
+				error: error.message
+			};
+		}
+	}
+
+	async post(data, request) {
+		try {
+			// Check authentication
+			const authError = verifyModelFetchAuth(request);
+			if (authError) {
+				return authError;
+			}
+
+			await ensureInitialized();
+
+			const worker = globals.get('modelFetchWorker');
+
+			if (!worker) {
+				return {
+					error: 'Worker not available (MODEL_FETCH_WORKER=false or initialization failed)'
+				};
+			}
+
+			const { action = 'start' } = data;
+
+			if (action === 'start') {
+				if (worker.running) {
+					return {
+						message: 'Worker is already running',
+						status: worker.getStatus()
+					};
+				}
+
+				await worker.start();
+				logger.info('[WorkerControl] Worker started manually');
+
+				return {
+					message: 'Worker started successfully',
+					status: worker.getStatus()
+				};
+			} else if (action === 'stop') {
+				if (!worker.running) {
+					return {
+						message: 'Worker is already stopped',
+						status: worker.getStatus()
+					};
+				}
+
+				await worker.stop();
+				logger.info('[WorkerControl] Worker stopped manually');
+
+				return {
+					message: 'Worker stopped successfully',
+					status: worker.getStatus()
+				};
+			} else {
+				return {
+					error: `Unknown action: ${action}. Supported: start, stop`
+				};
+			}
+		} catch (error) {
+			logger.error('[WorkerControl] POST Error:', error);
+			return {
+				error: error.message
+			};
+		}
+	}
+}
+
