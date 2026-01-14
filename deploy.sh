@@ -608,9 +608,9 @@ run_deployment_tests() {
 
     if echo "${FETCH_OUTPUT}" | grep -q "already exists"; then
         log_info "Model already exists, using existing model"
-    elif echo "${FETCH_OUTPUT}" | grep -q "Job created"; then
+    elif echo "${FETCH_OUTPUT}" | grep -q "Fetch job created"; then
         local JOB_ID
-        JOB_ID=$(echo "${FETCH_OUTPUT}" | grep "Job ID:" | awk '{print $3}')
+        JOB_ID=$(echo "${FETCH_OUTPUT}" | grep "Job ID:" | awk '{print $NF}')
         log_info "Job created: ${JOB_ID}, waiting for completion..."
 
         # Wait for job to complete (max 60 seconds)
