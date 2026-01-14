@@ -121,10 +121,12 @@ async function waitForJob(jobId, maxAttempts = 60, intervalSeconds = 5) {
 }
 
 async function main() {
+	// Use timestamp to ensure unique model name on each test run
+	const timestamp = Date.now();
 	const testModel = {
 		source: 'huggingface',
 		reference: 'Xenova/all-MiniLM-L6-v2',
-		name: 'test-minilm',
+		name: `test-minilm-${timestamp}`,
 		version: 'v1',
 		variant: 'quantized'
 	};
