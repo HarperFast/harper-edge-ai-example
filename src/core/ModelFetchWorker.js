@@ -436,9 +436,10 @@ export class ModelFetchWorker {
 			throw new Error(`Job ${jobId} not found`);
 		}
 
-		// Update with new status and fields
+		// Update with new status and fields, ensuring id is preserved
 		await this.tables.ModelFetchJob.put({
 			...job,
+			id: jobId, // Ensure primary key is always set
 			status,
 			...updates,
 		});
@@ -461,9 +462,10 @@ export class ModelFetchWorker {
 			throw new Error(`Job ${jobId} not found`);
 		}
 
-		// Update progress fields
+		// Update progress fields, ensuring id is preserved
 		await this.tables.ModelFetchJob.put({
 			...job,
+			id: jobId, // Ensure primary key is always set
 			downloadedBytes,
 			totalBytes,
 			progress,
