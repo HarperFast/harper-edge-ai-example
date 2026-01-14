@@ -9,7 +9,6 @@ import {
 	MonitoringBackend,
 	BenchmarkEngine
 } from './core/index.js';
-import { ModelFetchWorker } from './core/ModelFetchWorker.js';
 import { LocalFilesystemAdapter } from './core/fetchers/LocalFilesystemAdapter.js';
 import { HttpUrlAdapter } from './core/fetchers/HttpUrlAdapter.js';
 import { HuggingFaceAdapter } from './core/fetchers/HuggingFaceAdapter.js';
@@ -38,7 +37,6 @@ async function getPersonalizationEngine(modelName, modelVersion) {
 let monitoringBackend;
 let inferenceEngine;
 let benchmarkEngine;
-let modelFetchWorker;
 
 async function ensureInitialized() {
 	if (!inferenceEngine) {
@@ -52,15 +50,7 @@ async function ensureInitialized() {
 	if (!benchmarkEngine) {
 		benchmarkEngine = new BenchmarkEngine(inferenceEngine);
 	}
-	if (!modelFetchWorker) {
-		// Initialize ModelFetchWorker if enabled (default: enabled)
-		const workerEnabled = process.env.MODEL_FETCH_WORKER_ENABLED !== 'false';
-		if (workerEnabled) {
-			modelFetchWorker = new ModelFetchWorker(tables);
-			await modelFetchWorker.start();
-			console.log('[resources] ModelFetchWorker started');
-		}
-	}
+	// ModelFetchWorker removed - using Harper's native concurrency instead
 }
 
 /**
@@ -627,6 +617,126 @@ export class InspectModel extends Resource {
  *     maxRetries: 3 (optional, default: 3)
  *   }
  */
+
+/**
+ * Process a model fetch job in the background
+ * Uses Harper's native concurrency instead of polling
+ */
+async function processModelFetchJob(job, tables) {
+	console.log(`[ProcessJob] Starting job ${job.id} (${job.source}:${job.sourceReference})`);
+
+	try {
+		// Update status to "downloading"
+		await tables.ModelFetchJob.put({
+			...job,
+			status: 'downloading',
+			startedAt: Date.now()
+		});
+
+		// Get adapter for source
+		const adapters = {
+			huggingface: new HuggingFaceAdapter(),
+			url: new HttpUrlAdapter(),
+			filesystem: new LocalFilesystemAdapter()
+		};
+
+		const adapter = adapters[job.source];
+		if (!adapter) {
+			throw new Error(`Unsupported source: ${job.source}`);
+		}
+
+		// Download model with progress tracking
+		const onProgress = (downloadedBytes, totalBytes) => {
+			tables.ModelFetchJob.put({
+				...job,
+				downloadedBytes,
+				totalBytes,
+				progress: totalBytes > 0 ? Math.round((downloadedBytes / totalBytes) * 100) : 0
+			}).catch(error => {
+				console.error(`[ProcessJob] Error updating progress for job ${job.id}:`, error);
+			});
+		};
+
+		const modelBlob = await adapter.download(job.sourceReference, job.variant, onProgress);
+
+		// Merge inferred and user metadata
+		const finalMetadata = {
+			...JSON.parse(job.inferredMetadata || '{}'),
+			...JSON.parse(job.userMetadata || '{}'),
+			fetchSource: job.source,
+			fetchReference: job.sourceReference,
+			fetchVariant: job.variant,
+			fetchedAt: new Date().toISOString()
+		};
+
+		// Store model in Model table
+		const modelId = `${job.modelName}:${job.modelVersion}`;
+		await tables.Model.put({
+			id: modelId,
+			name: job.modelName,
+			version: job.modelVersion,
+			framework: job.framework,
+			stage: job.stage || 'development',
+			modelBlob,
+			metadata: JSON.stringify(finalMetadata),
+			createdAt: Date.now()
+		});
+
+		// Mark job as completed
+		await tables.ModelFetchJob.put({
+			...job,
+			status: 'completed',
+			progress: 100,
+			completedAt: Date.now(),
+			resultModelId: modelId
+		});
+
+		// Call webhook if provided
+		if (job.webhookUrl) {
+			fetch(job.webhookUrl, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					jobId: job.id,
+					status: 'completed',
+					modelId
+				})
+			}).catch(error => {
+				console.error(`[ProcessJob] Webhook call failed for job ${job.id}:`, error);
+			});
+		}
+
+		console.log(`[ProcessJob] Job ${job.id} completed successfully`);
+	} catch (error) {
+		console.error(`[ProcessJob] Job ${job.id} failed:`, error.message);
+
+		// Mark job as failed
+		await tables.ModelFetchJob.put({
+			...job,
+			status: 'failed',
+			lastError: error.message,
+			errorCode: error.code || 'DOWNLOAD_FAILED',
+			retryable: false,
+			completedAt: Date.now()
+		});
+
+		// Call webhook if provided
+		if (job.webhookUrl) {
+			fetch(job.webhookUrl, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					jobId: job.id,
+					status: 'failed',
+					error: error.message
+				})
+			}).catch(err => {
+				console.error(`[ProcessJob] Webhook call failed for job ${job.id}:`, err);
+			});
+		}
+	}
+}
+
 export class FetchModel extends Resource {
 	async post(data, request) {
 		try {
@@ -778,10 +888,15 @@ export class FetchModel extends Resource {
 
 			await tables.ModelFetchJob.create(job);
 
+			// Start processing immediately in background (don't await)
+			processModelFetchJob(job, tables).catch(error => {
+				console.error(`[FetchModel] Background job ${jobId} failed:`, error);
+			});
+
 			return {
 				jobId,
 				status: 'queued',
-				message: 'Job created successfully. Use GET /ModelFetchJob?id={jobId} to track progress.',
+				message: 'Job created successfully. Download started in background. Use GET /ModelFetchJob?id={jobId} to track progress.',
 				modelId
 			};
 		} catch (error) {
