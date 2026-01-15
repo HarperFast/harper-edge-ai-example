@@ -65,13 +65,13 @@ describe('ModelFetchClient', () => {
 			assert.ok(fetchCalls[0].url.includes('sourceReference=test.onnx'));
 		});
 
-		it('should include auth token in headers when provided', async () => {
+		it('should include auth token in query params when provided', async () => {
 			const { ModelFetchClient } = await import('../../../scripts/lib/model-fetch-client.js');
 			const client = new ModelFetchClient('http://localhost:9926', 'test-token');
 
 			await client.inspectModel('filesystem', 'test.onnx');
 
-			assert.equal(fetchCalls[0].options.headers.Authorization, 'Bearer test-token');
+			assert.ok(fetchCalls[0].url.includes('token=test-token'));
 		});
 
 		it('should include variant parameter when provided', async () => {
@@ -102,7 +102,7 @@ describe('ModelFetchClient', () => {
 			assert.equal(fetchCalls[0].options.headers['Content-Type'], 'application/json');
 		});
 
-		it('should include auth token when provided', async () => {
+		it('should include auth token in request body when provided', async () => {
 			const { ModelFetchClient } = await import('../../../scripts/lib/model-fetch-client.js');
 			const client = new ModelFetchClient('http://localhost:9926', 'test-token');
 
@@ -112,7 +112,8 @@ describe('ModelFetchClient', () => {
 				modelName: 'test-model',
 			});
 
-			assert.equal(fetchCalls[0].options.headers.Authorization, 'Bearer test-token');
+			const body = JSON.parse(fetchCalls[0].options.body);
+			assert.equal(body.token, 'test-token');
 		});
 	});
 

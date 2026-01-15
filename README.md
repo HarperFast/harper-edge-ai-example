@@ -1,118 +1,25 @@
-# Harper AI Ops Framework
+# Harper Edge AI
 
-**Production AI operations platform built on Harper for deploying, monitoring, and managing ML models at scale.**
+**Production-ready multi-backend ML inference engine for HarperDB.**
 
----
-
-## Vision
-
-Harper AI Ops Framework provides complete MLOps lifecycle management—from deployment through monitoring, drift detection, automated retraining, and validation.
-
-### What This Framework Provides
-
-✅ **Multi-Backend Inference** - Run ONNX, TensorFlow.js, Transformers.js, and Ollama models through unified API
-
-✅ **Production Monitoring** - Real-time metrics, drift detection, alerting, and automated retraining triggers
-
-✅ **Training Orchestration** - Experiment tracking, model validation, and lifecycle management
-
-✅ **Performance Benchmarking** - Compare equivalent models across backends to optimize deployment
-
-✅ **Feature Store** - Centralized feature management with time-travel queries (planned)
-
-✅ **Deployment Automation** - CI/CD pipelines, canary releases, and A/B testing (planned)
+Run ONNX, TensorFlow.js, Transformers.js, and Ollama models with unified API, async model fetching, profile-based management, and performance benchmarking.
 
 ---
 
-## Architecture
+## What It Does
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                   Production Inferencing                     │
-│              (Edge Devices, APIs, Services)                  │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     │ Inference Events, Metrics, Feedback
-                     ↓
-┌─────────────────────────────────────────────────────────────┐
-│                Harper AI Ops Cluster                         │
-│                                                               │
-│  ┌────────────────────┐  ┌────────────────────────────────┐ │
-│  │  Monitoring &      │  │  Training & Validation         │ │
-│  │  Observability     │  │                                │ │
-│  │  ✅ Metrics        │  │  ✅ Model Training             │ │
-│  │  ✅ Drift Detect   │  │  ✅ Experiment Tracking        │ │
-│  │  ✅ Alerting       │  │  ✅ Validation & Promotion     │ │
-│  │  ✅ Auto Triggers  │  │  ✅ Model Registry             │ │
-│  └────────────────────┘  └────────────────────────────────┘ │
-│                                                               │
-│  ┌────────────────────┐  ┌────────────────────────────────┐ │
-│  │  Core Data &       │  │  Deployment & Orchestration    │ │
-│  │  Services          │  │                                │ │
-│  │  🔄 Feature Store  │  │  🔄 Model CI/CD                │ │
-│  │  🔄 Data Pipeline  │  │  🔄 Automated Deploy           │ │
-│  │  🔄 Feature Eng.   │  │  🔄 Canary Releases            │ │
-│  └────────────────────┘  └────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-                     ↓                        ↑
-            ┌────────────────┐      ┌────────────────┐
-            │  BigQuery      │      │  Public Model  │
-            │  Data Warehouse│      │  Repositories  │
-            └────────────────┘      └────────────────┘
-```
+Harper Edge AI is a complete inference engine that makes it easy to deploy and run ML models in production:
 
-**Legend:** ✅ Designed | 🔄 Planned
+- **Multi-Backend Support** - Use the best runtime for each model (ONNX, TensorFlow.js, Transformers.js, Ollama)
+- **Async Model Fetching** - Download models from HuggingFace, HTTP, or filesystem with progress tracking
+- **Profile Management** - Deploy model sets with simple configuration files
+- **Performance Benchmarking** - Compare equivalent models across backends
+- **Deployment Automation** - Scripts for deploy, verify, benchmark, and demo
+- **Production Ready** - Full test coverage, pre-commit hooks, comprehensive docs
 
 ---
 
-## Implementation Roadmap
-
-### ✅ Current State: Foundation Complete
-
-The minimal viable foundation is operational:
-
-- **Multi-Backend Inference** - ONNX, TensorFlow.js, Transformers.js, Ollama
-- **Basic Telemetry** - InferenceEvent tracking for all predictions
-- **Performance Benchmarking** - Cross-backend model comparison
-
-### 🎯 Milestone A: Monitoring & Observability (DESIGNED)
-
-**Production monitoring with drift detection, alerting, and automated retraining triggers.**
-
-**Key Features:**
-- Real-time metrics with 5min/hourly/daily aggregation
-- Input, prediction, and concept drift detection (KS test, chi-square, PSI)
-- Configurable alerting with severity levels
-- Automated retraining triggers with approval workflow
-- Data quality tracking (schema violations, null rates, outliers)
-
-**Documentation:** [Complete Design](docs/plans/2025-01-aiops-framework-design.md#milestone-a-monitoring--observability)
-
-### 🎯 Milestone C: Training & Validation (DESIGNED)
-
-**Model training orchestration with experiment tracking and lifecycle management.**
-
-**Key Features:**
-- Dual version system (source version + deployment version)
-- Queue-based training with status tracking
-- In-process training for simple models
-- Experiment tracking with per-epoch metrics
-- Validation workflow with approval gates
-- Model lifecycle: candidate → staging → production → archived
-
-**Documentation:** [Complete Design](docs/plans/2025-01-aiops-framework-design.md#milestone-c-training--validation)
-
-### 🔄 Milestone B: Core Data & Services (PLANNED)
-
-Feature engineering, data pipelines, and feature store integration.
-
-### 🔄 Milestone D: Deployment & Orchestration (PLANNED)
-
-CI/CD pipelines with canary releases and A/B testing.
-
----
-
-## Quick Start
+## Quick Start (5 Minutes)
 
 ### Prerequisites
 
@@ -140,508 +47,363 @@ npm install
 npm run dev              # Server at http://localhost:9926
 
 # Load test models
-npm run preload
+npm run preload:testing
 
-# Run benchmarks
-npm run benchmark
+# Run tests
+npm test
 ```
 
-### Run Tests
+### First Inference
 
 ```bash
-npm run test:unit         # Unit tests
-npm run test:integration  # Integration tests
-npm test                  # All tests
+# Run a quick demo
+./demo.sh
+
+# Or make a direct API call
+curl -X POST http://localhost:9926/Predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "modelName": "test-transformers-embedding",
+    "modelVersion": "v1",
+    "inputs": {"text": "This is a test"}
+  }'
 ```
 
 ---
 
-## Current Capabilities
+## Core Features
 
-### Multi-Backend ML Inference
+### 1. Multi-Backend Inference
 
-Unified access to multiple ML frameworks:
+Run models on the optimal backend for your use case:
 
-| Backend           | Use Cases                              | Status |
-|-------------------|----------------------------------------|--------|
-| **ONNX Runtime**  | Optimized production models            | ✅     |
-| **TensorFlow.js** | Universal Sentence Encoder, Keras models | ✅   |
-| **Transformers.js** | Hugging Face models (WASM)           | ✅     |
-| **Ollama**        | Local LLMs (chat, embeddings)          | ✅     |
+| Backend             | Use Cases                                | Status   | Package                     |
+| ------------------- | ---------------------------------------- | -------- | --------------------------- |
+| **ONNX Runtime**    | Optimized production models              | ✅ Ready | onnxruntime-node 1.20.1     |
+| **TensorFlow.js**   | Universal Sentence Encoder, Keras models | ✅ Ready | @tensorflow/tfjs-node       |
+| **Transformers.js** | Hugging Face models (WASM)               | ✅ Ready | @xenova/transformers 2.17.2 |
+| **Ollama**          | Local LLMs (chat, embeddings)            | ✅ Ready | External service            |
 
 **Features:**
+
 - Automatic backend routing based on framework
 - LRU model caching with configurable size
 - Unified prediction API
-- Native Harper CRUD operations
 - File-backed blob storage for large models (86MB+)
 
----
+### 2. Model Fetch System
 
-### Model Benchmarking System
+Download models from multiple sources with full job tracking:
 
-Compare equivalent models across backends to find optimal performance.
+```bash
+# Fetch from HuggingFace
+harper-ai fetch huggingface Xenova/all-MiniLM-L6-v2 \
+  --name minilm --version v1 --framework transformers
+
+# Check job status
+harper-ai jobs --status pending
+
+# View model inventory
+harper-ai models
+```
 
 **Capabilities:**
-- Cross-backend comparison (ONNX vs TensorFlow vs Ollama)
+
+- Multi-source downloads (HuggingFace, HTTP URLs, filesystem)
+- Async job queue with real-time progress
+- Retry logic with exponential backoff
+- Optional token authentication
+- Complete CLI tool
+
+**Full Guide:** [Model Fetch System Documentation](docs/MODEL_FETCH_SYSTEM.md)
+
+### 3. Profile-Based Model Management
+
+Deploy model sets with configuration files:
+
+```json
+// model-profiles.json
+{
+	"profiles": {
+		"testing": {
+			"description": "One model per backend for CI/CD",
+			"models": [
+				{
+					"modelName": "test-transformers-embedding",
+					"framework": "transformers",
+					"modelBlob": {
+						"modelName": "Xenova/all-MiniLM-L6-v2",
+						"taskType": "feature-extraction"
+					}
+				}
+			]
+		}
+	}
+}
+```
+
+```bash
+# Deploy testing profile
+npm run preload:testing
+
+# Deploy benchmarking profile
+npm run preload:benchmarking
+
+# Deploy custom profile
+node scripts/preload-models.js --profile production
+```
+
+**Available Profiles:**
+
+- `testing` - One model per backend for CI/CD
+- `benchmarking` - Equivalence groups for performance comparison
+- `development` - Full test suite
+- `production` - Production-ready models only
+- `minimal` - Single model for quick tests
+
+**Full Guide:** [Profile Testing Documentation](docs/PROFILE_TESTING.md)
+
+### 4. Performance Benchmarking
+
+Compare equivalent models across backends to optimize deployment:
+
+```bash
+# Deploy benchmarking models
+npm run preload:benchmarking
+
+# Run benchmarks
+./benchmark.sh --iterations 100
+
+# View results
+cat benchmark-*.json | jq '.winner'
+```
+
+**Capabilities:**
+
+- Cross-backend comparison (ONNX vs TensorFlow vs Transformers.js vs Ollama)
 - Equivalence group validation (compatible output dimensions)
 - Statistical metrics (avg, p50, p95, p99 latency, error rates)
 - Historical benchmark tracking
 - Automated test data generation
 
-**Example Usage:**
+**Full Guide:** [Benchmarking Documentation](docs/BENCHMARKING.md)
 
-```bash
-$ npm run preload
-✓ Successfully loaded 8 models
-  • 4 embedding models (384, 512, 768, 1024 dimensions)
-  • 2 classification models (Llama2, Mistral)
-  • 2 vision models (LLaVA, BakLLaVA)
+### 5. Deployment Automation
 
-$ npm run benchmark
+Four focused scripts for complete deployment lifecycle:
 
-🧪 Testing price-classifier...
-  ✅ Completed
-  📊 Models: llama2-classifier:v1, mistral-classifier:v1
+| Script         | Purpose                        | Example                           |
+| -------------- | ------------------------------ | --------------------------------- |
+| `deploy.sh`    | Deploy code to Harper instance | `./deploy.sh --remote`            |
+| `verify.sh`    | Verify deployed system         | `./verify.sh --full`              |
+| `benchmark.sh` | Run performance benchmarks     | `./benchmark.sh --iterations 500` |
+| `demo.sh`      | Interactive demonstrations     | `./demo.sh --remote`              |
 
-🧪 Testing image-tagger...
-  ✅ Completed
-  📊 Models: bakllava:v1, llava:v1
-```
+All scripts use `.env` configuration (no hardcoded values).
 
-**Benchmark Groups:**
-- `embeddings-384` - Sentence-BERT (ONNX)
-- `embeddings-512` - Universal Sentence Encoder (TensorFlow)
-- `embeddings-768` - Nomic Embed Text (Ollama)
-- `embeddings-1024` - MxBai Embed Large (Ollama)
-- `price-classifier` - LLM classification (Llama2 vs Mistral)
-- `image-tagger` - Vision models (LLaVA vs BakLLaVA)
-
----
-
-### Model Fetch System
-
-Async model downloading from multiple sources without manual upload.
-
-**Sources:**
-- **HuggingFace Hub** - Transformers.js models with variant selection (default/quantized)
-- **HTTP URLs** - Direct download from any HTTP/HTTPS endpoint
-- **Local Filesystem** - Load models from `models/` directory
-
-**Features:**
-- Async job queue with retry logic (3 attempts, exponential backoff)
-- Real-time progress tracking via database
-- Multi-file support for Transformers.js models
-- Rate limiting with 429 backoff
-- Security: filesystem restricted to `models/` directory, path traversal protection
-- Optional webhooks for completion/failure notifications
-
-**Quick Example:**
-
-```bash
-# Set optional authentication token (if MODEL_FETCH_TOKEN is configured)
-TOKEN="your-secret-token"
-
-# Inspect model before downloading
-curl "http://localhost:9926/InspectModel?source=huggingface&sourceReference=Xenova/all-MiniLM-L6-v2" \
-  -H "Authorization: Bearer $TOKEN"
-
-# Fetch model asynchronously
-curl -X POST http://localhost:9926/FetchModel \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{
-    "source": "huggingface",
-    "sourceReference": "Xenova/all-MiniLM-L6-v2",
-    "variant": "quantized",
-    "modelName": "minilm",
-    "modelVersion": "v1"
-  }'
-
-# Track job progress
-curl "http://localhost:9926/ModelFetchJob?id=<jobId>" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-**Note:** Authentication is optional. If `MODEL_FETCH_TOKEN` environment variable is not set, the API is open.
-
-**Documentation:** [Model Fetch System Guide](docs/MODEL_FETCH_SYSTEM.md)
-
----
-
-### Example: ONNX Model Inference
-
-```bash
-# Upload ONNX model
-curl -X POST http://localhost:9926/Model \
-  -H "Content-Type: application/json" \
-  -d '{
-    "modelName": "sentiment-analyzer",
-    "modelVersion": "v1",
-    "framework": "onnx",
-    "stage": "development",
-    "modelBlob": "<base64-encoded-onnx-model>",
-    "inputSchema": "{\"inputs\":[{\"name\":\"input\",\"shape\":[1,512]}]}",
-    "outputSchema": "{\"outputs\":[{\"name\":\"output\",\"shape\":[1,2]}]}"
-  }'
-
-# Run prediction
-curl -X POST http://localhost:9926/predict \
-  -H "Content-Type: application/json" \
-  -d '{
-    "modelName": "sentiment-analyzer",
-    "features": {
-      "input": [/* 512-dimensional vector */]
-    },
-    "userId": "user-123"
-  }'
-
-# Record feedback
-curl -X PUT http://localhost:9926/InferenceEvent/<inferenceId> \
-  -H "Content-Type: application/json" \
-  -d '{
-    "actualOutcome": "{\"label\": \"positive\"}",
-    "feedbackTimestamp": 1234567890,
-    "correct": true
-  }'
-```
-
----
-
-### Example: Ollama Local LLM
-
-```bash
-# Install and start Ollama
-ollama pull llama2
-
-# Register chat model
-curl -X POST http://localhost:9926/Model \
-  -H "Content-Type: application/json" \
-  -d '{
-    "modelName": "llama2-chat",
-    "modelVersion": "v1",
-    "framework": "ollama",
-    "stage": "development",
-    "modelBlob": "{\"modelName\": \"llama2\", \"mode\": \"chat\"}",
-    "inputSchema": "{\"inputs\":[{\"name\":\"messages\",\"type\":\"array\"}]}",
-    "outputSchema": "{\"outputs\":[{\"name\":\"response\",\"type\":\"string\"}]}"
-  }'
-
-# Chat with LLM
-curl -X POST http://localhost:9926/predict \
-  -H "Content-Type: application/json" \
-  -d '{
-    "modelName": "llama2-chat",
-    "features": {
-      "prompt": "Explain machine learning in simple terms."
-    },
-    "userId": "user-123"
-  }'
-```
-
----
-
-## Configuration
-
-### Environment Variables
-
-Copy `.env.example` to `.env`:
-
-```env
-# Ollama Configuration
-OLLAMA_HOST=http://localhost:11434
-OLLAMA_DEFAULT_MODEL=llama2
-```
-
-### Model Metadata
-
-Models require metadata for monitoring and benchmarking:
-
-```json
-{
-  "modelName": "my-embedding-model",
-  "modelVersion": "v1",
-  "framework": "onnx",
-  "metadata": {
-    "taskType": "text-embedding",
-    "equivalenceGroup": "embeddings-384",
-    "outputDimensions": [384],
-    "baselineDistributions": {
-      "input": { /* statistical baseline */ },
-      "output": { /* statistical baseline */ }
-    },
-    "trainingConfig": {
-      "type": "in-process",
-      "script": "./training-scripts/my-model-train.js",
-      "hyperparameters": { "epochs": 10, "lr": 0.001 }
-    }
-  }
-}
-```
-
-See [docs/MODEL_METADATA.md](docs/MODEL_METADATA.md) for complete schema.
+**Full Guide:** [Scripts Reference](docs/SCRIPTS.md)
 
 ---
 
 ## Project Structure
 
 ```
-harper-edge-ai-example/
 ├── src/
+│   ├── resources.js              # Harper resource definitions
 │   ├── core/
-│   │   ├── backends/              # ML framework backends
-│   │   │   ├── Onnx.js           # ONNX Runtime
-│   │   │   ├── TensorFlow.js     # TensorFlow.js
-│   │   │   ├── Transformers.js   # Transformers.js
-│   │   │   └── Ollama.js         # Ollama
-│   │   ├── InferenceEngine.js    # Model orchestration
-│   │   ├── BenchmarkEngine.js    # Performance comparison
-│   │   └── MonitoringBackend.js  # Inference telemetry
-│   ├── resources.js              # Harper REST API
-│   └── PersonalizationEngine.js  # Example application
+│   │   ├── backends/
+│   │   │   ├── Onnx.js          # ONNX Runtime backend
+│   │   │   ├── TensorFlow.js    # TensorFlow.js backend
+│   │   │   ├── Transformers.js  # Transformers.js backend
+│   │   │   └── Ollama.js        # Ollama backend
+│   │   ├── InferenceEngine.js   # Unified inference router
+│   │   └── MonitoringBackend.js # Telemetry tracking
+│   └── workers/
+│       └── ModelFetchWorker.js  # Async model download worker
+│
+├── scripts/
+│   ├── preload-models.js        # Profile-based model deployment
+│   ├── cli/harper-ai.js         # CLI tool for model management
+│   └── lib/
+│       ├── model-fetch-client.js # Model Fetch API client
+│       └── shell-utils.sh        # Shared shell utilities
+│
 ├── tests/
-│   ├── unit/                     # Unit tests
-│   ├── integration/              # Integration tests
-│   └── helpers/                  # Test utilities
-├── docs/
-│   ├── plans/                    # Design documents
-│   ├── MODEL_METADATA.md         # Model metadata schema
-│   ├── BENCHMARKING.md           # Benchmarking guide
-│   └── ONNX_RUNTIME_GUIDE.md     # ONNX documentation
-└── scripts/                      # Utility scripts
+│   ├── unit/                    # 11 unit test files (63 tests)
+│   └── integration/             # 10 integration test files
+│
+├── model-profiles.json          # Profile definitions
+├── deploy.sh                    # Deployment script
+├── verify.sh                    # Verification script
+├── benchmark.sh                 # Benchmarking script
+└── demo.sh                      # Demo script
 ```
 
 ---
 
-## Available Scripts
+## API Examples
 
-| Command                     | Description                                 |
-| --------------------------- | ------------------------------------------- |
-| `npm install`               | Install dependencies                        |
-| `npm test`                  | Run all tests                               |
-| `npm run test:unit`         | Run unit tests only                         |
-| `npm run test:integration`  | Run integration tests only                  |
-| `npm run dev`               | Run Harper in development mode              |
-| `npm start`                 | Run Harper in production mode               |
-| `npm run preload`           | Preload test models                         |
-| `npm run benchmark`         | Interactive benchmark runner                |
-| `npm run benchmark:all`     | Run all benchmark groups                    |
-| `npm run pull-ollama`       | Pull Ollama models (requires Ollama)        |
+### Inference API
 
-### Harper AI CLI
+```javascript
+// Text embedding
+const response = await fetch('http://localhost:9926/Predict', {
+	method: 'POST',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({
+		modelName: 'test-transformers-embedding',
+		modelVersion: 'v1',
+		inputs: { text: 'product search query' },
+	}),
+});
 
-After installation, the `harper-ai` CLI is available globally:
-
-```bash
-# Model operations
-harper-ai model inspect filesystem test.onnx
-harper-ai model fetch huggingface Xenova/all-MiniLM-L6-v2 --name minilm
-harper-ai model fetch url https://example.com/model.onnx --modelName mymodel --modelVersion v2
-harper-ai model list --stage production
-
-# Job operations
-harper-ai job list --status downloading
-harper-ai job get <jobId>
-harper-ai job watch <jobId>  # Live progress tracking
-harper-ai job retry <jobId>
-
-# Connect to remote Harper instance
-harper-ai model list --url https://my-harper.cloud.harperdb.io
-
-# With authentication
-harper-ai model fetch filesystem test.onnx --name test \
-  --url https://my-harper.cloud.harperdb.io \
-  --token my-secret-token
-
-# Or set environment variables
-export HARPER_URL=https://my-harper.cloud.harperdb.io
-export MODEL_FETCH_TOKEN=my-secret-token
-harper-ai model list
-
-# Help
-harper-ai --help
-harper-ai model --help
+const { embedding } = await response.json();
+console.log('Embedding:', embedding); // [0.123, -0.456, ...]
 ```
-
----
-
-## Deploying to Remote Harper Instances
-
-Deploy your Harper Edge AI Ops application to remote Harper instances using the Harper CLI.
-
-### Quick Deployment
-
-```bash
-# Install Harper CLI globally
-npm install -g harperdb
-
-# Set remote target credentials
-export CLI_TARGET_URL=https://ai-ops.irjudson-ai.harperfabric.com:9925
-export CLI_TARGET_USERNAME=HDB_ADMIN
-export CLI_TARGET_PASSWORD=your-admin-password
-
-# Deploy code
-harperdb deploy target=$CLI_TARGET_URL
-
-# Restart Harper
-harperdb restart target=$CLI_TARGET_URL
-
-# Test the deployment
-export HARPER_URL=$CLI_TARGET_URL
-export MODEL_FETCH_TOKEN=your-secret-token
-harper-ai model list
-```
-
-### Simple Deployment Script
-
-Create `deploy-remote.sh` for convenience:
-
-```bash
-#!/usr/bin/env bash
-set -e
-
-REMOTE_URL="${CLI_TARGET_URL:-https://ai-ops.irjudson-ai.harperfabric.com:9925}"
-
-echo "Deploying to ${REMOTE_URL}..."
-harperdb deploy target="${REMOTE_URL}"
-
-echo "Restarting Harper..."
-harperdb restart target="${REMOTE_URL}"
-
-echo "Deployment complete!"
-```
-
-**Complete deployment guide:** [DEPLOYMENT.md](docs/DEPLOYMENT.md)
-
----
-
-## Documentation
-
-### Design & Architecture
-- **[Complete Design Document](docs/plans/2025-01-aiops-framework-design.md)** - Full framework architecture
-- [Model Metadata Convention](docs/MODEL_METADATA.md) - Metadata schema
-- [Benchmarking Guide](docs/BENCHMARKING.md) - Performance comparison
-- [ONNX Runtime Guide](docs/ONNX_RUNTIME_GUIDE.md) - ONNX backend docs
 
 ### Model Management
-- [Model Fetch System Guide](docs/MODEL_FETCH_SYSTEM.md) - Async model downloading from HuggingFace, HTTP, and filesystem
 
-### Deployment
-- [Deployment Guide](docs/DEPLOYMENT.md) - Deploy to remote Harper instances using Harper CLI
+```javascript
+// List all deployed models
+const models = await fetch('http://localhost:9926/Model/').then((r) => r.json());
 
-### API Documentation
-Core classes have comprehensive JSDoc documentation:
-- `InferenceEngine` - Framework-agnostic orchestration with LRU caching
-- `BenchmarkEngine` - Performance comparison with detailed metrics
-- `MonitoringBackend` - Inference telemetry and event tracking
-- `BaseBackend` - Abstract base for custom ML backends
-- Backend implementations: `OnnxBackend`, `TensorFlowBackend`, `TransformersBackend`, `OllamaBackend`
+// Get specific model
+const model = await fetch('http://localhost:9926/Model/minilm:v1').then((r) => r.json());
+
+// Delete model
+await fetch('http://localhost:9926/Model/minilm:v1', { method: 'DELETE' });
+```
+
+### Model Fetch API
+
+```javascript
+// Start async fetch job
+const job = await fetch('http://localhost:9926/FetchModel', {
+	method: 'POST',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({
+		source: 'huggingface',
+		sourceReference: 'Xenova/all-MiniLM-L6-v2',
+		modelName: 'minilm',
+		modelVersion: 'v1',
+		framework: 'transformers',
+	}),
+}).then((r) => r.json());
+
+// Check job status
+const status = await fetch(`http://localhost:9926/ModelFetchJobs?id=${job.jobId}`).then((r) => r.json());
+```
+
+---
+
+## Scripts
+
+```bash
+# Development
+npm run dev                      # Start Harper server
+npm run preload                  # Load development models
+npm run preload:testing          # Load testing profile
+npm run preload:benchmarking     # Load benchmarking profile
+
+# Testing
+npm test                         # Run unit tests
+npm run test:integration         # Run integration tests
+npm run test:all                 # Run all tests
+
+# Deployment
+./deploy.sh                      # Deploy to remote Harper
+./verify.sh --full               # Verify deployment
+./benchmark.sh                   # Run benchmarks
+./demo.sh                        # Interactive demo
+
+# Linting & Formatting
+npm run lint                     # Check code style
+npm run lint:fix                 # Auto-fix issues
+npm run format                   # Format all files
+npm run format:check             # Check formatting
+```
 
 ---
 
 ## Requirements
 
-- **Node.js**: v18.0.0+
-- **npm**: v9.0.0+
-- **Harper**: v4.0.0+
-- **OS**: macOS or Linux (TensorFlow.js requires native bindings)
-- **Ollama**: Optional, for local LLM inference
+### System Requirements
 
-Check versions:
+- **Node.js** 18.0.0 or higher
+- **npm** 9.0.0 or higher
+- **Harper** 4.0.0 or higher
+- **Operating System**: macOS or Linux
+
+### Optional Dependencies
+
+- **Ollama** - For LLM inference (chat and embeddings)
+- **GPU** - For accelerated ONNX inference (optional)
+
+### Installed Packages
+
+- `onnxruntime-node@1.20.1` - ONNX Runtime
+- `@xenova/transformers@2.17.2` - Transformers.js
+- `@tensorflow/tfjs-node` - TensorFlow.js (optional)
+- `uuid@11.0.3` - ID generation
+- `sharp@0.32.6` - Image processing (optional)
+
+---
+
+## Documentation
+
+### Getting Started
+
+- [Quick Start](#quick-start-5-minutes) - Get running in 5 minutes
+- [Deployment Guide](docs/DEPLOYMENT.md) - Local and remote deployment
+- [Scripts Reference](docs/SCRIPTS.md) - deploy.sh, verify.sh, benchmark.sh, demo.sh
+
+### Features
+
+- [Model Fetch System](docs/MODEL_FETCH_SYSTEM.md) - Async model downloads (HuggingFace, HTTP, filesystem)
+- [Benchmarking](docs/BENCHMARKING.md) - Performance comparison across backends
+- [Profile Testing](docs/PROFILE_TESTING.md) - Profile-based model management
+- [Model Metadata](docs/MODEL_METADATA.md) - Metadata conventions for benchmarking
+
+### Technical
+
+- [ONNX Runtime Guide](docs/ONNX_RUNTIME_GUIDE.md) - ONNX backend details
+- [Roadmap](ROADMAP.md) - Future plans and milestones
+- [Contributing](CONTRIBUTING.md) - How to contribute
+
+---
+
+## Test Coverage
+
+- **Unit Tests**: 11 files, 63 tests (all passing)
+- **Integration Tests**: 10 files covering end-to-end workflows
+- **Coverage**: ~70% (unit + integration), 20% integration-only
+- **Pre-commit Hooks**: Lint, format, and test before every commit
+
 ```bash
-node --version
-npm --version
-harper --version
+npm test                 # Run unit tests (63 tests, ~2s)
+npm run test:integration # Run integration tests (~30s)
+npm run test:all         # Run all tests
 ```
-
----
-
-## Performance Characteristics
-
-**Inference Latency:**
-- ONNX: 10-50ms (optimized)
-- TensorFlow.js: 30-50ms
-- Transformers.js: 50-200ms (WASM)
-- Ollama: 100-500ms (LLMs)
-
-**System:**
-- Model load time: 3-5 seconds (one-time)
-- Memory per model: 150-500MB
-- LRU caching with configurable size
-- Shared models across concurrent requests
-
----
-
-## Use Cases
-
-### 1. Edge AI Inference
-Deploy ML models directly in Harper for:
-- Real-time product recommendations
-- Semantic search and similarity matching
-- Text embeddings for RAG systems
-- Sentiment analysis and classification
-- Local LLM chat and question answering
-
-### 2. Production ML Monitoring
-Track model performance with:
-- Latency and error rate tracking
-- Input/prediction/concept drift detection
-- Data quality monitoring
-- Automated retraining triggers
-
-### 3. Model Lifecycle Management
-Manage model versions with:
-- Experiment tracking and validation
-- Candidate → staging → production promotion
-- Rollback support with version tracking
-- Training history and metrics
-
-### 4. Multi-Backend Optimization
-Find the best backend for your models:
-- Benchmark equivalent models across frameworks
-- Compare latency, error rates, resource usage
-- Historical trend analysis
-
----
-
-## Future Roadmap
-
-### Near-Term (Milestones A & C)
-- Monitoring & Observability implementation
-- Training & Validation implementation
-- Real-time dashboard
-- External training worker examples (Python/PyTorch)
-
-### Mid-Term (Milestone B)
-- Feature store with versioning
-- Data preprocessing pipelines
-- Feature engineering transformations
-- Data source connectors (BigQuery, S3)
-
-### Long-Term (Milestone D)
-- Model deployment automation
-- Canary release strategies
-- A/B testing framework
-- CI/CD pipeline integration
-
-### Enhancements
-- AutoML for hyperparameter tuning
-- Federated learning support
-- Web UI for monitoring dashboards
-- Slack/email notification integrations
-- Cost tracking and optimization
 
 ---
 
 ## Contributing
 
-Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+We welcome contributions! Here's how to get started:
+
+1. **Read the docs** - Understand current capabilities
+2. **Check the roadmap** - See [ROADMAP.md](ROADMAP.md) for planned features
+3. **Follow conventions** - ESLint + Prettier configured
+4. **Write tests** - All code must have tests
+5. **Update docs** - Keep documentation current
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ---
 
 ## License
 
-Apache License 2.0 - See [LICENSE](LICENSE) for details
+Apache License 2.0 - See [LICENSE](LICENSE) for details.
 
 ---
 
@@ -655,4 +417,10 @@ Apache License 2.0 - See [LICENSE](LICENSE) for details
 
 ## Acknowledgments
 
-Built on [Harper](https://harperdb.io/) - The distributed database built for the edge.
+Built with:
+
+- [HarperDB](https://harperdb.io) - Application and database platform
+- [ONNX Runtime](https://onnxruntime.ai/) - Optimized inference
+- [Transformers.js](https://huggingface.co/docs/transformers.js) - Hugging Face models in JS
+- [Ollama](https://ollama.ai/) - Local LLMs
+- [TensorFlow.js](https://www.tensorflow.org/js) - Universal Sentence Encoder

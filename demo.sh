@@ -22,6 +22,10 @@ if [[ -f .env ]]; then
     set +a
 fi
 
+# Load shared utilities
+SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
+source "${SCRIPT_DIR}/scripts/lib/shell-utils.sh"
+
 # ============================================
 # CONFIGURATION
 # ============================================
@@ -32,32 +36,9 @@ DEPLOY_REMOTE_URL="${DEPLOY_REMOTE_URL:-}"
 DEMO_PROFILE="${DEMO_PROFILE:-development}"
 REMOTE_MODE=false
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
 # ============================================
 # FUNCTIONS
 # ============================================
-
-log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
 
 show_help() {
     cat << EOF
@@ -132,15 +113,8 @@ done
 
 # Use remote URL if remote mode
 if [[ "$REMOTE_MODE" == "true" ]]; then
-    if [[ -z "$DEPLOY_REMOTE_URL" ]]; then
-        log_error "DEPLOY_REMOTE_URL not set in .env"
+    if ! setup_remote_url "$DEPLOY_REMOTE_URL"; then
         exit 1
-    fi
-    # Convert deployment port (9925) to application port (9926)
-    if [[ "$DEPLOY_REMOTE_URL" =~ :9925$ ]]; then
-        HARPER_URL="${DEPLOY_REMOTE_URL%:9925}:9926"
-    else
-        HARPER_URL="${DEPLOY_REMOTE_URL}"
     fi
 fi
 

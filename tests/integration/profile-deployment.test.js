@@ -70,7 +70,7 @@ async function checkBackendAvailability() {
 				signal: AbortSignal.timeout(2000), // 2 second timeout
 			});
 			availability.ollama = response.ok;
-		} catch (error) {
+		} catch {
 			// Ollama not available
 			availability.ollama = false;
 		}
@@ -101,12 +101,8 @@ async function fetchDeployedModels() {
  * Test model inference
  */
 async function testModelInference(model) {
-	const modelId = `${model.modelName}:${model.modelVersion}`;
-
 	// Prepare test input based on task type
-	const metadata = typeof model.metadata === 'string'
-		? JSON.parse(model.metadata)
-		: model.metadata;
+	const metadata = typeof model.metadata === 'string' ? JSON.parse(model.metadata) : model.metadata;
 
 	const taskType = metadata?.taskType || 'text-embedding';
 
@@ -203,8 +199,7 @@ describe('Profile-Based Deployment Tests', () => {
 
 	describe('Model Deployment Validation', () => {
 		test('should have all expected models deployed', async () => {
-			const expectedModels = profileModels.map(m => `${m.modelName}:${m.modelVersion}`);
-			const deployedIds = deployedModels.map(m => m.id);
+			const deployedIds = deployedModels.map((m) => m.id);
 
 			const missing = [];
 			const skipped = [];
@@ -228,14 +223,10 @@ describe('Profile-Based Deployment Tests', () => {
 
 			if (skipped.length > 0) {
 				console.log(`\n⚠️  Skipped ${skipped.length} model(s) (backend not available):`);
-				skipped.forEach(m => console.log(`  - ${m}`));
+				skipped.forEach((m) => console.log(`  - ${m}`));
 			}
 
-			assert.strictEqual(
-				missing.length,
-				0,
-				`Missing models: ${missing.join(', ')}`
-			);
+			assert.strictEqual(missing.length, 0, `Missing models: ${missing.join(', ')}`);
 		});
 	});
 
@@ -255,7 +246,7 @@ describe('Profile-Based Deployment Tests', () => {
 				}
 
 				// Check if model is deployed
-				const deployed = deployedModels.find(m => m.id === modelId);
+				const deployed = deployedModels.find((m) => m.id === modelId);
 				if (!deployed) {
 					throw new Error(`Model ${modelId} not deployed in Harper`);
 				}
@@ -306,7 +297,7 @@ describe('Profile-Based Deployment Tests', () => {
 			const warnings = [];
 			for (const [group, models] of Object.entries(groups)) {
 				// Filter out models with unavailable backends
-				const availableModels = models.filter(m => {
+				const availableModels = models.filter((m) => {
 					if (m.requiresExternal) {
 						return backendAvailability[m.framework];
 					}
@@ -314,7 +305,7 @@ describe('Profile-Based Deployment Tests', () => {
 				});
 
 				console.log(`\n  📊 ${group}:`);
-				availableModels.forEach(m => {
+				availableModels.forEach((m) => {
 					console.log(`    - ${m.modelId} (${m.framework})`);
 				});
 
@@ -326,27 +317,23 @@ describe('Profile-Based Deployment Tests', () => {
 
 				// Validate all models in group have same output dimensions
 				const deployedInGroup = availableModels
-					.map(m => deployedModels.find(d => d.id === m.modelId))
+					.map((m) => deployedModels.find((d) => d.id === m.modelId))
 					.filter(Boolean);
 
 				if (deployedInGroup.length > 0) {
-					const dims = deployedInGroup.map(m => {
+					const dims = deployedInGroup.map((m) => {
 						const meta = typeof m.metadata === 'string' ? JSON.parse(m.metadata) : m.metadata;
 						return meta?.outputDimensions?.[0];
 					});
 
 					const uniqueDims = [...new Set(dims)];
-					assert.strictEqual(
-						uniqueDims.length,
-						1,
-						`All models in group '${group}' should have same output dimensions`
-					);
+					assert.strictEqual(uniqueDims.length, 1, `All models in group '${group}' should have same output dimensions`);
 				}
 			}
 
 			if (warnings.length > 0) {
 				console.log('\n⚠️  Warnings:');
-				warnings.forEach(w => console.log(`  - ${w}`));
+				warnings.forEach((w) => console.log(`  - ${w}`));
 			}
 		});
 	});
@@ -355,7 +342,7 @@ describe('Profile-Based Deployment Tests', () => {
 		test('should test all available backends', async () => {
 			const testedBackends = new Set();
 			const availableBackends = Object.entries(backendAvailability)
-				.filter(([_, available]) => available)
+				.filter(([, available]) => available)
 				.map(([backend]) => backend);
 
 			for (const model of profileModels) {
@@ -372,7 +359,7 @@ describe('Profile-Based Deployment Tests', () => {
 			console.log(`    Available: ${availableBackends.join(', ')}`);
 			console.log(`    Tested: ${[...testedBackends].join(', ')}`);
 
-			const missing = availableBackends.filter(b => !testedBackends.has(b));
+			const missing = availableBackends.filter((b) => !testedBackends.has(b));
 			if (missing.length > 0) {
 				console.log(`    ⚠️  Not tested: ${missing.join(', ')}`);
 			}

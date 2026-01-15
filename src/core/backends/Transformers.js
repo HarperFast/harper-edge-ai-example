@@ -115,7 +115,7 @@ export class TransformersBackend extends BaseBackend {
 			console.error('[TransformersBackend] Inference error:', {
 				message: error.message,
 				stack: error.stack,
-				errorType: error.constructor.name
+				errorType: error.constructor.name,
 			});
 			throw new Error(`Transformers.js inference failed: ${error.message}`);
 		}
@@ -158,7 +158,7 @@ export class TransformersBackend extends BaseBackend {
 			hasTolist: typeof output.tolist === 'function',
 			hasData: !!output.data,
 			hasCpuData: !!output.cpuData,
-			keys: Object.keys(output)
+			keys: Object.keys(output),
 		});
 
 		// Extract embedding from output tensor

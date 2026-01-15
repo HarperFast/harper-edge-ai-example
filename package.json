@@ -19,6 +19,10 @@
 		"test:profile:testing": "node scripts/test-profile-deployment.js --profile testing",
 		"test:profile:benchmarking": "node scripts/test-profile-deployment.js --profile benchmarking",
 		"test:profile:deploy": "node scripts/test-profile-deployment.js --deploy",
+		"lint": "eslint .",
+		"lint:fix": "eslint --fix .",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
 		"dev": "harper dev .",
 		"start": "harper run .",
 		"clean": "rm -rf node_modules package-lock.json",
@@ -29,7 +33,17 @@
 		"benchmark": "node scripts/run-benchmark.js",
 		"benchmark:all": "node scripts/run-benchmark.js --all",
 		"pull-ollama": "node scripts/pull-ollama-models.js",
-		"generate-test-models": "node scripts/generate-test-models.js"
+		"generate-test-models": "node scripts/generate-test-models.js",
+		"prepare": "husky"
+	},
+	"lint-staged": {
+		"*.js": [
+			"eslint --fix",
+			"prettier --write"
+		],
+		"*.{json,md,yaml,yml}": [
+			"prettier --write"
+		]
 	},
 	"repository": {
 		"type": "git",
@@ -69,6 +83,8 @@
 	"devDependencies": {
 		"@harperdb/code-guidelines": "^0.0.5",
 		"eslint": "^9.36.0",
+		"husky": "^9.1.7",
+		"lint-staged": "^16.2.7",
 		"prettier": "^3.6.2"
 	}
 }

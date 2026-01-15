@@ -26,7 +26,7 @@
 import { log } from './lib/cli-utils.js';
 import { getConfig, getFetchOptions } from './lib/config.js';
 import { ModelFetchClient } from './lib/model-fetch-client.js';
-import { readFileSync, existsSync, createReadStream, statSync } from 'fs';
+import { readFileSync, existsSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -94,7 +94,7 @@ async function checkHarper() {
 		}
 		log.success(`Harper is running at ${BASE_URL}`);
 		return true;
-	} catch (error) {
+	} catch {
 		log.error(`Harper is not running at ${BASE_URL}`);
 		log.warn('  Run: npm run dev');
 		return false;
@@ -115,9 +115,12 @@ async function cleanModels() {
 		if (models && models.length > 0) {
 			// Delete each model
 			for (const model of models) {
-				await fetch(`${BASE_URL}/Model/${encodeURIComponent(model.id)}`, getFetchOptions(config, {
-					method: 'DELETE',
-				}));
+				await fetch(
+					`${BASE_URL}/Model/${encodeURIComponent(model.id)}`,
+					getFetchOptions(config, {
+						method: 'DELETE',
+					})
+				);
 
 				log.info(`  Deleted: ${model.modelName}:${model.modelVersion}`);
 			}
@@ -132,17 +135,7 @@ async function cleanModels() {
 	}
 }
 
-/**
- * Convert data to base64 blob format
- */
-function toBlob(data) {
-	if (Buffer.isBuffer(data)) {
-		// Already a buffer (e.g., ONNX model file)
-		return data.toString('base64');
-	}
-	const jsonString = typeof data === 'string' ? data : JSON.stringify(data);
-	return Buffer.from(jsonString).toString('base64');
-}
+// Removed unused toBlob function - no longer needed after switching to UploadModelBlob
 
 /**
  * Load ONNX model file info (returns path, not Buffer to avoid memory issues)
@@ -197,14 +190,17 @@ async function createModelLocal(modelData) {
 			metadata: metadataString,
 		});
 
-		const response = await fetch(`${BASE_URL}/UploadModelBlob?${queryParams}`, getFetchOptions(config, {
-			method: 'PUT',
-			headers: {
-				'Content-Type': 'application/octet-stream',
-				'Content-Length': blobBuffer.length.toString(),
-			},
-			body: blobBuffer,
-		}));
+		const response = await fetch(
+			`${BASE_URL}/UploadModelBlob?${queryParams}`,
+			getFetchOptions(config, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/octet-stream',
+					'Content-Length': blobBuffer.length.toString(),
+				},
+				body: blobBuffer,
+			})
+		);
 
 		const result = await response.json();
 
@@ -221,11 +217,14 @@ async function createModelLocal(modelData) {
 			metadata: typeof metadata === 'string' ? metadata : JSON.stringify(metadata),
 		};
 
-		const response = await fetch(`${BASE_URL}/Model/${encodeURIComponent(id)}`, getFetchOptions(config, {
-			method: 'PUT',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(record),
-		}));
+		const response = await fetch(
+			`${BASE_URL}/Model/${encodeURIComponent(id)}`,
+			getFetchOptions(config, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(record),
+			})
+		);
 
 		if (!response.ok) {
 			const error = await response.text();
@@ -244,7 +243,12 @@ async function createModelRemote(modelData) {
 	const { modelName, modelVersion, framework, stage, metadata, modelBlob } = modelData;
 
 	// For ONNX models with file paths, use FetchModel worker
-	if (framework === 'onnx' && modelBlob && typeof modelBlob === 'object' && (modelBlob.path || modelBlob.source === 'filesystem')) {
+	if (
+		framework === 'onnx' &&
+		modelBlob &&
+		typeof modelBlob === 'object' &&
+		(modelBlob.path || modelBlob.source === 'filesystem')
+	) {
 		const sourceReference = modelBlob.path || modelBlob.sourceReference;
 
 		log.info(`  Creating fetch job for ${modelName}:${modelVersion}...`);
@@ -267,7 +271,7 @@ async function createModelRemote(modelData) {
 		const maxAttempts = 60; // 5 minutes max
 
 		while (attempts < maxAttempts) {
-			await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+			await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds
 
 			const job = await modelFetchClient.getJob(jobId);
 
@@ -356,13 +360,18 @@ const MODEL_DEFINITIONS = {
 			'universal-sentence-encoder'
 		),
 
-		createModelDef('all-MiniLM-L6-v2', 'onnx', {
-			taskType: 'text-embedding',
-			equivalenceGroup: 'embeddings-384',
-			outputDimensions: [384],
-			description: 'Sentence-BERT MiniLM model (ONNX)',
-			backend: 'onnx',
-		}, loadOnnxModel('all-MiniLM-L6-v2.onnx')),
+		createModelDef(
+			'all-MiniLM-L6-v2',
+			'onnx',
+			{
+				taskType: 'text-embedding',
+				equivalenceGroup: 'embeddings-384',
+				outputDimensions: [384],
+				description: 'Sentence-BERT MiniLM model (ONNX)',
+				backend: 'onnx',
+			},
+			loadOnnxModel('all-MiniLM-L6-v2.onnx')
+		),
 
 		createModelDef(
 			'all-MiniLM-L6-v2-transformers',
@@ -471,8 +480,8 @@ async function loadModelsFromProfile(profileData) {
 				equivalenceGroup: modelDef.metadata?.equivalenceGroup || 'none',
 			});
 			totalLoaded++;
-		} catch (error) {
-			// Error already logged, continue with next model
+		} catch {
+			// Error already logged in createModel, continue with next model
 		}
 	}
 
@@ -509,8 +518,8 @@ async function loadModels(taskType = 'all') {
 					equivalenceGroup: modelDef.metadata.equivalenceGroup,
 				});
 				totalLoaded++;
-			} catch (error) {
-				// Error already logged, continue with next model
+			} catch {
+				// Error already logged in createModel, continue with next model
 			}
 		}
 	}
@@ -585,12 +594,7 @@ async function main() {
 	// Initialize ModelFetchClient if in remote mode
 	if (isRemoteMode) {
 		log.info(`Mode: Remote (using FetchModel worker)`);
-		modelFetchClient = new ModelFetchClient(
-			BASE_URL,
-			config.modelFetchToken,
-			config.username,
-			config.password
-		);
+		modelFetchClient = new ModelFetchClient(BASE_URL, config.modelFetchToken, config.username, config.password);
 	} else {
 		log.info(`Mode: Local (direct upload)`);
 	}
