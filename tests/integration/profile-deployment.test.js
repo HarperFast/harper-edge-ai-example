@@ -122,7 +122,7 @@ async function testModelInference(model) {
 		body: JSON.stringify({
 			modelName: model.modelName,
 			modelVersion: model.modelVersion,
-			inputs,
+			features: inputs,
 		}),
 	});
 
@@ -135,9 +135,10 @@ async function testModelInference(model) {
 
 	// Validate output based on task type
 	if (taskType.includes('embedding')) {
-		assert.ok(result.embedding || result.embeddings, 'Output should have embedding/embeddings field');
+		const prediction = result.prediction || result;
+		assert.ok(prediction.embedding || prediction.embeddings, 'Output should have embedding/embeddings field');
 
-		const embedding = result.embedding || result.embeddings[0];
+		const embedding = prediction.embedding || prediction.embeddings[0];
 		assert.ok(Array.isArray(embedding), 'Embedding should be an array');
 		assert.ok(embedding.length > 0, 'Embedding should not be empty');
 
