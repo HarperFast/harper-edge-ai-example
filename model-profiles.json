@@ -1,0 +1,204 @@
+{
+  "$schema": "./model-profiles.schema.json",
+  "profiles": {
+    "development": {
+      "description": "Development models for testing and benchmarking",
+      "models": [
+        {
+          "modelName": "nomic-embed-text",
+          "modelVersion": "v1",
+          "framework": "ollama",
+          "stage": "development",
+          "metadata": {
+            "taskType": "text-embedding",
+            "equivalenceGroup": "embeddings-768",
+            "outputDimensions": [768],
+            "description": "Nomic embedding model for product recommendations",
+            "backend": "ollama"
+          },
+          "modelBlob": {
+            "modelName": "nomic-embed-text",
+            "mode": "embeddings"
+          }
+        },
+        {
+          "modelName": "mxbai-embed-large",
+          "modelVersion": "v1",
+          "framework": "ollama",
+          "stage": "development",
+          "metadata": {
+            "taskType": "text-embedding",
+            "equivalenceGroup": "embeddings-1024",
+            "outputDimensions": [1024],
+            "description": "MxBai large embedding model",
+            "backend": "ollama"
+          },
+          "modelBlob": {
+            "modelName": "mxbai-embed-large",
+            "mode": "embeddings"
+          }
+        },
+        {
+          "modelName": "universal-sentence-encoder",
+          "modelVersion": "v1",
+          "framework": "tensorflow",
+          "stage": "development",
+          "metadata": {
+            "taskType": "text-embedding",
+            "equivalenceGroup": "embeddings-512",
+            "outputDimensions": [512],
+            "description": "Universal Sentence Encoder (TensorFlow.js)",
+            "backend": "tensorflow"
+          },
+          "modelBlob": "universal-sentence-encoder"
+        },
+        {
+          "modelName": "all-MiniLM-L6-v2",
+          "modelVersion": "v1",
+          "framework": "onnx",
+          "stage": "development",
+          "metadata": {
+            "taskType": "text-embedding",
+            "equivalenceGroup": "embeddings-384",
+            "outputDimensions": [384],
+            "description": "Sentence-BERT MiniLM model (ONNX)",
+            "backend": "onnx"
+          },
+          "modelBlob": {
+            "source": "filesystem",
+            "path": "models/test/all-MiniLM-L6-v2.onnx"
+          }
+        },
+        {
+          "modelName": "all-MiniLM-L6-v2-transformers",
+          "modelVersion": "v1",
+          "framework": "transformers",
+          "stage": "development",
+          "metadata": {
+            "taskType": "text-embedding",
+            "equivalenceGroup": "embeddings-384",
+            "outputDimensions": [384],
+            "description": "Sentence-BERT MiniLM model (Transformers.js)",
+            "backend": "transformers"
+          },
+          "modelBlob": {
+            "modelName": "Xenova/all-MiniLM-L6-v2",
+            "taskType": "feature-extraction"
+          }
+        },
+        {
+          "modelName": "llama2-classifier",
+          "modelVersion": "v1",
+          "framework": "ollama",
+          "stage": "development",
+          "metadata": {
+            "taskType": "classification",
+            "equivalenceGroup": "price-classifier",
+            "outputDimensions": [1],
+            "description": "Llama2 for price sensitivity classification",
+            "backend": "ollama"
+          },
+          "modelBlob": {
+            "modelName": "llama2",
+            "mode": "chat"
+          }
+        },
+        {
+          "modelName": "mistral-classifier",
+          "modelVersion": "v1",
+          "framework": "ollama",
+          "stage": "development",
+          "metadata": {
+            "taskType": "classification",
+            "equivalenceGroup": "price-classifier",
+            "outputDimensions": [1],
+            "description": "Mistral for price sensitivity classification",
+            "backend": "ollama"
+          },
+          "modelBlob": {
+            "modelName": "mistral",
+            "mode": "chat"
+          }
+        },
+        {
+          "modelName": "llava",
+          "modelVersion": "v1",
+          "framework": "ollama",
+          "stage": "development",
+          "metadata": {
+            "taskType": "image-tagging",
+            "equivalenceGroup": "image-tagger",
+            "outputDimensions": [1],
+            "description": "LLaVA vision model for image tagging",
+            "backend": "ollama"
+          },
+          "modelBlob": {
+            "modelName": "llava",
+            "mode": "chat"
+          }
+        },
+        {
+          "modelName": "bakllava",
+          "modelVersion": "v1",
+          "framework": "ollama",
+          "stage": "development",
+          "metadata": {
+            "taskType": "image-tagging",
+            "equivalenceGroup": "image-tagger",
+            "outputDimensions": [1],
+            "description": "BakLLaVA vision model for image tagging",
+            "backend": "ollama"
+          },
+          "modelBlob": {
+            "modelName": "bakllava",
+            "mode": "chat"
+          }
+        }
+      ]
+    },
+    "production": {
+      "description": "Production-ready models",
+      "models": [
+        {
+          "modelName": "all-MiniLM-L6-v2-transformers",
+          "modelVersion": "v1",
+          "framework": "transformers",
+          "stage": "production",
+          "metadata": {
+            "taskType": "text-embedding",
+            "equivalenceGroup": "embeddings-384",
+            "outputDimensions": [384],
+            "description": "Sentence-BERT MiniLM model (Transformers.js)",
+            "backend": "transformers"
+          },
+          "modelBlob": {
+            "modelName": "Xenova/all-MiniLM-L6-v2",
+            "taskType": "feature-extraction"
+          }
+        }
+      ]
+    },
+    "minimal": {
+      "description": "Minimal set for quick testing",
+      "models": [
+        {
+          "modelName": "all-MiniLM-L6-v2-transformers",
+          "modelVersion": "v1",
+          "framework": "transformers",
+          "stage": "development",
+          "metadata": {
+            "taskType": "text-embedding",
+            "equivalenceGroup": "embeddings-384",
+            "outputDimensions": [384],
+            "description": "Sentence-BERT MiniLM model (Transformers.js)",
+            "backend": "transformers"
+          },
+          "modelBlob": {
+            "modelName": "Xenova/all-MiniLM-L6-v2",
+            "taskType": "feature-extraction"
+          }
+        }
+      ]
+    }
+  }
+}
