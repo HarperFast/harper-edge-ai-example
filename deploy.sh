@@ -713,7 +713,8 @@ DEFAULT BEHAVIOR:
 
 OPTIONS:
     --help              Show this help message
-    --local             Deploy to local Harper instance (http://localhost:9925)
+    --local             Verify local Harper instance (http://localhost:9926)
+                        Note: For local dev, just use 'npm run dev' - no deployment needed
     --dry-run           Show what would be deployed without executing
     --no-restart        Skip Harper restart after deployment
     --no-tests          Skip post-deployment tests
@@ -903,9 +904,11 @@ done
 
 # Override configuration for local mode
 if [[ "$LOCAL_MODE" == "true" ]]; then
-    REMOTE_URL="http://localhost:9925"
+    # For local development mode, use application port (9926) not deployment port (9925)
+    # Local mode with npm run dev doesn't need separate deployment
+    REMOTE_URL="http://localhost:9926"
     REMOTE_HOST="localhost"
-    REMOTE_PORT="9925"
+    REMOTE_PORT="9926"
     REMOTE_USERNAME="${DEPLOY_USERNAME:-admin}"
     REMOTE_PASSWORD="${DEPLOY_PASSWORD}"
     # Local deployments typically don't need replication
@@ -940,15 +943,20 @@ if [[ "$DRY_RUN" == "true" ]]; then
     exit 0
 fi
 
-create_deployment_package
+if [[ "$LOCAL_MODE" == "true" ]]; then
+    log_info "Local mode detected - skipping deployment (app already running via npm run dev)"
+    log_info "Verifying app is accessible..."
+else
+    create_deployment_package
 
-# Deploy code - exit on failure
-if ! deploy_code; then
-    log_error "Deployment failed, aborting"
-    exit 1
+    # Deploy code - exit on failure
+    if ! deploy_code; then
+        log_error "Deployment failed, aborting"
+        exit 1
+    fi
 fi
 
-if [[ "$RESTART_HARPER" == "true" ]]; then
+if [[ "$RESTART_HARPER" == "true" ]] && [[ "$LOCAL_MODE" != "true" ]]; then
     if ! restart_harper; then
         log_error "Restart failed, aborting"
         exit 1
