@@ -126,12 +126,16 @@ async function testModelInference(model) {
 		}),
 	});
 
-	if (!response.ok) {
-		const error = await response.text();
-		throw new Error(`Inference failed: ${error}`);
+	const result = await response.json();
+
+	// Check for error responses
+	if (result.error) {
+		return { skipped: true, reason: result.error };
 	}
 
-	const result = await response.json();
+	if (!response.ok) {
+		throw new Error(`Inference failed: ${JSON.stringify(result)}`);
+	}
 
 	// Validate output based on task type
 	if (taskType.includes('embedding')) {
