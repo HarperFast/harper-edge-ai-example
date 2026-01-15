@@ -1,40 +1,28 @@
-# Deploying Harper Edge AI Ops
+# Deploying Harper Edge AI
 
-This guide covers deploying your Harper Edge AI Ops application to both local and remote Harper instances using the Harper CLI.
+This guide covers deploying to local and remote Harper instances with environment configuration, testing, and production best practices.
+
+**For script usage details**, see [SCRIPTS.md](SCRIPTS.md).
 
 ## Quick Start
 
-### Local Development Deployment
-
-For testing and development with a locally running Harper instance:
-
 ```bash
-# Start your local Harper instance first
-harper dev .
+# Local development
+npm run dev                      # Start Harper
+npm run preload:testing          # Deploy test models
+./verify.sh --full               # Verify
 
-# In another terminal, deploy to local instance
-./deploy.sh --local
-
-# Preview local deployment
-./deploy.sh --local --dry-run
-
-# Deploy specific backends locally
-DEPLOY_BACKENDS=onnx,transformers ./deploy.sh --local
+# Remote deployment
+./deploy.sh                      # Deploy code (uses .env config)
+./verify.sh --remote --full      # Verify deployment
 ```
 
-The `--local` flag:
-- Targets `http://localhost:9926` automatically
-- Disables cluster replication (single node)
-- Uses default local credentials (`admin` with no password)
-- Perfect for testing deployment process before pushing to remote
-
-### Remote Deployment
-
-For production or remote Harper instances, see the full configuration guide below.
+**Script Details**: See [deploy.sh](SCRIPTS.md#deploysh) and [verify.sh](SCRIPTS.md#verifysh) in SCRIPTS.md.
 
 ## Prerequisites
 
 1. **Harper CLI installed locally**
+
    ```bash
    npm install -g harperdb
    ```
@@ -49,97 +37,34 @@ For production or remote Harper instances, see the full configuration guide belo
 
 ## Environment Configuration
 
-### Set Remote Target Credentials
-
-Configure environment variables for your remote Harper instance:
+Create a `.env` file in your project root with deployment configuration:
 
 ```bash
-# Remote Harper instance URL
-export CLI_TARGET_URL=https://ai-ops.irjudson-ai.harperfabric.com:9925
-
-# Remote Harper admin credentials
-export CLI_TARGET_USERNAME=HDB_ADMIN
-export CLI_TARGET_PASSWORD=your-admin-password
-```
-
-**Alternative:** Pass credentials directly in commands:
-```bash
-harperdb deploy \
-  target=https://ai-ops.irjudson-ai.harperfabric.com:9925 \
-  username=HDB_ADMIN \
-  password=your-admin-password
-```
-
-**Recommended:** Use local `.env` file for deploy.sh script:
-
-```bash
-# Add to your local .env file (will be loaded by deploy.sh)
-DEPLOY_REMOTE_HOST=ai-ops.irjudson-ai.harperfabric.com
-DEPLOY_REMOTE_PORT=9925
-DEPLOY_REMOTE_URL=https://ai-ops.irjudson-ai.harperfabric.com:9925
+# Remote Harper Instance
+DEPLOY_REMOTE_URL=https://your-instance.com:9925
 DEPLOY_USERNAME=HDB_ADMIN
 DEPLOY_PASSWORD=your-admin-password
-DEPLOY_REPLICATED=true        # Replicate across cluster nodes (default: true)
-DEPLOY_RESTART=true            # Restart after deploy (default: true, options: true/false/rolling)
+
+# Deployment Options
+DEPLOY_REPLICATED=true           # Replicate across cluster (default: true)
+DEPLOY_RESTART=true              # Restart after deploy (true/false/rolling)
+DEPLOY_BACKENDS=onnx,transformers  # Optional: auto-select backends
+
+# Authentication
 MODEL_FETCH_TOKEN=your-secret-token
 ```
 
-**Deploy Options:**
-- `DEPLOY_REPLICATED=true` - Replicates deployment across all cluster nodes
-- `DEPLOY_RESTART=true` - Automatically restarts Harper after deployment
-  - `true` - Standard restart
-  - `false` - No restart (manual restart required)
-  - `rolling` - Rolling restart (minimal downtime for clusters)
-- `DEPLOY_BACKENDS` - Select which ML backends to deploy (optional)
-  - Empty: Interactive prompt (default)
-  - `all`: All backends (911MB - ⚠️ exceeds 800MB)
-  - `onnx`: ONNX Runtime only (183MB)
-  - `tensorflow`: TensorFlow.js only (683MB)
-  - `transformers`: Transformers.js only (45MB)
-  - Comma-separated: `onnx,transformers` (228MB)
-  - **Note:** Ollama backend is always available (0 MB - external service)
+**Generate a secure token:**
 
-**Backend Selection:**
-
-The deploy script allows you to choose which ML backends to include in the remote deployment. This reduces deployment size and speeds up installation.
-
-**Interactive mode (default):**
 ```bash
-./deploy.sh --full
+# macOS/Linux
+openssl rand -base64 32
 
-# Prompts:
-#   1. ONNX Runtime        - 183 MB
-#   2. TensorFlow.js       - 683 MB
-#   3. Transformers.js     -  45 MB
-#   4. All backends        - 911 MB (WARNING: >800MB)
-#
-# Select backends: 1,3
-# Selected: ONNX, Transformers.js (228MB)
+# Or Node.js
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
-**Automated mode (skip prompt):**
-```bash
-# In .env file:
-DEPLOY_BACKENDS=onnx,transformers
-
-# Or export before running:
-export DEPLOY_BACKENDS=onnx
-./deploy.sh --full
-```
-
-**⚠️ 800MB Warning:**
-
-If your selected backends exceed 800MB, you'll receive a warning:
-```
-⚠️ Deployment size (911MB) exceeds 800MB!
-This may cause slow deployments or storage issues.
-Continue anyway? (y/N)
-```
-
-**Configuration priority:**
-1. Environment variables (`CLI_TARGET_*`, `DEPLOY_*`)
-2. `.env` file
-3. Script defaults
+**For detailed configuration options**, see [Environment Variables Reference](SCRIPTS.md#environment-variables-reference) in SCRIPTS.md.
 
 ### Configure Remote .env File
 
@@ -167,6 +92,7 @@ DEBUG=false
 ```
 
 **Generate a secure token:**
+
 ```bash
 # On macOS/Linux:
 openssl rand -base64 32
@@ -175,349 +101,153 @@ openssl rand -base64 32
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
-## Deployment Workflow
+## Deploying
 
-### Preview Deployment (Dry Run)
-
-Before deploying, you can preview what would be deployed without executing:
+Use `deploy.sh` to deploy code to remote instances:
 
 ```bash
-# Preview default deployment
-./deploy.sh --dry-run
-
-# Preview specific backends
-DEPLOY_BACKENDS=onnx,transformers ./deploy.sh --dry-run
-
-# Preview with custom options
-./deploy.sh --dry-run --no-restart --no-tests
-```
-
-The dry-run mode shows:
-- Target configuration (URL, credentials, replication settings)
-- Selected backends with sizes
-- Total deployment size (with 800MB warning if applicable)
-- Deployment steps that would be executed
-
-### Single Command Deployment (Recommended)
-
-The `deploy.sh` script handles deployment, replication, and restart in a single command:
-
-```bash
-# Full deployment (default: deploy + replicate + restart + test)
+# Full deployment (code + replicate + restart + verify)
 ./deploy.sh
 
-# Deploy without restarting
-./deploy.sh --no-restart
-
-# Deploy without tests
-./deploy.sh --no-tests
-
-# Deploy to single node only (no replication)
-./deploy.sh --no-replicate
+# Preview before deploying
+./deploy.sh --dry-run
 ```
 
-By default:
-- Full deployment: deploy + replicate + restart + test
-- To skip any step, use the `--no-*` flags shown above
+**For all deployment options**, see [deploy.sh](SCRIPTS.md#deploysh) in SCRIPTS.md.
 
-**Customize deployment behavior in `.env`:**
+## Testing Deployed System
+
+After deployment, verify the system works end-to-end:
+
+### Automated Verification
 
 ```bash
-# Standard restart after deploy
-DEPLOY_RESTART=true
+# Quick smoke test
+./verify.sh --remote --quick
 
-# Rolling restart (minimal downtime)
-DEPLOY_RESTART=rolling
-
-# No automatic restart (manual restart required)
-DEPLOY_RESTART=false
-
-# Disable replication (single node only)
-DEPLOY_REPLICATED=false
+# Full verification with inference tests
+./verify.sh --remote --full
 ```
 
-### Manual Harper CLI Deployment
+**For verification details**, see [verify.sh](SCRIPTS.md#verifysh) in SCRIPTS.md.
 
-You can also use the Harper CLI directly with combined options:
+### Manual Testing with harper-ai CLI
 
-```bash
-# Deploy with automatic restart and replication
-harperdb deploy \
-  target=$CLI_TARGET_URL \
-  replicated=true \
-  restart=true
-
-# Rolling restart for zero-downtime deployment
-harperdb deploy \
-  target=$CLI_TARGET_URL \
-  replicated=true \
-  restart=rolling
-```
-
-This single command will:
-- Package your component code
-- Upload to the remote instance
-- Install dependencies
-- Replicate across all cluster nodes
-- Restart Harper automatically
-
-### Verify Deployment
-
-Check the remote instance status:
+Set up your environment to point to the remote instance:
 
 ```bash
-# Check Harper status
-harperdb status target=$CLI_TARGET_URL
-
-# View Harper logs (if available)
-harperdb logs target=$CLI_TARGET_URL
-```
-
-## Testing the Deployment
-
-Once deployed, test the Model Fetch System from your local machine:
-
-### Set Up Local Environment
-
-```bash
-export HARPER_URL=https://ai-ops.irjudson-ai.harperfabric.com:9925
+export HARPER_URL=https://your-instance.com:9926
 export MODEL_FETCH_TOKEN=your-secret-token
 ```
 
-### Test 1: Inspect a Model
-
-```bash
-harper-ai model inspect huggingface Xenova/all-MiniLM-L6-v2 --variant quantized
-```
-
-Expected output:
-- Framework: transformers
-- Available variants: default, quantized
-- Inferred metadata from HuggingFace
-
-### Test 2: Fetch a Model
+**1. Fetch a model:**
 
 ```bash
 harper-ai model fetch huggingface Xenova/all-MiniLM-L6-v2 \
-  --variant quantized \
-  --modelName all-MiniLM-L6-v2 \
-  --modelVersion v1
+  --modelName minilm --modelVersion v1
 ```
 
-Expected output:
-- Job created with jobId
-- Status: queued
-
-### Test 3: Watch Job Progress
+**2. Watch job progress:**
 
 ```bash
 harper-ai job watch <jobId>
 ```
 
-Expected output:
-- Live progress bar
-- Status updates: queued → downloading → processing → completed
-- Final resultModelId
-
-### Test 4: List Downloaded Models
+**3. Run inference:**
 
 ```bash
-harper-ai model list
+harper-ai model test minilm:v1 --input "Hello world"
 ```
 
-Expected output:
-- Table showing all models including the newly fetched one
-
-### Test 5: Run Inference
-
-```bash
-harper-ai model test all-MiniLM-L6-v2:v1 --input "Hello world"
-```
-
-Expected output:
-- Embedding vector or model-specific output
-- Inference latency
-
-## Complete Deployment Script
-
-Create a simple deployment script for convenience:
-
-**deploy-remote.sh:**
-```bash
-#!/usr/bin/env bash
-set -e
-
-# Configuration
-REMOTE_URL="${CLI_TARGET_URL:-https://ai-ops.irjudson-ai.harperfabric.com:9925}"
-
-echo "Deploying to ${REMOTE_URL}..."
-
-# Deploy code
-echo "📦 Deploying code..."
-harperdb deploy target="${REMOTE_URL}"
-
-# Restart Harper
-echo "🔄 Restarting Harper..."
-harperdb restart target="${REMOTE_URL}"
-
-# Wait for restart
-echo "⏳ Waiting for Harper to restart..."
-sleep 5
-
-# Check status
-echo "✅ Checking status..."
-harperdb status target="${REMOTE_URL}"
-
-echo ""
-echo "Deployment complete!"
-echo ""
-echo "Test with:"
-echo "  export HARPER_URL=${REMOTE_URL}"
-echo "  export MODEL_FETCH_TOKEN=your-token"
-echo "  harper-ai model list"
-```
-
-Make it executable:
-```bash
-chmod +x deploy-remote.sh
-```
-
-Run it:
-```bash
-./deploy-remote.sh
-```
+**For complete harper-ai usage**, see [Model Fetch System Documentation](MODEL_FETCH_SYSTEM.md).
 
 ## Troubleshooting
 
-### Authentication Errors
+### Deployment Issues
 
-**Problem:** "Unauthorized" or connection refused
+**Authentication errors:**
 
-**Solution:**
-- Verify CLI_TARGET_USERNAME and CLI_TARGET_PASSWORD are correct
-- Check that remote Harper instance is running
-- Verify firewall allows connections to port 9925
-- Ensure HTTPS certificate is valid (or use `--insecure` flag for self-signed certs)
+- Verify `DEPLOY_USERNAME` and `DEPLOY_PASSWORD` in `.env`
+- Check remote instance is running: `curl https://your-instance.com:9925/Status`
 
-### Deployment Fails
+**Deployment fails:**
 
-**Problem:** Deployment command fails or times out
-
-**Solution:**
 - Check network connectivity to remote instance
-- Verify you have admin permissions on remote Harper
-- Check remote disk space is available
-- Review remote Harper logs for errors
+- Verify admin permissions on remote Harper
+- Review remote Harper logs: `harperdb logs target=$DEPLOY_REMOTE_URL`
 
-### Worker Not Starting
+**For script-specific issues**, see [Troubleshooting](SCRIPTS.md#troubleshooting) in SCRIPTS.md.
 
-**Problem:** ModelFetchWorker doesn't process jobs
+### Model Fetch Issues
 
-**Solution:**
+**Worker not starting:**
+
 - Verify `MODEL_FETCH_WORKER_ENABLED=true` in remote `.env`
-- Check remote Harper logs for worker startup messages:
-  ```bash
-  harperdb logs target=$CLI_TARGET_URL | grep ModelFetchWorker
-  ```
-- Ensure database tables were created (check schema.graphql deployed)
-- Restart Harper instance
+- Check worker logs: `harperdb logs target=$DEPLOY_REMOTE_URL | grep ModelFetchWorker`
+- Ensure schema.graphql was deployed
 
-### Model Fetch Fails
+**Jobs failing:**
 
-**Problem:** Jobs stay in "queued" or fail immediately
+- Check remote server has internet access (for HuggingFace)
+- Verify disk space in models directory
+- Review job errors: `harper-ai job get <jobId>`
 
-**Solution:**
-- Check remote server has internet access (for HuggingFace downloads)
-- Verify disk space available in models directory
-- Check `MODEL_FETCH_MAX_FILE_SIZE` is sufficient
-- Review job error in `harper-ai job get <jobId>`
+**Authentication errors:**
 
-### CLI Commands Return Errors
+- Verify `MODEL_FETCH_TOKEN` matches on client and remote
+- Check for extra whitespace in token
 
-**Problem:** `harper-ai` commands fail with authentication errors
+## Production Considerations
 
-**Solution:**
-- Verify `MODEL_FETCH_TOKEN` matches on client and remote server
-- Check token is set in remote `.env` file
-- Ensure no extra whitespace in token
-- Try using Bearer format explicitly: `Authorization: Bearer your-token`
+### Clustered Deployments
 
-## Advanced: Clustered Deployments
-
-For Harper clusters with multiple nodes:
+Deploy to multi-node Harper clusters:
 
 ```bash
-# Deploy to cluster (replicates to all nodes)
-harperdb deploy target=$CLI_TARGET_URL replicated=true
+# Deploy with cluster replication (default)
+DEPLOY_REPLICATED=true ./deploy.sh
 
-# Restart cluster
-harperdb restart target=$CLI_TARGET_URL replicated=true
-
-# Check cluster status
-harperdb cluster_status target=$CLI_TARGET_URL
+# Rolling restart for zero downtime
+DEPLOY_RESTART=rolling ./deploy.sh
 ```
 
-## Rollback
+### Rollback Strategy
 
-If a deployment causes issues, redeploy a previous version:
+If deployment causes issues:
 
 ```bash
-# Checkout previous version
-git checkout <previous-commit-hash>
-
-# Deploy
-harperdb deploy target=$CLI_TARGET_URL
-
-# Restart
-harperdb restart target=$CLI_TARGET_URL
-
-# Return to current branch
+git checkout <previous-commit>
+./deploy.sh
 git checkout main
 ```
 
-## Monitoring
+### Monitoring
 
-Monitor your remote Harper instance:
+Monitor remote instances:
 
 ```bash
-# View recent logs
-harperdb logs target=$CLI_TARGET_URL
+# View logs
+harperdb logs target=$DEPLOY_REMOTE_URL
 
-# Check resource usage
-harperdb system_information target=$CLI_TARGET_URL
+# Check system resources
+harperdb system_information target=$DEPLOY_REMOTE_URL
 
-# View active jobs
-export HARPER_URL=$CLI_TARGET_URL
-export MODEL_FETCH_TOKEN=your-token
+# Monitor model fetch jobs
+export HARPER_URL=$DEPLOY_REMOTE_URL
 harper-ai job list --status downloading
 ```
 
-## Security Best Practices
+### Security Best Practices
 
-1. **Never commit credentials**
-   - Use environment variables
-   - Add `.env` to `.gitignore`
-   - Use secret management tools for production
-
-2. **Use strong tokens**
-   - Generate cryptographically secure tokens
-   - Rotate tokens regularly
-   - Use different tokens for dev/staging/production
-
-3. **Secure network access**
-   - Use HTTPS for remote instances
-   - Restrict firewall rules to known IPs
-   - Consider VPN for production deployments
-
-4. **Monitor access logs**
-   - Review Harper access logs regularly
-   - Set up alerts for unauthorized access attempts
-   - Track model fetch activity
+1. **Never commit credentials** - Use `.env` file (already in `.gitignore`)
+2. **Use strong tokens** - Generate with `openssl rand -base64 32`
+3. **Secure network** - Use HTTPS for remote instances
+4. **Rotate tokens** - Use different tokens for dev/staging/production
+5. **Monitor access** - Review Harper logs regularly
 
 ## Next Steps
 
-- Set up CI/CD pipeline for automated deployments
-- Configure monitoring and alerting
-- Set up log aggregation
-- Implement backup strategy for models and database
-- Load test the Model Fetch System with concurrent jobs
+- Review [SCRIPTS.md](SCRIPTS.md) for script usage details
+- See [MODEL_FETCH_SYSTEM.md](MODEL_FETCH_SYSTEM.md) for harper-ai CLI guide
+- Check [BENCHMARKING.md](BENCHMARKING.md) for performance testing
+- Read [PROFILE_TESTING.md](PROFILE_TESTING.md) for profile-based deployment

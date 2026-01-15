@@ -17,15 +17,15 @@ Harper Edge AI aims to become a complete AI operations platform, providing:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                   Production Inferencing                     │
-│              (Edge Devices, APIs, Services)                  │
+│                   Production Inferencing                    │
+│              (Edge Devices, APIs, Services)                 │
 └────────────────────┬────────────────────────────────────────┘
                      │
                      │ Inference Events, Metrics, Feedback
                      ↓
 ┌─────────────────────────────────────────────────────────────┐
-│                Harper AI Ops Cluster                         │
-│                                                               │
+│                Harper AI Ops Cluster                        │
+│                                                             │
 │  ┌────────────────────┐  ┌────────────────────────────────┐ │
 │  │  Monitoring &      │  │  Training & Validation         │ │
 │  │  Observability     │  │                                │ │
@@ -34,7 +34,7 @@ Harper Edge AI aims to become a complete AI operations platform, providing:
 │  │  ✅ Alerting       │  │  ✅ Validation & Promotion     │ │
 │  │  ✅ Auto Triggers  │  │  ✅ Model Registry             │ │
 │  └────────────────────┘  └────────────────────────────────┘ │
-│                                                               │
+│                                                             │
 │  ┌────────────────────┐  ┌────────────────────────────────┐ │
 │  │  Core Data &       │  │  Deployment & Orchestration    │ │
 │  │  Services          │  │                                │ │

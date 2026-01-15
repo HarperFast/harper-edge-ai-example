@@ -1,8 +1,17 @@
-# Model Fetch System - Complete Design
+# Model Fetch System - Design Document
 
-**Status:** Design Phase - Ready for Implementation
+> ✅ **THIS FEATURE IS IMPLEMENTED**
+>
+> This design document describes the Model Fetch System.
+> **This feature has been fully implemented and is production-ready.**
+>
+> **For usage documentation**, see [MODEL_FETCH_SYSTEM.md](../MODEL_FETCH_SYSTEM.md)
+>
+> This document is kept for historical reference and design rationale.
+
+**Status:** ✅ Implemented (see MODEL_FETCH_SYSTEM.md)
 **Created:** January 8, 2026
-**Last Updated:** January 8, 2026
+**Last Updated:** January 15, 2026
 
 ---
 
@@ -15,6 +24,7 @@ This document describes the design of the Model Fetch System - a production-grad
 **Solution:** Enable Harper to fetch models directly from sources (HuggingFace Hub, HTTP URLs, local filesystem) with automatic metadata inference, variant selection, and async job tracking.
 
 **Key Benefits:**
+
 - Eliminates manual download/upload steps
 - Supports large models (up to 5GB) with progress tracking
 - Auto-retry with exponential backoff for reliability
@@ -170,11 +180,13 @@ When models are fetched, add source tracking to metadata:
 **Endpoint:** `GET /InspectModel?source={source}&sourceReference={ref}`
 
 **Example Request:**
+
 ```bash
 GET /InspectModel?source=huggingface&sourceReference=Xenova/all-MiniLM-L6-v2
 ```
 
 **Response (200 OK):**
+
 ```javascript
 {
   modelId: "Xenova/all-MiniLM-L6-v2",
@@ -205,6 +217,7 @@ GET /InspectModel?source=huggingface&sourceReference=Xenova/all-MiniLM-L6-v2
 ```
 
 **Error Response (400 Bad Request):**
+
 ```javascript
 {
   error: "Model not found on HuggingFace Hub",
@@ -220,6 +233,7 @@ GET /InspectModel?source=huggingface&sourceReference=Xenova/all-MiniLM-L6-v2
 **Endpoint:** `POST /FetchModel`
 
 **Request Body:**
+
 ```javascript
 {
   // Source (required)
@@ -250,6 +264,7 @@ GET /InspectModel?source=huggingface&sourceReference=Xenova/all-MiniLM-L6-v2
 ```
 
 **Response (202 Accepted):**
+
 ```javascript
 {
   jobId: "job-abc-123",
@@ -259,6 +274,7 @@ GET /InspectModel?source=huggingface&sourceReference=Xenova/all-MiniLM-L6-v2
 ```
 
 **Response (200 OK - Model Already Exists, Same Source):**
+
 ```javascript
 {
   jobId: null,
@@ -269,6 +285,7 @@ GET /InspectModel?source=huggingface&sourceReference=Xenova/all-MiniLM-L6-v2
 ```
 
 **Error Response (400 Bad Request - Duplicate Name, Different Source):**
+
 ```javascript
 {
   error: "Model 'all-minilm-l6-v2:v1' already exists from a different source. Please use a different modelName or modelVersion.",
@@ -281,6 +298,7 @@ GET /InspectModel?source=huggingface&sourceReference=Xenova/all-MiniLM-L6-v2
 ```
 
 **Error Response (400 Bad Request - Unsupported Framework):**
+
 ```javascript
 {
   error: "Unsupported framework: pytorch. Supported: onnx, tensorflow, transformers, ollama",
@@ -295,6 +313,7 @@ GET /InspectModel?source=huggingface&sourceReference=Xenova/all-MiniLM-L6-v2
 **Endpoint:** `GET /ModelFetchJob/{jobId}`
 
 **Response (200 OK - Downloading):**
+
 ```javascript
 {
   jobId: "job-abc-123",
@@ -318,6 +337,7 @@ GET /InspectModel?source=huggingface&sourceReference=Xenova/all-MiniLM-L6-v2
 ```
 
 **Response (200 OK - Completed):**
+
 ```javascript
 {
   jobId: "job-abc-123",
@@ -330,6 +350,7 @@ GET /InspectModel?source=huggingface&sourceReference=Xenova/all-MiniLM-L6-v2
 ```
 
 **Response (200 OK - Failed):**
+
 ```javascript
 {
   jobId: "job-abc-123",
@@ -350,6 +371,7 @@ GET /InspectModel?source=huggingface&sourceReference=Xenova/all-MiniLM-L6-v2
 **Endpoint:** `POST /ModelFetchJob/{jobId}/retry`
 
 **Response (200 OK):**
+
 ```javascript
 {
   jobId: "job-abc-123",
@@ -360,9 +382,10 @@ GET /InspectModel?source=huggingface&sourceReference=Xenova/all-MiniLM-L6-v2
 ```
 
 **Error Response (400 Bad Request):**
+
 ```javascript
 {
-  error: "Cannot retry job with status: completed"
+	error: 'Cannot retry job with status: completed';
 }
 ```
 
@@ -373,11 +396,13 @@ GET /InspectModel?source=huggingface&sourceReference=Xenova/all-MiniLM-L6-v2
 **Endpoint:** `GET /ModelFetchJob?status={status}&limit={limit}&offset={offset}`
 
 **Query Parameters:**
+
 - `status` - Filter by status (queued|downloading|processing|completed|failed)
 - `limit` - Max results (default: 50)
 - `offset` - Pagination offset (default: 0)
 
 **Response (200 OK):**
+
 ```javascript
 {
   count: 10,
@@ -407,190 +432,178 @@ The background worker processes jobs asynchronously:
 
 ```javascript
 class ModelFetchWorker {
-  constructor() {
-    this.maxConcurrent = 3;           // Global limit
-    this.activeJobs = new Map();      // Track running downloads
-    this.pollInterval = 5000;         // Poll every 5s
-    this.rateLimiter = new RateLimiter();
-    this.maxFileSize = 5 * 1024 * 1024 * 1024; // 5GB
-  }
+	constructor() {
+		this.maxConcurrent = 3; // Global limit
+		this.activeJobs = new Map(); // Track running downloads
+		this.pollInterval = 5000; // Poll every 5s
+		this.rateLimiter = new RateLimiter();
+		this.maxFileSize = 5 * 1024 * 1024 * 1024; // 5GB
+	}
 
-  async start() {
-    // On startup, reset any jobs stuck in 'downloading' status
-    await this.recoverCrashedJobs();
+	async start() {
+		// On startup, reset any jobs stuck in 'downloading' status
+		await this.recoverCrashedJobs();
 
-    // Start polling loop
-    setInterval(() => this.processQueue(), this.pollInterval);
-  }
+		// Start polling loop
+		setInterval(() => this.processQueue(), this.pollInterval);
+	}
 
-  async recoverCrashedJobs() {
-    // Find jobs with status='downloading' (worker crashed mid-download)
-    const stuckJobs = await tables.ModelFetchJob
-      .search({ status: 'downloading' });
+	async recoverCrashedJobs() {
+		// Find jobs with status='downloading' (worker crashed mid-download)
+		const stuckJobs = await tables.ModelFetchJob.search({ status: 'downloading' });
 
-    for (const job of stuckJobs) {
-      await tables.ModelFetchJob.put({
-        ...job,
-        status: 'queued',
-        lastError: 'Worker restarted, job requeued'
-      });
-    }
-  }
+		for (const job of stuckJobs) {
+			await tables.ModelFetchJob.put({
+				...job,
+				status: 'queued',
+				lastError: 'Worker restarted, job requeued',
+			});
+		}
+	}
 
-  async processQueue() {
-    // Check if we have capacity
-    if (this.activeJobs.size >= this.maxConcurrent) return;
+	async processQueue() {
+		// Check if we have capacity
+		if (this.activeJobs.size >= this.maxConcurrent) return;
 
-    // Fetch queued jobs (oldest first, respecting retry delays)
-    const availableSlots = this.maxConcurrent - this.activeJobs.size;
-    const jobs = await this.fetchQueuedJobs(availableSlots);
+		// Fetch queued jobs (oldest first, respecting retry delays)
+		const availableSlots = this.maxConcurrent - this.activeJobs.size;
+		const jobs = await this.fetchQueuedJobs(availableSlots);
 
-    // Process each job asynchronously
-    for (const job of jobs) {
-      this.processJob(job); // Fire and forget
-    }
-  }
+		// Process each job asynchronously
+		for (const job of jobs) {
+			this.processJob(job); // Fire and forget
+		}
+	}
 
-  async processJob(job) {
-    try {
-      this.activeJobs.set(job.jobId, job);
+	async processJob(job) {
+		try {
+			this.activeJobs.set(job.jobId, job);
 
-      // Update status to downloading
-      await this.updateJobStatus(job.jobId, 'downloading', {
-        startedAt: Date.now()
-      });
+			// Update status to downloading
+			await this.updateJobStatus(job.jobId, 'downloading', {
+				startedAt: Date.now(),
+			});
 
-      // 1. Get appropriate adapter
-      const adapter = this.getAdapter(job.source);
+			// 1. Get appropriate adapter
+			const adapter = this.getAdapter(job.source);
 
-      // 2. Validate framework before downloading (fail fast)
-      const detectedFramework = await adapter.detectFramework(
-        job.sourceReference,
-        job.variant
-      );
+			// 2. Validate framework before downloading (fail fast)
+			const detectedFramework = await adapter.detectFramework(job.sourceReference, job.variant);
 
-      if (!this.isSupportedFramework(detectedFramework)) {
-        throw new UnsupportedFrameworkError(detectedFramework);
-      }
+			if (!this.isSupportedFramework(detectedFramework)) {
+				throw new UnsupportedFrameworkError(detectedFramework);
+			}
 
-      // 3. Wait if source is rate limited
-      await this.rateLimiter.waitIfNeeded(job.source);
+			// 3. Wait if source is rate limited
+			await this.rateLimiter.waitIfNeeded(job.source);
 
-      // 4. Download with progress tracking
-      const modelBlob = await adapter.download(
-        job.sourceReference,
-        job.variant,
-        (downloadedBytes, totalBytes) => {
-          this.updateProgress(job.jobId, downloadedBytes, totalBytes);
-        }
-      );
+			// 4. Download with progress tracking
+			const modelBlob = await adapter.download(job.sourceReference, job.variant, (downloadedBytes, totalBytes) => {
+				this.updateProgress(job.jobId, downloadedBytes, totalBytes);
+			});
 
-      // 5. Validate file size
-      if (modelBlob.length > this.maxFileSize) {
-        throw new Error(`Model exceeds max file size: ${this.maxFileSize} bytes`);
-      }
+			// 5. Validate file size
+			if (modelBlob.length > this.maxFileSize) {
+				throw new Error(`Model exceeds max file size: ${this.maxFileSize} bytes`);
+			}
 
-      // 6. Infer metadata
-      const inferredMetadata = await adapter.inferMetadata(
-        job.sourceReference,
-        job.variant
-      );
+			// 6. Infer metadata
+			const inferredMetadata = await adapter.inferMetadata(job.sourceReference, job.variant);
 
-      // 7. Merge with user overrides
-      const finalMetadata = {
-        ...inferredMetadata,
-        ...job.userMetadata,
-        fetchSource: {
-          type: job.source,
-          reference: job.sourceReference,
-          variant: job.variant,
-          fetchedAt: Date.now()
-        }
-      };
+			// 7. Merge with user overrides
+			const finalMetadata = {
+				...inferredMetadata,
+				...job.userMetadata,
+				fetchSource: {
+					type: job.source,
+					reference: job.sourceReference,
+					variant: job.variant,
+					fetchedAt: Date.now(),
+				},
+			};
 
-      // Update status to processing
-      await this.updateJobStatus(job.jobId, 'processing');
+			// Update status to processing
+			await this.updateJobStatus(job.jobId, 'processing');
 
-      // 8. Store in Model table
-      const modelId = await this.storeModel(job, modelBlob, finalMetadata);
+			// 8. Store in Model table
+			const modelId = await this.storeModel(job, modelBlob, finalMetadata);
 
-      // 9. Mark job as completed
-      await this.completeJob(job.jobId, modelId);
+			// 9. Mark job as completed
+			await this.completeJob(job.jobId, modelId);
 
-      // 10. Call webhook if provided
-      if (job.webhookUrl) {
-        await this.callWebhook(job.webhookUrl, {
-          jobId: job.jobId,
-          status: 'completed',
-          modelId
-        });
-      }
+			// 10. Call webhook if provided
+			if (job.webhookUrl) {
+				await this.callWebhook(job.webhookUrl, {
+					jobId: job.jobId,
+					status: 'completed',
+					modelId,
+				});
+			}
+		} catch (error) {
+			await this.handleFailure(job, error);
+		} finally {
+			this.activeJobs.delete(job.jobId);
+		}
+	}
 
-    } catch (error) {
-      await this.handleFailure(job, error);
-    } finally {
-      this.activeJobs.delete(job.jobId);
-    }
-  }
+	async handleFailure(job, error) {
+		// Check for rate limiting
+		if (error.statusCode === 429) {
+			this.rateLimiter.handle429Response(job.source, error.response);
+		}
 
-  async handleFailure(job, error) {
-    // Check for rate limiting
-    if (error.statusCode === 429) {
-      this.rateLimiter.handle429Response(job.source, error.response);
-    }
+		// Determine if error is retryable
+		const retryable = this.isRetryableError(error);
 
-    // Determine if error is retryable
-    const retryable = this.isRetryableError(error);
+		// Check if we should retry
+		if (retryable && job.retryCount < job.maxRetries) {
+			// Exponential backoff: 1s, 2s, 4s
+			const delayMs = Math.pow(2, job.retryCount) * 1000;
 
-    // Check if we should retry
-    if (retryable && job.retryCount < job.maxRetries) {
-      // Exponential backoff: 1s, 2s, 4s
-      const delayMs = Math.pow(2, job.retryCount) * 1000;
+			await tables.ModelFetchJob.put({
+				...job,
+				status: 'queued',
+				retryCount: job.retryCount + 1,
+				lastError: error.message,
+				// Schedule retry by updating createdAt
+				createdAt: Date.now() + delayMs,
+			});
+		} else {
+			// Max retries exceeded or non-retryable error
+			await tables.ModelFetchJob.put({
+				...job,
+				status: 'failed',
+				lastError: error.message,
+				errorCode: error.code || 'UNKNOWN_ERROR',
+				retryable,
+				completedAt: Date.now(),
+			});
 
-      await tables.ModelFetchJob.put({
-        ...job,
-        status: 'queued',
-        retryCount: job.retryCount + 1,
-        lastError: error.message,
-        // Schedule retry by updating createdAt
-        createdAt: Date.now() + delayMs
-      });
-    } else {
-      // Max retries exceeded or non-retryable error
-      await tables.ModelFetchJob.put({
-        ...job,
-        status: 'failed',
-        lastError: error.message,
-        errorCode: error.code || 'UNKNOWN_ERROR',
-        retryable,
-        completedAt: Date.now()
-      });
+			// Call webhook with failure
+			if (job.webhookUrl) {
+				await this.callWebhook(job.webhookUrl, {
+					jobId: job.jobId,
+					status: 'failed',
+					error: error.message,
+				});
+			}
+		}
+	}
 
-      // Call webhook with failure
-      if (job.webhookUrl) {
-        await this.callWebhook(job.webhookUrl, {
-          jobId: job.jobId,
-          status: 'failed',
-          error: error.message
-        });
-      }
-    }
-  }
+	isRetryableError(error) {
+		const retryableCodes = [
+			'NETWORK_TIMEOUT',
+			'CONNECTION_FAILED',
+			'RATE_LIMITED',
+			'SOURCE_SERVER_ERROR',
+			'STORAGE_FAILED',
+		];
+		return retryableCodes.includes(error.code);
+	}
 
-  isRetryableError(error) {
-    const retryableCodes = [
-      'NETWORK_TIMEOUT',
-      'CONNECTION_FAILED',
-      'RATE_LIMITED',
-      'SOURCE_SERVER_ERROR',
-      'STORAGE_FAILED'
-    ];
-    return retryableCodes.includes(error.code);
-  }
-
-  isSupportedFramework(framework) {
-    return ['onnx', 'tensorflow', 'transformers', 'ollama'].includes(framework);
-  }
+	isSupportedFramework(framework) {
+		return ['onnx', 'tensorflow', 'transformers', 'ollama'].includes(framework);
+	}
 }
 ```
 
@@ -602,29 +615,29 @@ Handles concurrent limits and 429 backoff:
 
 ```javascript
 class RateLimiter {
-  constructor() {
-    this.backoffMap = new Map(); // source -> backoff expiry time
-  }
+	constructor() {
+		this.backoffMap = new Map(); // source -> backoff expiry time
+	}
 
-  async waitIfNeeded(source) {
-    const backoffUntil = this.backoffMap.get(source);
-    if (backoffUntil && Date.now() < backoffUntil) {
-      const waitMs = backoffUntil - Date.now();
-      console.log(`Rate limited for ${source}, waiting ${waitMs}ms`);
-      await new Promise(resolve => setTimeout(resolve, waitMs));
-    }
-  }
+	async waitIfNeeded(source) {
+		const backoffUntil = this.backoffMap.get(source);
+		if (backoffUntil && Date.now() < backoffUntil) {
+			const waitMs = backoffUntil - Date.now();
+			console.log(`Rate limited for ${source}, waiting ${waitMs}ms`);
+			await new Promise((resolve) => setTimeout(resolve, waitMs));
+		}
+	}
 
-  handle429Response(source, response) {
-    // Parse Retry-After header if available
-    const retryAfter = response.headers.get('retry-after');
-    const seconds = retryAfter ? parseInt(retryAfter) : 60;
+	handle429Response(source, response) {
+		// Parse Retry-After header if available
+		const retryAfter = response.headers.get('retry-after');
+		const seconds = retryAfter ? parseInt(retryAfter) : 60;
 
-    const backoffUntil = Date.now() + (seconds * 1000);
-    this.backoffMap.set(source, backoffUntil);
+		const backoffUntil = Date.now() + seconds * 1000;
+		this.backoffMap.set(source, backoffUntil);
 
-    console.log(`Rate limit hit for ${source}, backing off for ${seconds}s`);
-  }
+		console.log(`Rate limit hit for ${source}, backing off for ${seconds}s`);
+	}
 }
 ```
 
@@ -636,45 +649,45 @@ class RateLimiter {
 
 ```javascript
 class BaseSourceAdapter {
-  /**
-   * Detect the framework of a model without downloading
-   * @param {string} sourceReference - Source identifier
-   * @param {string} variant - Optional variant (for Transformers.js)
-   * @returns {Promise<string>} - 'onnx'|'tensorflow'|'transformers'|'ollama'|'unsupported'
-   */
-  async detectFramework(sourceReference, variant = null) {
-    throw new Error('Not implemented');
-  }
+	/**
+	 * Detect the framework of a model without downloading
+	 * @param {string} sourceReference - Source identifier
+	 * @param {string} variant - Optional variant (for Transformers.js)
+	 * @returns {Promise<string>} - 'onnx'|'tensorflow'|'transformers'|'ollama'|'unsupported'
+	 */
+	async detectFramework(sourceReference, variant = null) {
+		throw new Error('Not implemented');
+	}
 
-  /**
-   * Download model binary
-   * @param {string} sourceReference - Source identifier
-   * @param {string} variant - Optional variant (for Transformers.js)
-   * @param {Function} onProgress - Progress callback (downloadedBytes, totalBytes)
-   * @returns {Promise<Buffer>} - Model blob
-   */
-  async download(sourceReference, variant, onProgress) {
-    throw new Error('Not implemented');
-  }
+	/**
+	 * Download model binary
+	 * @param {string} sourceReference - Source identifier
+	 * @param {string} variant - Optional variant (for Transformers.js)
+	 * @param {Function} onProgress - Progress callback (downloadedBytes, totalBytes)
+	 * @returns {Promise<Buffer>} - Model blob
+	 */
+	async download(sourceReference, variant, onProgress) {
+		throw new Error('Not implemented');
+	}
 
-  /**
-   * Infer metadata from source
-   * @param {string} sourceReference - Source identifier
-   * @param {string} variant - Optional variant (for Transformers.js)
-   * @returns {Promise<Object>} - { taskType, outputDimensions, description, tags }
-   */
-  async inferMetadata(sourceReference, variant = null) {
-    throw new Error('Not implemented');
-  }
+	/**
+	 * Infer metadata from source
+	 * @param {string} sourceReference - Source identifier
+	 * @param {string} variant - Optional variant (for Transformers.js)
+	 * @returns {Promise<Object>} - { taskType, outputDimensions, description, tags }
+	 */
+	async inferMetadata(sourceReference, variant = null) {
+		throw new Error('Not implemented');
+	}
 
-  /**
-   * List available variants (for preview)
-   * @param {string} sourceReference - Source identifier
-   * @returns {Promise<Array>} - Array of variant objects
-   */
-  async listVariants(sourceReference) {
-    throw new Error('Not implemented');
-  }
+	/**
+	 * List available variants (for preview)
+	 * @param {string} sourceReference - Source identifier
+	 * @returns {Promise<Array>} - Array of variant objects
+	 */
+	async listVariants(sourceReference) {
+		throw new Error('Not implemented');
+	}
 }
 ```
 
@@ -686,242 +699,233 @@ Handles HuggingFace Hub downloads with Transformers.js support:
 
 ```javascript
 class HuggingFaceAdapter extends BaseSourceAdapter {
-  constructor() {
-    super();
-    this.apiBase = 'https://huggingface.co';
-  }
+	constructor() {
+		super();
+		this.apiBase = 'https://huggingface.co';
+	}
 
-  async detectFramework(modelId, variant = null) {
-    // Fetch repo file list
-    const files = await this.listRepoFiles(modelId);
+	async detectFramework(modelId, variant = null) {
+		// Fetch repo file list
+		const files = await this.listRepoFiles(modelId);
 
-    // Check for Transformers.js structure (onnx/ directory)
-    if (files.some(f => f.startsWith('onnx/'))) {
-      return 'transformers';
-    }
+		// Check for Transformers.js structure (onnx/ directory)
+		if (files.some((f) => f.startsWith('onnx/'))) {
+			return 'transformers';
+		}
 
-    // Check for single ONNX file
-    if (files.some(f => f.endsWith('.onnx'))) {
-      return 'onnx';
-    }
+		// Check for single ONNX file
+		if (files.some((f) => f.endsWith('.onnx'))) {
+			return 'onnx';
+		}
 
-    // Check for TensorFlow.js
-    if (files.some(f => f.includes('tfjs_model'))) {
-      return 'tensorflow';
-    }
+		// Check for TensorFlow.js
+		if (files.some((f) => f.includes('tfjs_model'))) {
+			return 'tensorflow';
+		}
 
-    return 'unsupported';
-  }
+		return 'unsupported';
+	}
 
-  async listVariants(modelId) {
-    const files = await this.listRepoFiles(modelId);
-    const variants = [];
+	async listVariants(modelId) {
+		const files = await this.listRepoFiles(modelId);
+		const variants = [];
 
-    // Check for Transformers.js variants
-    if (files.includes('onnx/model.onnx')) {
-      const size = await this.getFileSize(modelId, 'onnx/model.onnx');
-      variants.push({
-        name: 'default',
-        files: ['onnx/model.onnx', 'tokenizer.json', 'config.json'],
-        totalSize: size,
-        precision: 'fp32'
-      });
-    }
+		// Check for Transformers.js variants
+		if (files.includes('onnx/model.onnx')) {
+			const size = await this.getFileSize(modelId, 'onnx/model.onnx');
+			variants.push({
+				name: 'default',
+				files: ['onnx/model.onnx', 'tokenizer.json', 'config.json'],
+				totalSize: size,
+				precision: 'fp32',
+			});
+		}
 
-    if (files.includes('onnx/model_quantized.onnx')) {
-      const size = await this.getFileSize(modelId, 'onnx/model_quantized.onnx');
-      variants.push({
-        name: 'quantized',
-        files: ['onnx/model_quantized.onnx', 'tokenizer.json', 'config.json'],
-        totalSize: size,
-        precision: 'int8'
-      });
-    }
+		if (files.includes('onnx/model_quantized.onnx')) {
+			const size = await this.getFileSize(modelId, 'onnx/model_quantized.onnx');
+			variants.push({
+				name: 'quantized',
+				files: ['onnx/model_quantized.onnx', 'tokenizer.json', 'config.json'],
+				totalSize: size,
+				precision: 'int8',
+			});
+		}
 
-    // Single ONNX file
-    if (variants.length === 0 && files.some(f => f.endsWith('.onnx'))) {
-      const onnxFile = files.find(f => f.endsWith('.onnx'));
-      const size = await this.getFileSize(modelId, onnxFile);
-      variants.push({
-        name: 'default',
-        files: [onnxFile],
-        totalSize: size,
-        precision: 'unknown'
-      });
-    }
+		// Single ONNX file
+		if (variants.length === 0 && files.some((f) => f.endsWith('.onnx'))) {
+			const onnxFile = files.find((f) => f.endsWith('.onnx'));
+			const size = await this.getFileSize(modelId, onnxFile);
+			variants.push({
+				name: 'default',
+				files: [onnxFile],
+				totalSize: size,
+				precision: 'unknown',
+			});
+		}
 
-    return variants;
-  }
+		return variants;
+	}
 
-  async download(modelId, variant, onProgress) {
-    const framework = await this.detectFramework(modelId, variant);
+	async download(modelId, variant, onProgress) {
+		const framework = await this.detectFramework(modelId, variant);
 
-    if (framework === 'transformers') {
-      // Download multiple files for Transformers.js
-      return await this.downloadTransformersModel(modelId, variant, onProgress);
-    } else if (framework === 'onnx') {
-      // Download single ONNX file
-      const onnxFile = await this.findOnnxFile(modelId);
-      return await this.downloadFile(modelId, onnxFile, onProgress);
-    } else {
-      throw new Error(`Unsupported framework: ${framework}`);
-    }
-  }
+		if (framework === 'transformers') {
+			// Download multiple files for Transformers.js
+			return await this.downloadTransformersModel(modelId, variant, onProgress);
+		} else if (framework === 'onnx') {
+			// Download single ONNX file
+			const onnxFile = await this.findOnnxFile(modelId);
+			return await this.downloadFile(modelId, onnxFile, onProgress);
+		} else {
+			throw new Error(`Unsupported framework: ${framework}`);
+		}
+	}
 
-  async downloadTransformersModel(modelId, variant, onProgress) {
-    // Determine which model file to download
-    const modelFile = variant === 'quantized'
-      ? 'onnx/model_quantized.onnx'
-      : 'onnx/model.onnx';
+	async downloadTransformersModel(modelId, variant, onProgress) {
+		// Determine which model file to download
+		const modelFile = variant === 'quantized' ? 'onnx/model_quantized.onnx' : 'onnx/model.onnx';
 
-    // Required files for Transformers.js
-    const requiredFiles = [
-      modelFile,
-      'tokenizer.json',
-      'tokenizer_config.json',
-      'config.json'
-    ];
+		// Required files for Transformers.js
+		const requiredFiles = [modelFile, 'tokenizer.json', 'tokenizer_config.json', 'config.json'];
 
-    // Download all files
-    const files = {};
-    let totalBytes = 0;
-    let downloadedBytes = 0;
+		// Download all files
+		const files = {};
+		let totalBytes = 0;
+		let downloadedBytes = 0;
 
-    // Calculate total size
-    for (const file of requiredFiles) {
-      const size = await this.getFileSize(modelId, file);
-      totalBytes += size;
-    }
+		// Calculate total size
+		for (const file of requiredFiles) {
+			const size = await this.getFileSize(modelId, file);
+			totalBytes += size;
+		}
 
-    // Download each file
-    for (const file of requiredFiles) {
-      const buffer = await this.downloadFile(
-        modelId,
-        file,
-        (bytes, total) => {
-          onProgress(downloadedBytes + bytes, totalBytes);
-        }
-      );
-      files[file] = buffer;
-      downloadedBytes += buffer.length;
-    }
+		// Download each file
+		for (const file of requiredFiles) {
+			const buffer = await this.downloadFile(modelId, file, (bytes, total) => {
+				onProgress(downloadedBytes + bytes, totalBytes);
+			});
+			files[file] = buffer;
+			downloadedBytes += buffer.length;
+		}
 
-    // Package as a single blob (JSON with embedded base64)
-    return Buffer.from(JSON.stringify({
-      type: 'transformers-model',
-      variant,
-      files: Object.entries(files).reduce((acc, [path, buffer]) => {
-        acc[path] = buffer.toString('base64');
-        return acc;
-      }, {})
-    }));
-  }
+		// Package as a single blob (JSON with embedded base64)
+		return Buffer.from(
+			JSON.stringify({
+				type: 'transformers-model',
+				variant,
+				files: Object.entries(files).reduce((acc, [path, buffer]) => {
+					acc[path] = buffer.toString('base64');
+					return acc;
+				}, {}),
+			})
+		);
+	}
 
-  async downloadFile(modelId, filePath, onProgress) {
-    const url = `${this.apiBase}/${modelId}/resolve/main/${filePath}`;
-    const response = await fetch(url);
+	async downloadFile(modelId, filePath, onProgress) {
+		const url = `${this.apiBase}/${modelId}/resolve/main/${filePath}`;
+		const response = await fetch(url);
 
-    if (response.status === 429) {
-      const error = new Error('HuggingFace rate limit exceeded');
-      error.statusCode = 429;
-      error.response = response;
-      throw error;
-    }
+		if (response.status === 429) {
+			const error = new Error('HuggingFace rate limit exceeded');
+			error.statusCode = 429;
+			error.response = response;
+			throw error;
+		}
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: Failed to download ${filePath}`);
-    }
+		if (!response.ok) {
+			throw new Error(`HTTP ${response.status}: Failed to download ${filePath}`);
+		}
 
-    const totalBytes = parseInt(response.headers.get('content-length') || '0');
-    let downloadedBytes = 0;
+		const totalBytes = parseInt(response.headers.get('content-length') || '0');
+		let downloadedBytes = 0;
 
-    const chunks = [];
-    const reader = response.body.getReader();
+		const chunks = [];
+		const reader = response.body.getReader();
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
 
-      chunks.push(value);
-      downloadedBytes += value.length;
-      onProgress(downloadedBytes, totalBytes);
-    }
+			chunks.push(value);
+			downloadedBytes += value.length;
+			onProgress(downloadedBytes, totalBytes);
+		}
 
-    return Buffer.concat(chunks);
-  }
+		return Buffer.concat(chunks);
+	}
 
-  async inferMetadata(modelId, variant = null) {
-    // Fetch model card and config.json
-    const modelCard = await this.fetchModelCard(modelId);
-    const config = await this.fetchConfig(modelId);
+	async inferMetadata(modelId, variant = null) {
+		// Fetch model card and config.json
+		const modelCard = await this.fetchModelCard(modelId);
+		const config = await this.fetchConfig(modelId);
 
-    return {
-      taskType: this.inferTaskType(modelCard, config),
-      outputDimensions: this.extractOutputDimensions(config),
-      description: modelCard.description || `Model from HuggingFace: ${modelId}`,
-      tags: modelCard.tags || []
-    };
-  }
+		return {
+			taskType: this.inferTaskType(modelCard, config),
+			outputDimensions: this.extractOutputDimensions(config),
+			description: modelCard.description || `Model from HuggingFace: ${modelId}`,
+			tags: modelCard.tags || [],
+		};
+	}
 
-  inferTaskType(modelCard, config) {
-    // Check pipeline_tag in model card
-    const pipelineTag = modelCard.pipeline_tag;
+	inferTaskType(modelCard, config) {
+		// Check pipeline_tag in model card
+		const pipelineTag = modelCard.pipeline_tag;
 
-    const mapping = {
-      'sentence-similarity': 'text-embedding',
-      'feature-extraction': 'text-embedding',
-      'text-classification': 'text-classification',
-      'token-classification': 'named-entity-recognition',
-      'text-generation': 'text-generation',
-      'image-classification': 'image-classification',
-      'object-detection': 'object-detection'
-    };
+		const mapping = {
+			'sentence-similarity': 'text-embedding',
+			'feature-extraction': 'text-embedding',
+			'text-classification': 'text-classification',
+			'token-classification': 'named-entity-recognition',
+			'text-generation': 'text-generation',
+			'image-classification': 'image-classification',
+			'object-detection': 'object-detection',
+		};
 
-    return mapping[pipelineTag] || 'unknown';
-  }
+		return mapping[pipelineTag] || 'unknown';
+	}
 
-  extractOutputDimensions(config) {
-    // Try to extract from common config fields
-    if (config.hidden_size) return [config.hidden_size];
-    if (config.d_model) return [config.d_model];
-    if (config.num_labels) return [config.num_labels];
+	extractOutputDimensions(config) {
+		// Try to extract from common config fields
+		if (config.hidden_size) return [config.hidden_size];
+		if (config.d_model) return [config.d_model];
+		if (config.num_labels) return [config.num_labels];
 
-    return null; // User must specify
-  }
+		return null; // User must specify
+	}
 
-  async listRepoFiles(modelId) {
-    const url = `${this.apiBase}/api/models/${modelId}/tree/main`;
-    const response = await fetch(url);
+	async listRepoFiles(modelId) {
+		const url = `${this.apiBase}/api/models/${modelId}/tree/main`;
+		const response = await fetch(url);
 
-    if (!response.ok) {
-      throw new Error(`Failed to list files for ${modelId}`);
-    }
+		if (!response.ok) {
+			throw new Error(`Failed to list files for ${modelId}`);
+		}
 
-    const data = await response.json();
-    return data.map(item => item.path);
-  }
+		const data = await response.json();
+		return data.map((item) => item.path);
+	}
 
-  async getFileSize(modelId, filePath) {
-    const url = `${this.apiBase}/${modelId}/resolve/main/${filePath}`;
-    const response = await fetch(url, { method: 'HEAD' });
-    return parseInt(response.headers.get('content-length') || '0');
-  }
+	async getFileSize(modelId, filePath) {
+		const url = `${this.apiBase}/${modelId}/resolve/main/${filePath}`;
+		const response = await fetch(url, { method: 'HEAD' });
+		return parseInt(response.headers.get('content-length') || '0');
+	}
 
-  async fetchModelCard(modelId) {
-    const url = `${this.apiBase}/api/models/${modelId}`;
-    const response = await fetch(url);
-    return await response.json();
-  }
+	async fetchModelCard(modelId) {
+		const url = `${this.apiBase}/api/models/${modelId}`;
+		const response = await fetch(url);
+		return await response.json();
+	}
 
-  async fetchConfig(modelId) {
-    try {
-      const url = `${this.apiBase}/${modelId}/resolve/main/config.json`;
-      const response = await fetch(url);
-      return await response.json();
-    } catch (error) {
-      return {}; // Config not available
-    }
-  }
+	async fetchConfig(modelId) {
+		try {
+			const url = `${this.apiBase}/${modelId}/resolve/main/config.json`;
+			const response = await fetch(url);
+			return await response.json();
+		} catch (error) {
+			return {}; // Config not available
+		}
+	}
 }
 ```
 
@@ -933,77 +937,79 @@ Handles generic HTTP URL downloads:
 
 ```javascript
 class HttpUrlAdapter extends BaseSourceAdapter {
-  async detectFramework(url, variant = null) {
-    // Infer from file extension
-    if (url.endsWith('.onnx')) return 'onnx';
-    if (url.endsWith('.pb')) return 'tensorflow';
+	async detectFramework(url, variant = null) {
+		// Infer from file extension
+		if (url.endsWith('.onnx')) return 'onnx';
+		if (url.endsWith('.pb')) return 'tensorflow';
 
-    // Try HEAD request to check content-type
-    try {
-      const response = await fetch(url, { method: 'HEAD' });
-      const contentType = response.headers.get('content-type');
+		// Try HEAD request to check content-type
+		try {
+			const response = await fetch(url, { method: 'HEAD' });
+			const contentType = response.headers.get('content-type');
 
-      if (contentType?.includes('onnx')) return 'onnx';
-    } catch (error) {
-      // Ignore HEAD request failures
-    }
+			if (contentType?.includes('onnx')) return 'onnx';
+		} catch (error) {
+			// Ignore HEAD request failures
+		}
 
-    // Cannot detect - require user to specify
-    throw new Error('Cannot detect framework from URL. Please specify framework explicitly.');
-  }
+		// Cannot detect - require user to specify
+		throw new Error('Cannot detect framework from URL. Please specify framework explicitly.');
+	}
 
-  async listVariants(url) {
-    // HTTP URLs only have single variant
-    const response = await fetch(url, { method: 'HEAD' });
-    const size = parseInt(response.headers.get('content-length') || '0');
+	async listVariants(url) {
+		// HTTP URLs only have single variant
+		const response = await fetch(url, { method: 'HEAD' });
+		const size = parseInt(response.headers.get('content-length') || '0');
 
-    return [{
-      name: 'default',
-      files: [url],
-      totalSize: size,
-      precision: 'unknown'
-    }];
-  }
+		return [
+			{
+				name: 'default',
+				files: [url],
+				totalSize: size,
+				precision: 'unknown',
+			},
+		];
+	}
 
-  async download(url, variant, onProgress) {
-    const response = await fetch(url);
+	async download(url, variant, onProgress) {
+		const response = await fetch(url);
 
-    if (response.status === 429) {
-      const error = new Error('Source rate limit exceeded');
-      error.statusCode = 429;
-      error.response = response;
-      throw error;
-    }
+		if (response.status === 429) {
+			const error = new Error('Source rate limit exceeded');
+			error.statusCode = 429;
+			error.response = response;
+			throw error;
+		}
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: Failed to download from URL`);
-    }
+		if (!response.ok) {
+			throw new Error(`HTTP ${response.status}: Failed to download from URL`);
+		}
 
-    const totalBytes = parseInt(response.headers.get('content-length') || '0');
-    let downloadedBytes = 0;
+		const totalBytes = parseInt(response.headers.get('content-length') || '0');
+		let downloadedBytes = 0;
 
-    const chunks = [];
-    const reader = response.body.getReader();
+		const chunks = [];
+		const reader = response.body.getReader();
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
 
-      chunks.push(value);
-      downloadedBytes += value.length;
-      onProgress(downloadedBytes, totalBytes);
-    }
+			chunks.push(value);
+			downloadedBytes += value.length;
+			onProgress(downloadedBytes, totalBytes);
+		}
 
-    return Buffer.concat(chunks);
-  }
+		return Buffer.concat(chunks);
+	}
 
-  async inferMetadata(url, variant = null) {
-    // Limited metadata from URL
-    return {
-      description: `Model downloaded from ${url}`,
-      tags: ['external']
-    };
-  }
+	async inferMetadata(url, variant = null) {
+		// Limited metadata from URL
+		return {
+			description: `Model downloaded from ${url}`,
+			tags: ['external'],
+		};
+	}
 }
 ```
 
@@ -1019,104 +1025,105 @@ import fs from 'fs/promises';
 import { createReadStream } from 'fs';
 
 class LocalFilesystemAdapter extends BaseSourceAdapter {
-  constructor() {
-    super();
-    // Safe base directory - models/ in repo root
-    this.baseDir = path.resolve(process.cwd(), 'models');
-  }
+	constructor() {
+		super();
+		// Safe base directory - models/ in repo root
+		this.baseDir = path.resolve(process.cwd(), 'models');
+	}
 
-  /**
-   * Validate and resolve safe file path
-   * Prevents path traversal attacks (../, absolute paths, symlinks)
-   */
-  async validatePath(relativePath) {
-    // Resolve absolute path
-    const absolutePath = path.resolve(this.baseDir, relativePath);
+	/**
+	 * Validate and resolve safe file path
+	 * Prevents path traversal attacks (../, absolute paths, symlinks)
+	 */
+	async validatePath(relativePath) {
+		// Resolve absolute path
+		const absolutePath = path.resolve(this.baseDir, relativePath);
 
-    // Check if path escapes base directory
-    if (!absolutePath.startsWith(this.baseDir)) {
-      throw new SecurityError(`Path ${relativePath} escapes models directory`);
-    }
+		// Check if path escapes base directory
+		if (!absolutePath.startsWith(this.baseDir)) {
+			throw new SecurityError(`Path ${relativePath} escapes models directory`);
+		}
 
-    // Check file exists
-    try {
-      const stats = await fs.stat(absolutePath);
+		// Check file exists
+		try {
+			const stats = await fs.stat(absolutePath);
 
-      // Reject symlinks to prevent directory traversal
-      if (stats.isSymbolicLink()) {
-        throw new SecurityError('Symlinks are not allowed for security reasons');
-      }
+			// Reject symlinks to prevent directory traversal
+			if (stats.isSymbolicLink()) {
+				throw new SecurityError('Symlinks are not allowed for security reasons');
+			}
 
-      if (!stats.isFile()) {
-        throw new Error('Path must be a file, not a directory');
-      }
+			if (!stats.isFile()) {
+				throw new Error('Path must be a file, not a directory');
+			}
+		} catch (error) {
+			if (error.code === 'ENOENT') {
+				throw new Error(`File not found in models directory: ${relativePath}`);
+			}
+			throw error;
+		}
 
-    } catch (error) {
-      if (error.code === 'ENOENT') {
-        throw new Error(`File not found in models directory: ${relativePath}`);
-      }
-      throw error;
-    }
+		return absolutePath;
+	}
 
-    return absolutePath;
-  }
+	async detectFramework(relativePath, variant = null) {
+		await this.validatePath(relativePath);
 
-  async detectFramework(relativePath, variant = null) {
-    await this.validatePath(relativePath);
+		if (relativePath.endsWith('.onnx')) return 'onnx';
+		if (relativePath.endsWith('.pb')) return 'tensorflow';
 
-    if (relativePath.endsWith('.onnx')) return 'onnx';
-    if (relativePath.endsWith('.pb')) return 'tensorflow';
+		throw new Error('Cannot detect framework from file path. Please specify framework explicitly.');
+	}
 
-    throw new Error('Cannot detect framework from file path. Please specify framework explicitly.');
-  }
+	async listVariants(relativePath) {
+		const safePath = await this.validatePath(relativePath);
+		const stats = await fs.stat(safePath);
 
-  async listVariants(relativePath) {
-    const safePath = await this.validatePath(relativePath);
-    const stats = await fs.stat(safePath);
+		return [
+			{
+				name: 'default',
+				files: [relativePath],
+				totalSize: stats.size,
+				precision: 'unknown',
+			},
+		];
+	}
 
-    return [{
-      name: 'default',
-      files: [relativePath],
-      totalSize: stats.size,
-      precision: 'unknown'
-    }];
-  }
+	async download(relativePath, variant, onProgress) {
+		const safePath = await this.validatePath(relativePath);
 
-  async download(relativePath, variant, onProgress) {
-    const safePath = await this.validatePath(relativePath);
+		const stats = await fs.stat(safePath);
+		const totalBytes = stats.size;
+		let downloadedBytes = 0;
 
-    const stats = await fs.stat(safePath);
-    const totalBytes = stats.size;
-    let downloadedBytes = 0;
+		const chunks = [];
+		const stream = createReadStream(safePath);
 
-    const chunks = [];
-    const stream = createReadStream(safePath);
+		for await (const chunk of stream) {
+			chunks.push(chunk);
+			downloadedBytes += chunk.length;
+			onProgress(downloadedBytes, totalBytes);
+		}
 
-    for await (const chunk of stream) {
-      chunks.push(chunk);
-      downloadedBytes += chunk.length;
-      onProgress(downloadedBytes, totalBytes);
-    }
+		return Buffer.concat(chunks);
+	}
 
-    return Buffer.concat(chunks);
-  }
+	async inferMetadata(relativePath, variant = null) {
+		await this.validatePath(relativePath);
 
-  async inferMetadata(relativePath, variant = null) {
-    await this.validatePath(relativePath);
-
-    return {
-      description: `Model imported from models/${relativePath}`,
-      tags: ['local']
-    };
-  }
+		return {
+			description: `Model imported from models/${relativePath}`,
+			tags: ['local'],
+		};
+	}
 }
 
 class SecurityError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = 'SecurityError';
-    this.code = 'SECURITY_VIOLATION';
-  }
+	constructor(message) {
+		super(message);
+		this.name = 'SecurityError';
+		this.code = 'SECURITY_VIOLATION';
+	}
 }
 ```
 
@@ -1339,19 +1346,20 @@ scripts/
 ```
 
 **package.json:**
+
 ```json
 {
-  "name": "harper-edge-ai-example",
-  "bin": {
-    "harper-ai": "./scripts/cli/index.js"
-  },
-  "scripts": {
-    "harper-ai": "node scripts/cli/index.js",
+	"name": "harper-edge-ai-example",
+	"bin": {
+		"harper-ai": "./scripts/cli/index.js"
+	},
+	"scripts": {
+		"harper-ai": "node scripts/cli/index.js",
 
-    "preload": "npm run harper-ai model preload",
-    "benchmark": "npm run harper-ai benchmark run",
-    "pull-ollama": "npm run harper-ai ollama pull"
-  }
+		"preload": "npm run harper-ai model preload",
+		"benchmark": "npm run harper-ai benchmark run",
+		"pull-ollama": "npm run harper-ai ollama pull"
+	}
 }
 ```
 
@@ -1362,6 +1370,7 @@ scripts/
 ### Error Categories
 
 **1. Validation Errors (Fail Fast - 400 Bad Request)**
+
 - Missing required fields (source, sourceReference)
 - Invalid source type
 - Unsupported framework detected
@@ -1369,18 +1378,21 @@ scripts/
 - Model name already exists (different source)
 
 **2. Download Errors (Retry with Backoff)**
+
 - Network timeouts
 - Connection failures
 - Incomplete downloads
 - Rate limits (429) - special backoff handling
 
 **3. Source Errors (Fail After Retries)**
+
 - Model not found (404)
 - Access denied (403)
 - Server errors (500-599)
 - Invalid model format
 
 **4. Storage Errors (Fail, Manual Intervention)**
+
 - Disk full
 - Database write failures
 - Blob storage failures
@@ -1408,27 +1420,27 @@ scripts/
 
 ```javascript
 const ERROR_CODES = {
-  // Validation
-  INVALID_SOURCE: { retryable: false },
-  UNSUPPORTED_FRAMEWORK: { retryable: false },
-  SECURITY_VIOLATION: { retryable: false },
-  MODEL_NAME_CONFLICT: { retryable: false },
+	// Validation
+	INVALID_SOURCE: { retryable: false },
+	UNSUPPORTED_FRAMEWORK: { retryable: false },
+	SECURITY_VIOLATION: { retryable: false },
+	MODEL_NAME_CONFLICT: { retryable: false },
 
-  // Download
-  NETWORK_TIMEOUT: { retryable: true },
-  CONNECTION_FAILED: { retryable: true },
-  RATE_LIMITED: { retryable: true, backoff: true },
-  DOWNLOAD_INCOMPLETE: { retryable: true },
+	// Download
+	NETWORK_TIMEOUT: { retryable: true },
+	CONNECTION_FAILED: { retryable: true },
+	RATE_LIMITED: { retryable: true, backoff: true },
+	DOWNLOAD_INCOMPLETE: { retryable: true },
 
-  // Source
-  MODEL_NOT_FOUND: { retryable: false },
-  ACCESS_DENIED: { retryable: false },
-  SOURCE_SERVER_ERROR: { retryable: true },
+	// Source
+	MODEL_NOT_FOUND: { retryable: false },
+	ACCESS_DENIED: { retryable: false },
+	SOURCE_SERVER_ERROR: { retryable: true },
 
-  // Storage
-  DISK_FULL: { retryable: false },
-  STORAGE_FAILED: { retryable: true },
-  FILE_TOO_LARGE: { retryable: false }
+	// Storage
+	DISK_FULL: { retryable: false },
+	STORAGE_FAILED: { retryable: true },
+	FILE_TOO_LARGE: { retryable: false },
 };
 ```
 
@@ -1437,30 +1449,37 @@ const ERROR_CODES = {
 ### Edge Cases
 
 **1. Duplicate Active Jobs**
+
 - Check for existing job with same source+reference+name+version
 - **Solution:** Return existing jobId with message
 
 **2. Model Already Exists (Same Source)**
+
 - Same model, same source → Idempotent
 - **Solution:** Return existing model immediately, no new job
 
 **3. Model Already Exists (Different Source)**
+
 - Different model, same name → User error
 - **Solution:** Return 400 error, user must choose different name/version
 
 **4. Partial Downloads**
+
 - Download interrupted mid-stream
 - **Solution:** Clean up partial data, mark job as failed, retry starts fresh
 
 **5. Worker Crashes Mid-Download**
+
 - Server restarts while downloading
 - **Solution:** On worker startup, reset jobs with status='downloading' to 'queued'
 
 **6. Webhook Failures**
+
 - Webhook URL unreachable or returns error
 - **Solution:** Best effort - log error but don't fail the job
 
 **7. Very Large Models (5GB+)**
+
 - Risk of memory issues, long download times
 - **Solution:**
   - Enforce max file size limit (5GB default, configurable)
@@ -1474,6 +1493,7 @@ const ERROR_CODES = {
 ### Unit Tests
 
 **1. Source Adapters**
+
 ```javascript
 // HuggingFaceAdapter
 - detectFramework() correctly identifies ONNX/TensorFlow/Transformers
@@ -1496,6 +1516,7 @@ const ERROR_CODES = {
 ```
 
 **2. ModelFetchWorker**
+
 ```javascript
 - Respects maxConcurrent limit (3 jobs)
 - Retry logic with exponential backoff (1s, 2s, 4s)
@@ -1511,6 +1532,7 @@ const ERROR_CODES = {
 ```
 
 **3. RateLimiter**
+
 ```javascript
 - Global concurrent limit enforced
 - 429 backoff per source
@@ -1519,6 +1541,7 @@ const ERROR_CODES = {
 ```
 
 **4. FetchModel API**
+
 ```javascript
 - Validates required fields
 - Detects framework before creating job
@@ -1530,6 +1553,7 @@ const ERROR_CODES = {
 ```
 
 **5. InspectModel API**
+
 ```javascript
 - Lists variants for Transformers.js models
 - Infers metadata correctly
@@ -1540,6 +1564,7 @@ const ERROR_CODES = {
 ### Integration Tests
 
 **1. End-to-End Fetch Flow**
+
 ```javascript
 - POST /InspectModel → variants returned
 - POST /FetchModel → job created
@@ -1550,6 +1575,7 @@ const ERROR_CODES = {
 ```
 
 **2. Error Scenarios**
+
 ```javascript
 - Invalid source reference (404) → fails after retries
 - Unsupported framework → fails immediately
@@ -1559,6 +1585,7 @@ const ERROR_CODES = {
 ```
 
 **3. Concurrent Jobs**
+
 ```javascript
 - Submit 5 jobs, only 3 run concurrently
 - Remaining 2 queued until slots available
@@ -1566,6 +1593,7 @@ const ERROR_CODES = {
 ```
 
 **4. CLI Commands**
+
 ```javascript
 - harper-ai model inspect → displays variants
 - harper-ai model fetch → creates job
@@ -1577,6 +1605,7 @@ const ERROR_CODES = {
 ### Mock Testing Strategy
 
 **For unit tests, mock:**
+
 - HuggingFace API responses (model cards, file lists)
 - File downloads (use small test buffers)
 - Harper table operations
@@ -1584,6 +1613,7 @@ const ERROR_CODES = {
 - Filesystem operations
 
 **For integration tests, use:**
+
 - Real Harper tables (test environment)
 - Small test model files (< 1MB)
 - Local test HTTP server for URL adapter
@@ -1620,21 +1650,25 @@ MODEL_FETCH_WEBHOOK_TIMEOUT=5000          # Webhook timeout (ms)
 ## Deployment Considerations
 
 **1. Worker Lifecycle**
+
 - Start worker on Harper server startup
 - Graceful shutdown (finish active downloads)
 - Health check endpoint: `GET /ModelFetchWorker/health`
 
 **2. Storage Management**
+
 - Monitor disk space before downloads
 - Cleanup failed partial downloads
 - Archive old completed/failed jobs (retention policy: 30 days default)
 
 **3. Observability**
+
 - Log all job state transitions
 - Metrics: active jobs, queue depth, success/failure rate
 - Alerts: disk space low, repeated failures, worker not responding
 
 **4. Security**
+
 - Filesystem adapter restricted to models/ directory
 - No authentication for v1 (public models only)
 - Validate URLs (no localhost, private IPs for URL adapter)
@@ -1645,12 +1679,14 @@ MODEL_FETCH_WEBHOOK_TIMEOUT=5000          # Webhook timeout (ms)
 ## Future Roadmap
 
 ### v1.1 - Enhanced Observability
+
 - Real-time worker metrics dashboard
 - Job analytics (success rate, avg download time by source)
 - Alerts for repeated failures
 - Historical inference success rate per model
 
 ### v2.0 - Authentication & Private Models
+
 - Stored credentials (encrypted at rest)
 - Per-request auth tokens
 - HuggingFace private models
@@ -1659,6 +1695,7 @@ MODEL_FETCH_WEBHOOK_TIMEOUT=5000          # Webhook timeout (ms)
 - Azure Blob Storage
 
 ### v3.0 - Advanced Features
+
 - Model conversion (PyTorch → ONNX)
 - Automatic model optimization (quantization)
 - Delta downloads (resume interrupted)
@@ -1671,18 +1708,21 @@ MODEL_FETCH_WEBHOOK_TIMEOUT=5000          # Webhook timeout (ms)
 ## Success Metrics
 
 ### Developer Experience
+
 - Time to fetch model: < 30 seconds (for small models < 100MB)
 - CLI commands intuitive and discoverable
 - Clear error messages with actionable guidance
 - Inference test validates model functionality
 
 ### Reliability
+
 - Job success rate: > 95%
 - Auto-retry resolves 80% of transient failures
 - No data loss on worker crashes
 - Recovery time after crash: < 10 seconds
 
 ### Performance
+
 - Support 3 concurrent downloads
 - Handle models up to 5GB
 - Progress updates every 1% (or 1MB, whichever is larger)
@@ -1693,6 +1733,7 @@ MODEL_FETCH_WEBHOOK_TIMEOUT=5000          # Webhook timeout (ms)
 ## Migration Plan
 
 ### Phase 1: Core Implementation (Week 1-2)
+
 - ModelFetchJob table schema
 - ModelFetchWorker with retry logic and rate limiting
 - HuggingFaceAdapter (with Transformers.js support)
@@ -1702,6 +1743,7 @@ MODEL_FETCH_WEBHOOK_TIMEOUT=5000          # Webhook timeout (ms)
 - Unit tests for all adapters and worker
 
 ### Phase 2: CLI Tool (Week 2-3)
+
 - harper-ai CLI framework (using Commander.js or similar)
 - Model commands (inspect, fetch, list, delete, test)
 - Job commands (list, get, watch, retry, cancel, cleanup)
@@ -1709,6 +1751,7 @@ MODEL_FETCH_WEBHOOK_TIMEOUT=5000          # Webhook timeout (ms)
 - CLI unit tests and integration tests
 
 ### Phase 3: Testing & Polish (Week 3-4)
+
 - Integration tests for end-to-end flows
 - Error scenario coverage (all error codes)
 - Worker crash recovery testing
@@ -1717,6 +1760,7 @@ MODEL_FETCH_WEBHOOK_TIMEOUT=5000          # Webhook timeout (ms)
 - Performance testing (large models, concurrent jobs)
 
 ### Phase 4: Deployment (Week 4)
+
 - Worker lifecycle management (startup, shutdown)
 - Observability setup (logs, metrics)
 - Production deployment checklist
@@ -1787,6 +1831,7 @@ $ npx harper-ai model test public-model:v1
 The Model Fetch System provides a production-grade solution for fetching ML models from external sources with automatic metadata inference, async job management, and comprehensive CLI tooling. The system is designed for reliability (auto-retry, crash recovery), security (filesystem restrictions), and developer experience (two-step workflow, progress tracking).
 
 **Next Steps:**
+
 1. Review and approve design
 2. Begin Phase 1 implementation
 3. Set up development environment

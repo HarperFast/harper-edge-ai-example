@@ -1,17 +1,19 @@
 # Harper Edge AI - Script Reference
 
-Four focused scripts for deployment, verification, benchmarking, and demonstration.
+Four automation scripts for deployment, verification, benchmarking, and demonstration.
+
+**For deployment guide and production setup**, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Overview
 
-| Script | Purpose | When to Use |
-|--------|---------|-------------|
-| `deploy.sh` | Deploy code to Harper instance | Deploying new code or configuration |
-| `verify.sh` | Verify deployed system | After deployment, in CI/CD, troubleshooting |
-| `benchmark.sh` | Run performance benchmarks | Comparing backends, performance analysis |
-| `demo.sh` | Interactive demonstrations | Showing features, learning the system |
+| Script         | Purpose                        | When to Use                                 |
+| -------------- | ------------------------------ | ------------------------------------------- |
+| `deploy.sh`    | Deploy code to Harper instance | Deploying new code or configuration         |
+| `verify.sh`    | Verify deployed system         | After deployment, in CI/CD, troubleshooting |
+| `benchmark.sh` | Run performance benchmarks     | Comparing backends, performance analysis    |
+| `demo.sh`      | Interactive demonstrations     | Showing features, learning the system       |
 
-**All scripts use `.env` configuration** - no hardcoded URLs or credentials.
+**All scripts use `.env` configuration** - no hardcoded URLs or credentials. See [DEPLOYMENT.md](DEPLOYMENT.md#environment-configuration) for setup.
 
 ## deploy.sh
 
@@ -58,13 +60,9 @@ DEPLOY_BACKENDS=onnx,transformers  # Auto-select backends (skip interactive)
 MODEL_FETCH_TOKEN=your-token
 ```
 
-### Features
+**Key Features**: Backend selection, size optimization (<800MB check), cluster replication, automatic verification, dry-run mode.
 
-- **Backend selection**: Choose which ML backends to deploy (ONNX, TensorFlow, Transformers.js)
-- **Size optimization**: Automatically skips node_modules if deployment >800MB
-- **Cluster replication**: Deploys across all nodes in cluster
-- **Verification**: Runs basic health checks after deployment
-- **Dry-run mode**: Preview deployment without executing
+**For deployment workflow details**, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## verify.sh
 
@@ -111,11 +109,13 @@ TEST_PROFILE=testing  # Which profile to test
 ### Verification Levels
 
 **Quick** (`--quick`):
+
 - Health check
 - API endpoint accessibility
 - ~5 seconds
 
 **Standard** (default):
+
 - Health check
 - API endpoints
 - Deployed models check
@@ -123,22 +123,13 @@ TEST_PROFILE=testing  # Which profile to test
 - ~15 seconds
 
 **Full** (`--full`):
+
 - All standard checks
 - Inference tests
 - Profile-based integration tests
 - ~60 seconds
 
-### CI/CD Integration
-
-```bash
-# In GitHub Actions
-- name: Verify deployment
-  run: ./verify.sh --remote --full
-  env:
-    DEPLOY_REMOTE_URL: ${{ secrets.HARPER_URL }}
-    DEPLOY_USERNAME: ${{ secrets.HARPER_USER }}
-    DEPLOY_PASSWORD: ${{ secrets.HARPER_PASSWORD }}
-```
+**CI/CD Integration**: Use `./verify.sh --remote --full` in GitHub Actions with secrets for DEPLOY_REMOTE_URL, DEPLOY_USERNAME, and DEPLOY_PASSWORD.
 
 ## benchmark.sh
 
@@ -179,28 +170,13 @@ BENCHMARK_PROFILE=benchmarking  # Profile to use
 OLLAMA_HOST=http://localhost:11434
 ```
 
-### Equivalence Groups
+**Equivalence Groups**: `embeddings-384` (ONNX vs Transformers.js), `embeddings-768` (Ollama vs Transformers.js)
 
-Benchmarks compare models in the same equivalence group:
+**Output**: Results saved to `benchmark-*.json` with latency metrics (avg, p50, p95, p99), error rates, and winner determination.
 
-- **embeddings-384**: ONNX vs Transformers.js (all-MiniLM-L6-v2)
-- **embeddings-768**: Ollama vs Transformers.js (nomic-embed-text)
+**For benchmarking details**, see [BENCHMARKING.md](BENCHMARKING.md).
 
-Deploy benchmarking profile first:
-
-```bash
-npm run preload:benchmarking
-./benchmark.sh
-```
-
-### Output
-
-Results saved to `benchmark-*.json` with metrics:
-- Average latency
-- P50, P95, P99 latencies
-- Min/max latency
-- Error rates
-- Winner determination
+**Setup**: Deploy benchmarking profile first with `npm run preload:benchmarking`
 
 ## demo.sh
 
@@ -232,70 +208,19 @@ DEPLOY_REMOTE_URL=https://your-instance.com:9926
 DEMO_PROFILE=development  # Profile to use for demo
 ```
 
-### Demo Sequence
-
-1. **Health Check**: Verify server is running
-2. **Model Inventory**: List deployed models
-3. **Text Embedding**: Run inference on available model
-4. **Transformers.js**: Demo Transformers.js backend if available
-5. **Metrics**: Show model inference metrics
+**Demo Sequence**: Health check → Model inventory → Text embedding inference → Backend demos → Metrics display
 
 ## Common Workflows
 
-### Local Development
+**Local Development**: `npm run dev` → `npm run preload:testing` → `./verify.sh --full` → `./demo.sh`
 
-```bash
-# 1. Start Harper
-npm run dev
+**Remote Deployment**: `./deploy.sh` → `./verify.sh --remote --full` → `./demo.sh --remote`
 
-# 2. Deploy testing models
-npm run preload:testing
+**Performance Analysis**: `npm run preload:benchmarking` → `./benchmark.sh --iterations 1000` → View results in `benchmark-*.json`
 
-# 3. Verify everything works
-./verify.sh --full
+**CI/CD Pipeline**: `./deploy.sh --no-tests` → `./verify.sh --remote --full` → `./benchmark.sh --remote --iterations 50`
 
-# 4. Run demo
-./demo.sh
-```
-
-### Remote Deployment
-
-```bash
-# 1. Deploy code
-./deploy.sh
-
-# 2. Verify deployment
-./verify.sh --remote --full
-
-# 3. Run remote demo
-./demo.sh --remote
-```
-
-### Performance Analysis
-
-```bash
-# 1. Deploy benchmarking models
-npm run preload:benchmarking
-
-# 2. Run benchmarks
-./benchmark.sh --iterations 1000
-
-# 3. Compare results
-cat benchmark-*.json | jq '.winner'
-```
-
-### CI/CD Pipeline
-
-```bash
-# 1. Deploy
-./deploy.sh --no-tests
-
-# 2. Verify
-./verify.sh --remote --full
-
-# 3. Quick benchmark
-./benchmark.sh --remote --iterations 50
-```
+**For complete deployment guide**, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Environment Variables Reference
 
@@ -305,99 +230,50 @@ cat benchmark-*.json | jq '.winner'
 
 ### Optional
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `HARPER_URL` | `http://localhost:9926` | Local Harper URL |
-| `DEPLOY_REMOTE_URL` | - | Remote Harper URL |
-| `DEPLOY_USERNAME` | `HDB_ADMIN` | Harper admin username |
-| `CLI_TARGET_USERNAME` | `$DEPLOY_USERNAME` | Override username |
-| `CLI_TARGET_PASSWORD` | `$DEPLOY_PASSWORD` | Override password |
-| `MODEL_FETCH_TOKEN` | - | Token for model fetch API |
-| `OLLAMA_HOST` | `http://localhost:11434` | Ollama service URL |
-| `TEST_PROFILE` | `testing` | Profile for verification |
-| `BENCHMARK_PROFILE` | `benchmarking` | Profile for benchmarks |
-| `BENCHMARK_ITERATIONS` | `100` | Benchmark iterations |
-| `DEMO_PROFILE` | `development` | Profile for demos |
+| Variable               | Default                  | Purpose                   |
+| ---------------------- | ------------------------ | ------------------------- |
+| `HARPER_URL`           | `http://localhost:9926`  | Local Harper URL          |
+| `DEPLOY_REMOTE_URL`    | -                        | Remote Harper URL         |
+| `DEPLOY_USERNAME`      | `HDB_ADMIN`              | Harper admin username     |
+| `CLI_TARGET_USERNAME`  | `$DEPLOY_USERNAME`       | Override username         |
+| `CLI_TARGET_PASSWORD`  | `$DEPLOY_PASSWORD`       | Override password         |
+| `MODEL_FETCH_TOKEN`    | -                        | Token for model fetch API |
+| `OLLAMA_HOST`          | `http://localhost:11434` | Ollama service URL        |
+| `TEST_PROFILE`         | `testing`                | Profile for verification  |
+| `BENCHMARK_PROFILE`    | `benchmarking`           | Profile for benchmarks    |
+| `BENCHMARK_ITERATIONS` | `100`                    | Benchmark iterations      |
+| `DEMO_PROFILE`         | `development`            | Profile for demos         |
 
 ## Troubleshooting
 
-### "Cannot connect to Harper"
+**"Cannot connect to Harper"**: Check if running with `curl http://localhost:9926/Status`
 
-**verify.sh fails with connection error**
+**"No models deployed"**: Deploy with `npm run preload:testing` or specific profile
 
-```bash
-# Check if Harper is running
-curl http://localhost:9926/Status
+**"Deployment size exceeds 800MB"**: Select fewer backends (automatic prompt) or set `DEPLOY_BACKENDS=transformers` in .env
 
-# Or for remote
-curl https://your-instance.com:9926/Status
-```
+**"Ollama not available"**: Start Ollama (`ollama serve`) or set `OLLAMA_HOST` in .env
 
-### "No models deployed"
-
-**demo.sh or verify.sh finds no models**
-
-```bash
-# Deploy models
-npm run preload:testing
-
-# Or specific profile
-npm run preload:benchmarking
-```
-
-### "Deployment size exceeds 800MB"
-
-**deploy.sh warns about size**
-
-```bash
-# Option 1: Select fewer backends (automatic prompt)
-./deploy.sh
-
-# Option 2: Set backends in .env
-DEPLOY_BACKENDS=transformers  # Lightest (45 MB)
-./deploy.sh
-
-# Option 3: Deploy without node_modules (automatic if >800MB)
-# Remote instance will run npm install after deployment
-```
-
-### "Ollama not available"
-
-**verify.sh or benchmark.sh warns about Ollama**
-
-```bash
-# Start Ollama service
-ollama serve
-
-# Or set OLLAMA_HOST in .env to remote Ollama instance
-OLLAMA_HOST=http://remote-ollama:11434
-```
+**For deployment troubleshooting**, see [DEPLOYMENT.md](DEPLOYMENT.md#troubleshooting).
 
 ## Best Practices
 
-1. **Always use .env**: Never hardcode credentials or URLs in scripts
-2. **Verify after deploy**: Always run `./verify.sh --remote --full` after deployment
-3. **Benchmark before production**: Use `./benchmark.sh` to choose best backend
-4. **Demo for stakeholders**: Use `./demo.sh` to showcase capabilities
-5. **Check script help**: All scripts have `--help` for detailed options
-6. **Use profiles**: Leverage model profiles for consistent deployments
+1. **Always use .env** - Never hardcode credentials
+2. **Verify after deploy** - Run `./verify.sh --remote --full`
+3. **Benchmark before production** - Use `./benchmark.sh` to choose best backend
+4. **Use profiles** - Leverage model profiles for consistent deployments
+5. **Check script help** - All scripts support `--help`
 
-## Script Dependencies
+## Dependencies
 
-All scripts require:
-- `bash` 4.0+
-- `curl`
-- `jq` (for JSON parsing)
-- Node.js 18+ (for Harper and npm scripts)
+**All scripts**: bash 4.0+, curl, jq, Node.js 18+
 
-verify.sh additionally requires:
-- Node.js test runner (built-in)
-- Test files in `tests/integration/`
+**verify.sh**: Node.js test runner, integration tests in `tests/integration/`
 
 ## Next Steps
 
-- Configure `.env` file for your environment
+- Configure `.env` (see [DEPLOYMENT.md](DEPLOYMENT.md#environment-configuration))
 - Run `./verify.sh --quick` to check local setup
-- Deploy to remote with `./deploy.sh`
-- See [DEPLOYMENT.md](./DEPLOYMENT.md) for deployment details
-- See [PROFILE_TESTING.md](./PROFILE_TESTING.md) for testing details
+- See [DEPLOYMENT.md](DEPLOYMENT.md) for deployment workflow
+- See [BENCHMARKING.md](BENCHMARKING.md) for performance testing
+- See [PROFILE_TESTING.md](PROFILE_TESTING.md) for profile management
