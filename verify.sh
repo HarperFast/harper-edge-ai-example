@@ -201,7 +201,15 @@ run_profile_tests() {
     export HARPER_URL="${HARPER_URL}"
     export OLLAMA_HOST="${OLLAMA_HOST}"
 
-    if node --test tests/integration/profile-deployment.test.js 2>&1 | tail -20; then
+    # Run tests and capture output + exit code
+    local output
+    output=$(node --test tests/integration/profile-deployment.test.js 2>&1)
+    local exit_code=$?
+
+    # Show last 20 lines
+    echo "$output" | tail -20
+
+    if [[ $exit_code -eq 0 ]]; then
         log_success "Profile tests passed"
         return 0
     else
