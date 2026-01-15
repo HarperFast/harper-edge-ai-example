@@ -6,6 +6,11 @@ import { BaseBackend } from './Base.js';
 env.allowLocalModels = false; // Always download from Hugging Face
 env.useBrowserCache = false; // Use file system cache instead
 
+// Configure ONNX Runtime to use Node.js backend instead of WASM
+// This fixes "Tensor.data must be a typed array" error in Node.js
+// See: https://discuss.huggingface.co/t/electron-webpack-transformers-js-tensor-data-must-be-a-typed-array-for-numeric-tensor/92757/3
+env.backends.onnx.wasm.numThreads = 1;
+
 /**
  * Transformers.js Backend - High-level API for Hugging Face models
  *
@@ -60,11 +65,11 @@ export class TransformersBackend extends BaseBackend {
 				primaryKey: 'modelName',
 			});
 
-			// Use model name from config, or fall back to modelId from record
+			// Get model name and task type from config
 			const modelName = config.modelName || config.model || modelRecord?.modelId || 'Xenova/all-MiniLM-L6-v2';
 			const taskType = config.taskType || config.task || 'feature-extraction';
 
-			console.log(`[TransformersBackend] Loading model: ${modelName} for task: ${taskType}`);
+			console.log(`[TransformersBackend] Loading model: ${modelName}, task: ${taskType}`);
 
 			// Create pipeline (downloads and caches model automatically)
 			// Common tasks: 'feature-extraction', 'text-classification', 'zero-shot-classification'
@@ -104,13 +109,19 @@ export class TransformersBackend extends BaseBackend {
 			const { pipe, taskType } = modelInfo;
 
 			if (taskType === 'feature-extraction') {
-				return await this._generateEmbeddings(pipe, inputs);
+				const result = await this._generateEmbeddings(pipe, inputs);
+				return result;
 			} else {
 				// Generic prediction for other task types
 				return await this._generatePrediction(pipe, inputs);
 			}
 		} catch (error) {
-			console.error('Transformers.js inference failed:', error);
+			// Log the actual error details for debugging
+			console.error('[TransformersBackend] Inference error:', {
+				message: error.message,
+				stack: error.stack,
+				errorType: error.constructor.name
+			});
 			throw new Error(`Transformers.js inference failed: ${error.message}`);
 		}
 	}
@@ -140,13 +151,35 @@ export class TransformersBackend extends BaseBackend {
 
 		// Run pipeline with mean pooling and normalization
 		// The pipeline handles tokenization, inference, pooling, and normalization automatically
+		console.log('[TransformersBackend] Calling pipeline with text:', text.substring(0, 50));
 		const output = await pipe(text, {
 			pooling: 'mean',
 			normalize: true,
 		});
 
-		// Extract embedding from output
-		const embedding = Array.from(output.data);
+		console.log('[TransformersBackend] Pipeline returned:', {
+			type: typeof output,
+			constructor: output?.constructor?.name,
+			hasTolist: typeof output.tolist === 'function',
+			hasData: !!output.data,
+			hasCpuData: !!output.cpuData,
+			keys: Object.keys(output)
+		});
+
+		// Extract embedding from output tensor
+		// Transformers.js returns a Tensor object - use tolist() to get array
+		let embedding;
+		if (typeof output.tolist === 'function') {
+			embedding = output.tolist();
+		} else if (output.data) {
+			embedding = Array.from(output.data);
+		} else if (output.cpuData) {
+			embedding = Array.from(output.cpuData);
+		} else {
+			embedding = Array.from(output);
+		}
+
+		console.log('[TransformersBackend] Extracted embedding, length:', embedding.length);
 
 		return {
 			embeddings: [embedding], // Wrap in array for consistency with other backends

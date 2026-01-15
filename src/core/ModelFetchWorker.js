@@ -318,7 +318,7 @@ export class ModelFetchWorker {
 				});
 			};
 
-			const modelBlob = await adapter.download(job.sourceReference, job.variant, onProgress);
+			const modelBlob = await adapter.download(job.sourceReference, job.variant, onProgress, job.framework);
 
 			// Check file size
 			if (modelBlob.length > this.maxFileSize) {

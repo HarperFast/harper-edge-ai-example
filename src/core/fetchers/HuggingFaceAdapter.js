@@ -105,7 +105,27 @@ export class HuggingFaceAdapter extends BaseSourceAdapter {
 		return variants;
 	}
 
-	async download(sourceReference, variant, onProgress) {
+	async download(sourceReference, variant, onProgress, framework = 'transformers') {
+		// For transformers framework, Transformers.js handles downloading via pipeline()
+		// Just return a small config JSON with model reference
+		if (framework === 'transformers') {
+			const config = {
+				modelName: sourceReference,
+				taskType: 'feature-extraction',
+				framework: 'transformers',
+				variant: variant || 'default'
+			};
+
+			// Report minimal progress
+			if (onProgress) {
+				const configSize = JSON.stringify(config).length;
+				onProgress(configSize, configSize);
+			}
+
+			return Buffer.from(JSON.stringify(config));
+		}
+
+		// For ONNX framework, download the binary files
 		// Determine which files to download based on variant
 		const modelFile = variant === 'quantized' ? 'onnx/model_quantized.onnx' : 'onnx/model.onnx';
 		const files = [

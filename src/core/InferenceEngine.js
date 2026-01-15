@@ -266,6 +266,16 @@ export class InferenceEngine {
 		if (model.framework === 'onnx') {
 			// ONNX needs the Buffer as-is
 			// modelData is ready
+		} else if (model.framework === 'transformers') {
+			// Transformers.js backend expects a config object with model name
+			// The blob should already contain the config JSON
+			const decoded = modelData.toString('utf-8');
+			try {
+				modelData = JSON.parse(decoded);
+			} catch {
+				// If not JSON, treat as model name string
+				modelData = decoded;
+			}
 		} else {
 			// Ollama/TensorFlow need JSON object or string
 			const decoded = modelData.toString('utf-8');
