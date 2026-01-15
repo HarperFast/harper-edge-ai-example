@@ -6,11 +6,6 @@ import { BaseBackend } from './Base.js';
 env.allowLocalModels = false; // Always download from Hugging Face
 env.useBrowserCache = false; // Use file system cache instead
 
-// Configure ONNX Runtime to use Node.js backend instead of WASM
-// This fixes "Tensor.data must be a typed array" error in Node.js
-// See: https://discuss.huggingface.co/t/electron-webpack-transformers-js-tensor-data-must-be-a-typed-array-for-numeric-tensor/92757/3
-env.backends.onnx.wasm.numThreads = 1;
-
 /**
  * Transformers.js Backend - High-level API for Hugging Face models
  *
@@ -170,11 +165,12 @@ export class TransformersBackend extends BaseBackend {
 		// Transformers.js returns a Tensor object - use tolist() to get array
 		let embedding;
 		if (typeof output.tolist === 'function') {
-			embedding = output.tolist();
+			// tolist() returns nested array for batched output, get first item
+			const result = output.tolist();
+			embedding = Array.isArray(result[0]) ? result[0] : result;
 		} else if (output.data) {
+			// onnxruntime-web (WASM) provides data property
 			embedding = Array.from(output.data);
-		} else if (output.cpuData) {
-			embedding = Array.from(output.cpuData);
 		} else {
 			embedding = Array.from(output);
 		}
