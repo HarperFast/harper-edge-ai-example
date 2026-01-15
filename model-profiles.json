@@ -199,6 +199,152 @@
           }
         }
       ]
+    },
+    "testing": {
+      "description": "Testing profile - one model per backend for integration tests",
+      "models": [
+        {
+          "modelName": "test-transformers-embedding",
+          "modelVersion": "v1",
+          "framework": "transformers",
+          "stage": "testing",
+          "metadata": {
+            "taskType": "text-embedding",
+            "equivalenceGroup": "test-embeddings-384",
+            "outputDimensions": [384],
+            "description": "Fast Transformers.js model for testing",
+            "backend": "transformers"
+          },
+          "modelBlob": {
+            "modelName": "Xenova/all-MiniLM-L6-v2",
+            "taskType": "feature-extraction"
+          }
+        },
+        {
+          "modelName": "test-onnx-embedding",
+          "modelVersion": "v1",
+          "framework": "onnx",
+          "stage": "testing",
+          "metadata": {
+            "taskType": "text-embedding",
+            "equivalenceGroup": "test-embeddings-384",
+            "outputDimensions": [384],
+            "description": "ONNX model for testing",
+            "backend": "onnx"
+          },
+          "modelBlob": {
+            "source": "filesystem",
+            "path": "models/test/all-MiniLM-L6-v2.onnx"
+          }
+        },
+        {
+          "modelName": "test-ollama-embedding",
+          "modelVersion": "v1",
+          "framework": "ollama",
+          "stage": "testing",
+          "metadata": {
+            "taskType": "text-embedding",
+            "equivalenceGroup": "test-embeddings-768",
+            "outputDimensions": [768],
+            "description": "Ollama model for testing",
+            "backend": "ollama",
+            "requiresExternal": true
+          },
+          "modelBlob": {
+            "modelName": "nomic-embed-text",
+            "mode": "embeddings"
+          }
+        },
+        {
+          "modelName": "test-tensorflow-embedding",
+          "modelVersion": "v1",
+          "framework": "tensorflow",
+          "stage": "testing",
+          "metadata": {
+            "taskType": "text-embedding",
+            "equivalenceGroup": "test-embeddings-512",
+            "outputDimensions": [512],
+            "description": "TensorFlow.js model for testing",
+            "backend": "tensorflow",
+            "requiresExternal": false
+          },
+          "modelBlob": "universal-sentence-encoder"
+        }
+      ]
+    },
+    "benchmarking": {
+      "description": "Benchmarking profile - equivalence groups with multiple backends for performance comparison",
+      "models": [
+        {
+          "modelName": "bench-minilm-onnx",
+          "modelVersion": "v1",
+          "framework": "onnx",
+          "stage": "benchmarking",
+          "metadata": {
+            "taskType": "text-embedding",
+            "equivalenceGroup": "embeddings-384",
+            "outputDimensions": [384],
+            "description": "MiniLM model (ONNX) for benchmarking",
+            "backend": "onnx"
+          },
+          "modelBlob": {
+            "source": "filesystem",
+            "path": "models/test/all-MiniLM-L6-v2.onnx"
+          }
+        },
+        {
+          "modelName": "bench-minilm-transformers",
+          "modelVersion": "v1",
+          "framework": "transformers",
+          "stage": "benchmarking",
+          "metadata": {
+            "taskType": "text-embedding",
+            "equivalenceGroup": "embeddings-384",
+            "outputDimensions": [384],
+            "description": "MiniLM model (Transformers.js) for benchmarking",
+            "backend": "transformers"
+          },
+          "modelBlob": {
+            "modelName": "Xenova/all-MiniLM-L6-v2",
+            "taskType": "feature-extraction"
+          }
+        },
+        {
+          "modelName": "bench-nomic-ollama",
+          "modelVersion": "v1",
+          "framework": "ollama",
+          "stage": "benchmarking",
+          "metadata": {
+            "taskType": "text-embedding",
+            "equivalenceGroup": "embeddings-768",
+            "outputDimensions": [768],
+            "description": "Nomic embedding (Ollama) for benchmarking",
+            "backend": "ollama",
+            "requiresExternal": true
+          },
+          "modelBlob": {
+            "modelName": "nomic-embed-text",
+            "mode": "embeddings"
+          }
+        },
+        {
+          "modelName": "bench-nomic-transformers",
+          "modelVersion": "v1",
+          "framework": "transformers",
+          "stage": "benchmarking",
+          "metadata": {
+            "taskType": "text-embedding",
+            "equivalenceGroup": "embeddings-768",
+            "outputDimensions": [768],
+            "description": "Nomic embedding (Transformers.js) for benchmarking",
+            "backend": "transformers"
+          },
+          "modelBlob": {
+            "modelName": "Xenova/nomic-embed-text-v1",
+            "taskType": "feature-extraction"
+          }
+        }
+      ]
     }
   }
 }
