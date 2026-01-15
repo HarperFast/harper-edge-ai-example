@@ -8,7 +8,3 @@ graphqlSchema:
 
 jsResource:
   files: src/resources.js
-
-http:
-  # Increase max body size to 200MB to support large model uploads (ONNX models)
-  maxBodySize: 200000000 # 200 MB in bytes

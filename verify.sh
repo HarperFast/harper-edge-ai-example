@@ -338,13 +338,9 @@ echo ""
 if [[ "$DEPLOY_PROFILE" == "true" ]]; then
     log_info "Deploying profile models: ${TEST_PROFILE}..."
 
-    # Build preload command
-    preload_cmd="node scripts/preload-models.js --profile ${TEST_PROFILE}"
-
-    # Add remote flags if in remote mode
-    if [[ "$REMOTE_MODE" == "true" ]]; then
-        preload_cmd="${preload_cmd} --remote"
-    fi
+    # Build preload command - always use --remote to support large ONNX files
+    # The FetchModel worker bypasses HTTP body size limits
+    preload_cmd="node scripts/preload-models.js --profile ${TEST_PROFILE} --remote"
 
     # Execute deployment
     if eval "$preload_cmd"; then

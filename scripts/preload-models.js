@@ -207,7 +207,8 @@ async function createModelLocal(modelData) {
 			blobBuffer = readFileSync(modelBlob.path);
 		} else if (typeof modelBlob === 'object' && modelBlob.source === 'filesystem') {
 			// Config-based filesystem reference
-			const modelPath = join(PROJECT_ROOT, modelBlob.path);
+			// Path is relative to models/ directory (same as LocalFilesystemAdapter)
+			const modelPath = join(PROJECT_ROOT, 'models', modelBlob.path);
 			blobBuffer = readFileSync(modelPath);
 		} else {
 			// Ollama/TensorFlow/Transformers - convert JSON object to Buffer
