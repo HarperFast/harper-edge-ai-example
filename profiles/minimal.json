@@ -1,0 +1,23 @@
+{
+	"name": "minimal",
+	"description": "Minimal set for quick testing",
+	"models": [
+		{
+			"modelName": "all-MiniLM-L6-v2-transformers",
+			"modelVersion": "v1",
+			"framework": "transformers",
+			"stage": "development",
+			"metadata": {
+				"taskType": "text-embedding",
+				"equivalenceGroup": "embeddings-384",
+				"outputDimensions": [384],
+				"description": "Sentence-BERT MiniLM model (Transformers.js)",
+				"backend": "transformers"
+			},
+			"modelBlob": {
+				"modelName": "Xenova/all-MiniLM-L6-v2",
+				"taskType": "feature-extraction"
+			}
+		}
+	]
+}

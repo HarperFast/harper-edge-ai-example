@@ -27,7 +27,6 @@ const PROJECT_ROOT = join(__dirname, '../..');
 
 // Configuration
 const PROFILE_NAME = process.env.TEST_PROFILE || 'testing';
-const PROFILE_CONFIG = process.env.PROFILE_CONFIG || 'model-profiles.json';
 const HARPER_URL = process.env.HARPER_URL || 'http://localhost:9926';
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
 
@@ -35,19 +34,37 @@ const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
  * Load model profile configuration
  */
 function loadProfile() {
-	const configPath = join(PROJECT_ROOT, PROFILE_CONFIG);
+	// Try new profiles/ directory first, then fall back to legacy model-profiles.json
+	const newPath = join(PROJECT_ROOT, 'profiles', `${PROFILE_NAME}.json`);
+	const legacyPath = join(PROJECT_ROOT, 'model-profiles.json');
 
-	if (!existsSync(configPath)) {
-		throw new Error(`Profile configuration not found: ${configPath}`);
+	let configPath;
+	let isLegacyFormat = false;
+
+	if (existsSync(newPath)) {
+		configPath = newPath;
+	} else if (existsSync(legacyPath)) {
+		configPath = legacyPath;
+		isLegacyFormat = true;
+	} else {
+		throw new Error(`Profile '${PROFILE_NAME}' not found in profiles/ directory or model-profiles.json`);
 	}
 
-	const config = JSON.parse(readFileSync(configPath, 'utf-8'));
+	const data = JSON.parse(readFileSync(configPath, 'utf-8'));
 
-	if (!config.profiles || !config.profiles[PROFILE_NAME]) {
-		throw new Error(`Profile '${PROFILE_NAME}' not found in ${PROFILE_CONFIG}`);
+	if (isLegacyFormat) {
+		// Legacy format: { "profiles": { "testing": { ... } } }
+		if (!data.profiles || !data.profiles[PROFILE_NAME]) {
+			throw new Error(`Profile '${PROFILE_NAME}' not found in ${configPath}`);
+		}
+		return data.profiles[PROFILE_NAME];
+	} else {
+		// New format: { "name": "testing", "description": "...", "models": [...] }
+		return {
+			description: data.description,
+			models: data.models,
+		};
 	}
-
-	return config.profiles[PROFILE_NAME];
 }
 
 /**

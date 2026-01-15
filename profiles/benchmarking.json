@@ -1,0 +1,75 @@
+{
+	"name": "benchmarking",
+	"description": "Benchmarking profile - equivalence groups with multiple backends for performance comparison",
+	"models": [
+		{
+			"modelName": "bench-minilm-onnx",
+			"modelVersion": "v1",
+			"framework": "onnx",
+			"stage": "benchmarking",
+			"metadata": {
+				"taskType": "text-embedding",
+				"equivalenceGroup": "embeddings-384",
+				"outputDimensions": [384],
+				"description": "MiniLM model (ONNX) for benchmarking",
+				"backend": "onnx"
+			},
+			"modelBlob": {
+				"source": "filesystem",
+				"path": "models/test/all-MiniLM-L6-v2.onnx"
+			}
+		},
+		{
+			"modelName": "bench-minilm-transformers",
+			"modelVersion": "v1",
+			"framework": "transformers",
+			"stage": "benchmarking",
+			"metadata": {
+				"taskType": "text-embedding",
+				"equivalenceGroup": "embeddings-384",
+				"outputDimensions": [384],
+				"description": "MiniLM model (Transformers.js) for benchmarking",
+				"backend": "transformers"
+			},
+			"modelBlob": {
+				"modelName": "Xenova/all-MiniLM-L6-v2",
+				"taskType": "feature-extraction"
+			}
+		},
+		{
+			"modelName": "bench-nomic-ollama",
+			"modelVersion": "v1",
+			"framework": "ollama",
+			"stage": "benchmarking",
+			"metadata": {
+				"taskType": "text-embedding",
+				"equivalenceGroup": "embeddings-768",
+				"outputDimensions": [768],
+				"description": "Nomic embedding (Ollama) for benchmarking",
+				"backend": "ollama",
+				"requiresExternal": true
+			},
+			"modelBlob": {
+				"modelName": "nomic-embed-text",
+				"mode": "embeddings"
+			}
+		},
+		{
+			"modelName": "bench-nomic-transformers",
+			"modelVersion": "v1",
+			"framework": "transformers",
+			"stage": "benchmarking",
+			"metadata": {
+				"taskType": "text-embedding",
+				"equivalenceGroup": "embeddings-768",
+				"outputDimensions": [768],
+				"description": "Nomic embedding (Transformers.js) for benchmarking",
+				"backend": "transformers"
+			},
+			"modelBlob": {
+				"modelName": "Xenova/nomic-embed-text-v1",
+				"taskType": "feature-extraction"
+			}
+		}
+	]
+}

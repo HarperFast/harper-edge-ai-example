@@ -43,7 +43,7 @@ const isRemoteMode = args.includes('--remote');
 const profileIndex = args.indexOf('--profile');
 const profileName = profileIndex >= 0 ? args[profileIndex + 1] : 'development';
 const configFileIndex = args.indexOf('--config');
-const configFile = configFileIndex >= 0 ? args[configFileIndex + 1] : 'model-profiles.json';
+const configFile = configFileIndex >= 0 ? args[configFileIndex + 1] : null; // null = auto-detect
 
 let modelFetchClient;
 
@@ -51,7 +51,26 @@ let modelFetchClient;
  * Load model profiles from configuration file
  */
 function loadModelProfiles() {
-	const configPath = join(PROJECT_ROOT, configFile);
+	let configPath;
+
+	if (configFile) {
+		// Explicit config file specified with --config
+		configPath = join(PROJECT_ROOT, configFile);
+	} else {
+		// Auto-detect: Try profiles/<profileName>.json first, then fall back to model-profiles.json
+		const newPath = join(PROJECT_ROOT, 'profiles', `${profileName}.json`);
+		const legacyPath = join(PROJECT_ROOT, 'model-profiles.json');
+
+		if (existsSync(newPath)) {
+			configPath = newPath;
+		} else if (existsSync(legacyPath)) {
+			configPath = legacyPath;
+		} else {
+			log.warn(`Profile not found: ${profileName}`);
+			log.info('Using legacy hardcoded model definitions');
+			return null;
+		}
+	}
 
 	if (!existsSync(configPath)) {
 		log.warn(`Configuration file not found: ${configPath}`);
@@ -61,8 +80,25 @@ function loadModelProfiles() {
 
 	try {
 		const configData = readFileSync(configPath, 'utf-8');
-		const profiles = JSON.parse(configData);
-		return profiles;
+		const data = JSON.parse(configData);
+
+		// Handle both formats:
+		// 1. New format: { "name": "testing", "models": [...] }
+		// 2. Legacy format: { "profiles": { "testing": { "models": [...] } } }
+		if (data.profiles) {
+			// Legacy format - return entire structure
+			return data;
+		} else {
+			// New format - wrap in profiles object for backward compatibility
+			return {
+				profiles: {
+					[data.name || profileName]: {
+						description: data.description,
+						models: data.models,
+					},
+				},
+			};
+		}
 	} catch (error) {
 		log.error(`Failed to load configuration file: ${error.message}`);
 		throw error;
@@ -557,10 +593,12 @@ function printUsage() {
 	console.log('  node scripts/preload-models.js --remote                Use FetchModel worker (for remote Harper)');
 	console.log('  node scripts/preload-models.js --config custom.json    Use custom config file');
 	console.log('  node scripts/preload-models.js --type embeddings       [Legacy] Load specific type');
-	log.info('\nProfiles (from model-profiles.json):');
-	console.log('  development  Full test suite with all backends');
-	console.log('  production   Production-ready models only');
-	console.log('  minimal      Single Transformers.js model for quick testing');
+	log.info('\nAvailable Profiles (from profiles/ directory):');
+	console.log('  minimal       Single model for quick testing');
+	console.log('  testing       One model per backend (integration tests)');
+	console.log('  benchmarking  Performance comparison models');
+	console.log('  development   Full test suite with all backends');
+	console.log('  production    Production-ready models only');
 	log.info('\nModes:');
 	console.log('  Local mode (default)   Directly upload model files');
 	console.log('  Remote mode (--remote) Use FetchModel worker for ONNX models');
