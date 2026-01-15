@@ -237,7 +237,7 @@ run_inference_tests() {
         -d "{
             \"modelName\": \"${model_name}\",
             \"modelVersion\": \"${model_version}\",
-            \"inputs\": {\"text\": \"This is a verification test\"}
+            \"features\": {\"text\": \"This is a verification test\"}
         }" 2>/dev/null)
 
     if echo "$response" | grep -q "error"; then
