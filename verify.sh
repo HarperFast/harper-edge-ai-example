@@ -112,11 +112,12 @@ check_harper_health() {
         return 1
     fi
 
-    if echo "$response" | grep -q "HarperDB"; then
-        log_success "Harper is running at ${HARPER_URL}"
+    if echo "$response" | grep -q "healthy"; then
+        log_success "Harper Edge AI is running at ${HARPER_URL}"
         return 0
     else
         log_error "Unexpected response from ${HARPER_URL}/Status"
+        log_error "Response: ${response}"
         return 1
     fi
 }

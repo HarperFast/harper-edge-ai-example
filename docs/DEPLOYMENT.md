@@ -168,7 +168,7 @@ harper-ai model test minilm:v1 --input "Hello world"
 **Authentication errors:**
 
 - Verify `DEPLOY_USERNAME` and `DEPLOY_PASSWORD` in `.env`
-- Check remote instance is running: `curl https://your-instance.com:9925/Status`
+- Check remote instance is running: `curl https://your-instance.com:9926/Status`
 
 **Deployment fails:**
 

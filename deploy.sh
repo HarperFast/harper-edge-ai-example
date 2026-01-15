@@ -128,21 +128,21 @@ check_remote_connection() {
         log_info "Testing connection to remote Harper instance..."
     fi
 
-    # Use /health endpoint which is always available (doesn't require app code)
+    # Use /Status endpoint (requires app to be deployed)
     # Check both HTTP status code and response body
-    local response=$(curl -k -s --max-time 5 "${REMOTE_URL}/health" 2>/dev/null)
-    local http_code=$(curl -k -s -o /dev/null -w "%{http_code}" --max-time 5 "${REMOTE_URL}/health" 2>/dev/null)
+    local response=$(curl -k -s --max-time 5 "${REMOTE_URL}/Status" 2>/dev/null)
+    local http_code=$(curl -k -s -o /dev/null -w "%{http_code}" --max-time 5 "${REMOTE_URL}/Status" 2>/dev/null)
 
-    if [[ "$http_code" == "200" ]] && [[ "$response" == *"HarperDB is running"* ]]; then
+    if [[ "$http_code" == "200" ]] && [[ "$response" == *"healthy"* ]]; then
         if [[ "$silent" != "true" ]]; then
             log_success "Remote Harper instance is accessible and running"
         fi
         return 0
     else
         if [[ "$silent" != "true" ]]; then
-            log_error "Cannot connect to ${REMOTE_URL}/health"
+            log_error "Cannot connect to ${REMOTE_URL}/Status"
             log_info "HTTP ${http_code}, Response: ${response}"
-            log_info "Check if Harper is running and firewall allows connections"
+            log_info "Check if Harper is running and app is deployed"
         fi
         return 1
     fi
