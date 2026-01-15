@@ -122,23 +122,20 @@ harper-ai models
 Deploy model sets with configuration files:
 
 ```json
-// model-profiles.json
+// profiles/testing.json
 {
-	"profiles": {
-		"testing": {
-			"description": "One model per backend for CI/CD",
-			"models": [
-				{
-					"modelName": "test-transformers-embedding",
-					"framework": "transformers",
-					"modelBlob": {
-						"modelName": "Xenova/all-MiniLM-L6-v2",
-						"taskType": "feature-extraction"
-					}
-				}
-			]
+	"name": "testing",
+	"description": "One model per backend for CI/CD",
+	"models": [
+		{
+			"modelName": "test-transformers-embedding",
+			"framework": "transformers",
+			"modelBlob": {
+				"modelName": "Xenova/all-MiniLM-L6-v2",
+				"taskType": "feature-extraction"
+			}
 		}
-	}
+	]
 }
 ```
 
@@ -232,7 +229,13 @@ All scripts use `.env` configuration (no hardcoded values).
 │   ├── unit/                    # 11 unit test files (63 tests)
 │   └── integration/             # 10 integration test files
 │
-├── model-profiles.json          # Profile definitions
+├── profiles/                    # Model profile definitions
+│   ├── minimal.json             # Minimal profile (1 model)
+│   ├── testing.json             # Testing profile (4 models)
+│   ├── benchmarking.json        # Benchmarking profile (equivalence groups)
+│   ├── development.json         # Development profile (8 models)
+│   └── production.json          # Production profile
+│
 ├── deploy.sh                    # Deployment script
 ├── verify.sh                    # Verification script
 ├── benchmark.sh                 # Benchmarking script

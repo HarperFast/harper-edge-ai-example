@@ -6,7 +6,7 @@ Dynamic, configuration-driven testing system for validating model deployments ac
 
 The profile-based testing system enables:
 
-- **Configuration-Driven**: Models defined in `model-profiles.json`, not hardcoded
+- **Configuration-Driven**: Models defined in `profiles/` directory, not hardcoded
 - **Environment-Aware**: Uses `.env` to detect available backends (Ollama, TensorFlow, etc.)
 - **Dynamic Testing**: Tests only what's deployed and available
 - **Equivalence Validation**: Ensures benchmarking groups have multiple backends
@@ -15,9 +15,11 @@ The profile-based testing system enables:
 ## Profiles
 
 ### Testing Profile (`testing`)
+
 **Purpose**: Fast CI/CD integration tests covering all backends
 
 **Models**:
+
 - One model per backend type (Transformers.js, ONNX, Ollama, TensorFlow)
 - Small/fast models for quick validation
 - Tests each backend works end-to-end
@@ -25,9 +27,11 @@ The profile-based testing system enables:
 **Use Case**: CI/CD pipelines, pre-deployment validation
 
 ### Benchmarking Profile (`benchmarking`)
+
 **Purpose**: Performance comparison across backends
 
 **Equivalence Groups**:
+
 - `embeddings-384`: ONNX + Transformers.js
 - `embeddings-768`: Ollama + Transformers.js
 
@@ -36,12 +40,15 @@ The profile-based testing system enables:
 **Use Case**: Performance analysis, backend selection decisions
 
 ### Development Profile (`development`)
+
 Full suite with all models across all backends for comprehensive testing.
 
 ### Production Profile (`production`)
+
 Production-ready models only (currently Transformers.js).
 
 ### Minimal Profile (`minimal`)
+
 Single Transformers.js model for quick smoke tests.
 
 ## Quick Start
@@ -84,7 +91,7 @@ TEST_PROFILE=my-profile npm run test:profile
 
 The integration test system (`tests/integration/profile-deployment.test.js`) automatically:
 
-1. **Reads active profile** from `model-profiles.json`
+1. **Reads active profile** from `profiles/<profileName>.json`
 2. **Checks .env configuration** for backend availability
 3. **Queries Harper** to see what's deployed
 4. **Tests each model** with real inference
@@ -104,9 +111,6 @@ HARPER_URL=https://my-harper.cloud
 
 # Ollama URL (default: http://localhost:11434)
 OLLAMA_HOST=http://localhost:11434
-
-# Profile configuration file (default: model-profiles.json)
-PROFILE_CONFIG=custom-profiles.json
 ```
 
 ### Test Output
@@ -146,6 +150,7 @@ Equivalence groups enable fair performance comparisons across backends.
 ### Requirements
 
 For benchmarking, each equivalence group must have:
+
 - **2+ backends** (e.g., ONNX + Transformers.js)
 - **Same output dimensions** (all 384-dim or all 768-dim)
 - **Same task type** (all embeddings, all classification, etc.)
@@ -153,16 +158,19 @@ For benchmarking, each equivalence group must have:
 ### Current Groups
 
 **embeddings-384**:
+
 - `bench-minilm-onnx` (ONNX)
 - `bench-minilm-transformers` (Transformers.js)
 
 **embeddings-768**:
+
 - `bench-nomic-ollama` (Ollama) - requires Ollama running
 - `bench-nomic-transformers` (Transformers.js)
 
 ### Validation
 
 The test system automatically validates:
+
 - All models in group have same output dimensions
 - Group has multiple backends available
 - Warns if backends are unavailable
@@ -171,34 +179,32 @@ The test system automatically validates:
 
 ### 1. Add to Profile Configuration
 
-Edit `model-profiles.json`:
+Edit `profiles/benchmarking.json`:
 
 ```json
 {
-  "profiles": {
-    "benchmarking": {
-      "models": [
-        {
-          "modelName": "my-new-model",
-          "modelVersion": "v1",
-          "framework": "transformers",
-          "stage": "benchmarking",
-          "metadata": {
-            "taskType": "text-embedding",
-            "equivalenceGroup": "embeddings-384",
-            "outputDimensions": [384],
-            "description": "My model for benchmarking",
-            "backend": "transformers",
-            "requiresExternal": false
-          },
-          "modelBlob": {
-            "modelName": "Xenova/my-model",
-            "taskType": "feature-extraction"
-          }
-        }
-      ]
-    }
-  }
+	"name": "benchmarking",
+	"description": "Benchmarking profile - equivalence groups for performance comparison",
+	"models": [
+		{
+			"modelName": "my-new-model",
+			"modelVersion": "v1",
+			"framework": "transformers",
+			"stage": "benchmarking",
+			"metadata": {
+				"taskType": "text-embedding",
+				"equivalenceGroup": "embeddings-384",
+				"outputDimensions": [384],
+				"description": "My model for benchmarking",
+				"backend": "transformers",
+				"requiresExternal": false
+			},
+			"modelBlob": {
+				"modelName": "Xenova/my-model",
+				"taskType": "feature-extraction"
+			}
+		}
+	]
 }
 ```
 
@@ -215,12 +221,14 @@ npm run test:profile:benchmarking
 ### 3. Model Metadata
 
 **Required Fields**:
+
 - `taskType`: Type of task (text-embedding, classification, etc.)
 - `equivalenceGroup`: Group name for benchmarking
 - `outputDimensions`: Array of output dimensions
 - `backend`: Backend type (transformers, onnx, ollama, tensorflow)
 
 **Optional Fields**:
+
 - `requiresExternal`: true if requires external service (Ollama)
 - `description`: Human-readable description
 
@@ -316,21 +324,18 @@ test:profile:
 import { spawn } from 'child_process';
 
 const result = await new Promise((resolve, reject) => {
-  const test = spawn('node', [
-    '--test',
-    'tests/integration/profile-deployment.test.js'
-  ], {
-    env: {
-      ...process.env,
-      TEST_PROFILE: 'benchmarking',
-      HARPER_URL: 'http://my-harper:9926'
-    }
-  });
+	const test = spawn('node', ['--test', 'tests/integration/profile-deployment.test.js'], {
+		env: {
+			...process.env,
+			TEST_PROFILE: 'benchmarking',
+			HARPER_URL: 'http://my-harper:9926',
+		},
+	});
 
-  test.on('close', (code) => {
-    if (code === 0) resolve();
-    else reject(new Error(`Tests failed with code ${code}`));
-  });
+	test.on('close', (code) => {
+		if (code === 0) resolve();
+		else reject(new Error(`Tests failed with code ${code}`));
+	});
 });
 ```
 
@@ -339,10 +344,10 @@ const result = await new Promise((resolve, reject) => {
 ```javascript
 import { readFileSync } from 'fs';
 
-const config = JSON.parse(readFileSync('model-profiles.json', 'utf-8'));
-const profile = config.profiles['testing'];
+const profileName = 'testing';
+const config = JSON.parse(readFileSync(`profiles/${profileName}.json`, 'utf-8'));
 
-console.log(`Testing ${profile.models.length} models`);
+console.log(`Testing ${config.models.length} models`);
 ```
 
 ## Troubleshooting
@@ -352,6 +357,7 @@ console.log(`Testing ${profile.models.length} models`);
 **Issue**: Ollama models skipped with "backend not available"
 
 **Solution**:
+
 ```bash
 # Check Ollama is running
 curl http://localhost:11434/api/tags
@@ -368,6 +374,7 @@ echo $OLLAMA_HOST
 **Issue**: "Model xxx not deployed in Harper"
 
 **Solution**:
+
 ```bash
 # Deploy the profile
 npm run preload:testing
@@ -380,7 +387,8 @@ curl http://localhost:9926/Model/
 
 **Issue**: "Embedding dimensions should match metadata"
 
-**Solution**: Check model configuration in `model-profiles.json`:
+**Solution**: Check model configuration in `profiles/<profileName>.json`:
+
 - `outputDimensions` should match actual model output
 - All models in equivalence group must have same dimensions
 
