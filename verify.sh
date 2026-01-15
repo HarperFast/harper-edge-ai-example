@@ -46,6 +46,7 @@ TEST_PROFILE="${TEST_PROFILE:-testing}"
 QUICK_MODE=false
 FULL_MODE=false
 REMOTE_MODE=false
+DEPLOY_PROFILE=false
 
 # ============================================
 # FUNCTIONS
@@ -64,6 +65,7 @@ OPTIONS:
     --help              Show this help message
     --remote            Verify remote instance from .env
     --profile <name>    Use specific model profile (default: testing)
+    --deploy            Deploy profile models before verification
     --quick             Quick smoke test only
     --full              Full verification suite
 
@@ -71,6 +73,7 @@ MODES:
     Default: Standard verification (health + API + models)
     --quick: Fast smoke test (health + basic API only)
     --full:  Comprehensive verification (includes inference tests)
+    --deploy: Load profile models before running verification
 
 CONFIGURATION (.env):
     # Local instance (default)
@@ -97,6 +100,12 @@ EXAMPLES:
 
     # Verify with specific profile
     ./verify.sh --profile benchmarking
+
+    # Deploy models and run full verification
+    ./verify.sh --deploy --full
+
+    # Deploy remote models and verify
+    ./verify.sh --remote --deploy --profile testing
 
 EOF
 }
@@ -289,6 +298,10 @@ while [[ $# -gt 0 ]]; do
             FULL_MODE=true
             shift
             ;;
+        --deploy)
+            DEPLOY_PROFILE=true
+            shift
+            ;;
         *)
             log_error "Unknown option: $1"
             show_help
@@ -320,6 +333,32 @@ else
     log_info "Mode: Standard verification"
 fi
 echo ""
+
+# Deploy profile models if requested
+if [[ "$DEPLOY_PROFILE" == "true" ]]; then
+    log_info "Deploying profile models: ${TEST_PROFILE}..."
+
+    # Build preload command
+    preload_cmd="node scripts/preload-models.js --profile ${TEST_PROFILE}"
+
+    # Add remote flags if in remote mode
+    if [[ "$REMOTE_MODE" == "true" ]]; then
+        preload_cmd="${preload_cmd} --remote"
+    fi
+
+    # Execute deployment
+    if eval "$preload_cmd"; then
+        log_success "Profile models deployed successfully"
+    else
+        log_error "Failed to deploy profile models"
+        exit 1
+    fi
+
+    echo ""
+    log_info "Waiting 5 seconds for models to initialize..."
+    sleep 5
+    echo ""
+fi
 
 # Run verification steps
 FAILED=0
