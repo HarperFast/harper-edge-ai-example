@@ -16,8 +16,9 @@
 				"tokenizerModel": "sentence-transformers/all-MiniLM-L6-v2"
 			},
 			"modelBlob": {
-				"source": "filesystem",
-				"path": "test/all-MiniLM-L6-v2.onnx"
+				"source": "huggingface",
+				"model": "Xenova/all-MiniLM-L6-v2",
+				"file": "onnx/model.onnx"
 			}
 		},
 		{
