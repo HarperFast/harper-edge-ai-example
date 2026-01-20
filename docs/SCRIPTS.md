@@ -106,6 +106,37 @@ OLLAMA_HOST=http://localhost:11434
 TEST_PROFILE=testing  # Which profile to test
 ```
 
+### Deployment Scenarios
+
+verify.sh works with three deployment scenarios:
+
+**1. Local dev mode (`npm run dev`)**
+
+- App runs from project directory with `DEV_MODE=true`
+- Models can be loaded from local files or fetched from HuggingFace
+- Target: `http://localhost:9926` (default)
+- Example: `./verify.sh --deploy --full`
+
+**2. Local deployed (`harperdb deploy` to localhost)**
+
+- App deployed to `~/hdb/components/edge-ai-ops/`
+- Models must be fetched from HuggingFace (no local files available)
+- Target: `http://localhost:9926` (default)
+- Example: `./verify.sh --deploy --full`
+
+**3. Remote deployed (`harperdb deploy` to remote host)**
+
+- App deployed to remote HarperDB instance
+- Models must be fetched from HuggingFace
+- Target: `DEPLOY_REMOTE_URL` from .env
+- Example: `./verify.sh --remote --deploy --full`
+
+**Key differences**:
+
+- `--remote` flag only changes the target URL (uses `DEPLOY_REMOTE_URL` instead of `HARPER_URL`)
+- `--deploy` flag fetches and deploys profile models before verification
+- In dev mode, models can use local files; in deployed scenarios, models must come from remote sources
+
 ### Verification Levels
 
 **Quick** (`--quick`):

@@ -56,30 +56,47 @@ show_help() {
     cat << EOF
 Harper Edge AI Verification Script
 
-Verify a deployed running system (NOT for pre-commit testing).
+Verify a running Harper instance (NOT for pre-commit testing).
 
 USAGE:
     ./verify.sh [OPTIONS]
 
+DEPLOYMENT SCENARIOS:
+    This script works with three deployment scenarios:
+
+    1. Local dev mode (npm run dev)
+       - App runs from project directory with DEV_MODE=true
+       - Models can be loaded from local files or fetched from HuggingFace
+       - Target: http://localhost:9926 (default)
+       - Example: ./verify.sh --deploy --full
+
+    2. Local deployed (harperdb deploy to localhost)
+       - App deployed to ~/hdb/components/edge-ai-ops/
+       - Models must be fetched from HuggingFace (no local files available)
+       - Target: http://localhost:9926 (default)
+       - Example: ./verify.sh --deploy --full
+
+    3. Remote deployed (harperdb deploy to remote host)
+       - App deployed to remote HarperDB instance
+       - Models must be fetched from HuggingFace
+       - Target: DEPLOY_REMOTE_URL from .env
+       - Example: ./verify.sh --remote --deploy --full
+
 OPTIONS:
     --help              Show this help message
-    --remote            Verify remote instance from .env
+    --remote            Target remote instance (uses DEPLOY_REMOTE_URL from .env)
+                        Default: http://localhost:9926
     --profile <name>    Use specific model profile (default: testing)
-    --deploy            Deploy profile models before verification
-    --quick             Quick smoke test only
-    --full              Full verification suite
-
-MODES:
-    Default: Standard verification (health + API + models)
-    --quick: Fast smoke test (health + basic API only)
-    --full:  Comprehensive verification (includes inference tests)
-    --deploy: Load profile models before running verification
+    --deploy            Fetch and deploy profile models before verification
+                        Models are fetched from HuggingFace (or local files in dev mode)
+    --quick             Quick smoke test only (health + basic API)
+    --full              Full verification suite (includes inference and integration tests)
 
 CONFIGURATION (.env):
     # Local instance (default)
     HARPER_URL=http://localhost:9926
 
-    # Remote instance
+    # Remote instance (for --remote flag)
     DEPLOY_REMOTE_URL=https://your-instance.com:9926
     DEPLOY_USERNAME=HDB_ADMIN
     DEPLOY_PASSWORD=your-password
@@ -89,23 +106,23 @@ CONFIGURATION (.env):
     OLLAMA_HOST=http://localhost:11434
 
 EXAMPLES:
-    # Verify local instance
+    # Verify local instance (dev or deployed)
     ./verify.sh
 
     # Quick smoke test
     ./verify.sh --quick
 
-    # Full verification of remote instance
-    ./verify.sh --remote --full
-
-    # Verify with specific profile
-    ./verify.sh --profile benchmarking
-
-    # Deploy models and run full verification
+    # Deploy models and run full verification (local dev or deployed)
     ./verify.sh --deploy --full
 
-    # Deploy remote models and verify
-    ./verify.sh --remote --deploy --profile testing
+    # Verify specific profile
+    ./verify.sh --profile benchmarking
+
+    # Deploy and verify remote instance
+    ./verify.sh --remote --deploy --full
+
+    # Quick check of remote instance
+    ./verify.sh --remote --quick
 
 EOF
 }
