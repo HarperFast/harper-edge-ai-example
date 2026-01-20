@@ -366,6 +366,11 @@ export class BenchmarkEngine {
 			winner,
 			results,
 			timestamp,
+			iterations,
+			testDataSummary: {
+				sampleCount: testData.length,
+				description: `${iterations} iterations across ${testData.length} samples`,
+			},
 			completedAt,
 		};
 	}
