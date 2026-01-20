@@ -17,14 +17,25 @@
 import path from 'path';
 import fs from 'fs/promises';
 import { createReadStream } from 'fs';
+import { fileURLToPath } from 'url';
 import { BaseSourceAdapter } from './BaseSourceAdapter.js';
 import { SecurityError, ModelNotFoundError, UnsupportedFrameworkError } from '../errors/ModelFetchErrors.js';
 
 export class LocalFilesystemAdapter extends BaseSourceAdapter {
 	constructor() {
 		super('LocalFilesystemAdapter');
-		// Safe base directory - models/ in repo root
-		this.baseDir = path.resolve(process.cwd(), 'models');
+
+		// In DEV_MODE, use project root from source file location
+		// In deployed mode, this adapter shouldn't be used (models should come from remote sources)
+		if (process.env.DEV_MODE === 'true') {
+			// Get project root from file location (3 levels up from src/core/fetchers/)
+			const __dirname = path.dirname(fileURLToPath(import.meta.url));
+			const projectRoot = path.resolve(__dirname, '../../..');
+			this.baseDir = path.resolve(projectRoot, 'models');
+		} else {
+			// Deployed mode - this adapter shouldn't be used, but fall back to cwd just in case
+			this.baseDir = path.resolve(process.cwd(), 'models');
+		}
 	}
 
 	/**
@@ -81,7 +92,7 @@ export class LocalFilesystemAdapter extends BaseSourceAdapter {
 	 * @param {string|null} variant - Not used for filesystem
 	 * @returns {Promise<string>} Framework: 'onnx' | 'tensorflow' | 'unsupported'
 	 */
-	async detectFramework(relativePath, variant = null) {
+	async detectFramework(relativePath, _variant = null) {
 		// Validate path first (security)
 		await this.validatePath(relativePath);
 
@@ -93,8 +104,7 @@ export class LocalFilesystemAdapter extends BaseSourceAdapter {
 
 		// Cannot detect from extension
 		throw new UnsupportedFrameworkError(
-			`Cannot detect framework from file extension '${ext}'. ` +
-				'Please specify framework explicitly when fetching.'
+			`Cannot detect framework from file extension '${ext}'. ` + 'Please specify framework explicitly when fetching.'
 		);
 	}
 
@@ -115,8 +125,8 @@ export class LocalFilesystemAdapter extends BaseSourceAdapter {
 				name: 'default',
 				files: [relativePath],
 				totalSize: stats.size,
-				precision: 'unknown'
-			}
+				precision: 'unknown',
+			},
 		];
 	}
 
@@ -166,12 +176,12 @@ export class LocalFilesystemAdapter extends BaseSourceAdapter {
 	 * @param {string|null} variant - Not used
 	 * @returns {Promise<Object>} Basic metadata
 	 */
-	async inferMetadata(relativePath, variant = null) {
+	async inferMetadata(relativePath, _variant = null) {
 		await this.validatePath(relativePath); // Validate for security
 
 		return {
 			description: `Model imported from models/${relativePath}`,
-			tags: ['local', 'imported']
+			tags: ['local', 'imported'],
 		};
 	}
 }
