@@ -10,6 +10,7 @@ type Model @table @export {
 	stage: String @indexed # "development" | "staging" | "production"
 	# Model binary data (use Blob for large ONNX/TF models)
 	modelBlob: Blob
+	blobSize: Long # Size of modelBlob in bytes (for display without loading full blob)
 
 	# Schema definitions (JSON stringified)
 	inputSchema: String
@@ -87,4 +88,49 @@ type Feature @table @export {
 
 	# Explicit timestamp from caller
 	timestamp: Long
+}
+
+type ModelFetchJob @table @export {
+	# Primary key - UUID for each fetch job
+	id: ID @primaryKey
+	jobId: ID @indexed # Same as id for query consistency
+
+	# Source information
+	source: String @indexed # "huggingface" | "url" | "filesystem"
+	sourceReference: String @indexed # Model ID, URL, or file path
+	variant: String # For Transformers.js: "default" | "quantized"
+
+	# Target model information
+	modelName: String @indexed
+	modelVersion: String
+	framework: String # "onnx" | "tensorflow" | "transformers" | "ollama"
+	stage: String # "development" | "staging" | "production"
+
+	# Status tracking
+	status: String @indexed # "queued" | "downloading" | "processing" | "completed" | "failed"
+	progress: Int # 0-100 percentage
+	downloadedBytes: Long
+	totalBytes: Long
+
+	# Retry logic
+	retryCount: Int
+	maxRetries: Int
+	lastError: String
+	errorCode: String
+	retryable: Boolean # Can this job be retried?
+
+	# Metadata (JSON stringified, consistent with Model table)
+	inferredMetadata: String # Auto-detected from source
+	userMetadata: String # User-provided overrides
+
+	# Webhook
+	webhookUrl: String # Optional callback URL
+
+	# Timestamps
+	createdAt: Date @createdTime @indexed # FIFO queue ordering
+	startedAt: Date
+	completedAt: Date
+
+	# Result
+	resultModelId: String @indexed # Reference to Model table
 }

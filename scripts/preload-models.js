@@ -25,7 +25,8 @@
 
 import { log } from './lib/cli-utils.js';
 import { getConfig, getFetchOptions } from './lib/config.js';
-import { readFileSync, existsSync, createReadStream, statSync } from 'fs';
+import { ModelFetchClient } from './lib/model-fetch-client.js';
+import { readFileSync, existsSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -37,8 +38,75 @@ const args = process.argv.slice(2);
 const config = getConfig(args);
 const BASE_URL = config.url;
 
+// Parse mode and profile flags
+const isRemoteMode = args.includes('--remote');
+const profileIndex = args.indexOf('--profile');
+const profileName = profileIndex >= 0 ? args[profileIndex + 1] : 'development';
+const configFileIndex = args.indexOf('--config');
+const configFile = configFileIndex >= 0 ? args[configFileIndex + 1] : null; // null = auto-detect
+
+let modelFetchClient;
+
 /**
- * Factory function to create model definition
+ * Load model profiles from configuration file
+ */
+function loadModelProfiles() {
+	let configPath;
+
+	if (configFile) {
+		// Explicit config file specified with --config
+		configPath = join(PROJECT_ROOT, configFile);
+	} else {
+		// Auto-detect: Try profiles/<profileName>.json first, then fall back to model-profiles.json
+		const newPath = join(PROJECT_ROOT, 'profiles', `${profileName}.json`);
+		const legacyPath = join(PROJECT_ROOT, 'model-profiles.json');
+
+		if (existsSync(newPath)) {
+			configPath = newPath;
+		} else if (existsSync(legacyPath)) {
+			configPath = legacyPath;
+		} else {
+			log.warn(`Profile not found: ${profileName}`);
+			log.info('Using legacy hardcoded model definitions');
+			return null;
+		}
+	}
+
+	if (!existsSync(configPath)) {
+		log.warn(`Configuration file not found: ${configPath}`);
+		log.info('Using legacy hardcoded model definitions');
+		return null;
+	}
+
+	try {
+		const configData = readFileSync(configPath, 'utf-8');
+		const data = JSON.parse(configData);
+
+		// Handle both formats:
+		// 1. New format: { "name": "testing", "models": [...] }
+		// 2. Legacy format: { "profiles": { "testing": { "models": [...] } } }
+		if (data.profiles) {
+			// Legacy format - return entire structure
+			return data;
+		} else {
+			// New format - wrap in profiles object for backward compatibility
+			return {
+				profiles: {
+					[data.name || profileName]: {
+						description: data.description,
+						models: data.models,
+					},
+				},
+			};
+		}
+	} catch (error) {
+		log.error(`Failed to load configuration file: ${error.message}`);
+		throw error;
+	}
+}
+
+/**
+ * Factory function to create model definition (legacy support)
  */
 function createModelDef(name, framework, metadata, modelBlob = {}) {
 	return {
@@ -62,7 +130,7 @@ async function checkHarper() {
 		}
 		log.success(`Harper is running at ${BASE_URL}`);
 		return true;
-	} catch (error) {
+	} catch {
 		log.error(`Harper is not running at ${BASE_URL}`);
 		log.warn('  Run: npm run dev');
 		return false;
@@ -83,9 +151,12 @@ async function cleanModels() {
 		if (models && models.length > 0) {
 			// Delete each model
 			for (const model of models) {
-				await fetch(`${BASE_URL}/Model/${encodeURIComponent(model.id)}`, getFetchOptions(config, {
-					method: 'DELETE',
-				}));
+				await fetch(
+					`${BASE_URL}/Model/${encodeURIComponent(model.id)}`,
+					getFetchOptions(config, {
+						method: 'DELETE',
+					})
+				);
 
 				log.info(`  Deleted: ${model.modelName}:${model.modelVersion}`);
 			}
@@ -100,17 +171,7 @@ async function cleanModels() {
 	}
 }
 
-/**
- * Convert data to base64 blob format
- */
-function toBlob(data) {
-	if (Buffer.isBuffer(data)) {
-		// Already a buffer (e.g., ONNX model file)
-		return data.toString('base64');
-	}
-	const jsonString = typeof data === 'string' ? data : JSON.stringify(data);
-	return Buffer.from(jsonString).toString('base64');
-}
+// Removed unused toBlob function - no longer needed after switching to UploadModelBlob
 
 /**
  * Load ONNX model file info (returns path, not Buffer to avoid memory issues)
@@ -130,76 +191,162 @@ function loadOnnxModel(filename) {
 }
 
 /**
- * Create a model in Harper
+ * Create a model in Harper (local mode)
  */
-async function createModel(modelData) {
+async function createModelLocal(modelData) {
 	const { modelName, modelVersion, framework, stage, metadata, modelBlob } = modelData;
 
-	try {
-		const id = `${modelName}:${modelVersion}`;
+	const id = `${modelName}:${modelVersion}`;
 
-		// Use UploadModelBlob resource for ALL models (uses Harper's native tables API)
-		if (modelBlob) {
-			let blobBuffer;
+	// Use UploadModelBlob resource for ALL models (uses Harper's native tables API)
+	if (modelBlob) {
+		let blobBuffer;
 
-			if (typeof modelBlob === 'object' && modelBlob.path) {
-				// ONNX model - read binary file
-				blobBuffer = readFileSync(modelBlob.path);
-			} else {
-				// Ollama/TensorFlow - convert JSON object to Buffer
-				const jsonString = typeof modelBlob === 'string' ? modelBlob : JSON.stringify(modelBlob);
-				blobBuffer = Buffer.from(jsonString, 'utf-8');
-			}
+		if (typeof modelBlob === 'object' && modelBlob.source === 'filesystem' && modelBlob.path) {
+			// Config-based filesystem reference
+			// Path is relative to models/ directory (same as LocalFilesystemAdapter)
+			const modelPath = join(PROJECT_ROOT, 'models', modelBlob.path);
+			blobBuffer = readFileSync(modelPath);
+		} else if (typeof modelBlob === 'object' && modelBlob.path) {
+			// Legacy ONNX model with absolute path - read binary file directly
+			blobBuffer = readFileSync(modelBlob.path);
+		} else {
+			// Ollama/TensorFlow/Transformers - convert JSON object to Buffer
+			const jsonString = typeof modelBlob === 'string' ? modelBlob : JSON.stringify(modelBlob);
+			blobBuffer = Buffer.from(jsonString, 'utf-8');
+		}
 
-			// Upload via UploadModelBlob resource (uses tables API)
-			// Pass metadata as query parameters (headers aren't accessible in Harper resources)
-			const metadataString = typeof metadata === 'string' ? metadata : JSON.stringify(metadata);
-			const queryParams = new URLSearchParams({
-				modelName,
-				modelVersion,
-				framework,
-				stage: stage || 'development',
-				metadata: metadataString,
-			});
+		// Upload via UploadModelBlob resource (uses tables API)
+		// Pass metadata as query parameters (headers aren't accessible in Harper resources)
+		const metadataString = typeof metadata === 'string' ? metadata : JSON.stringify(metadata);
+		const queryParams = new URLSearchParams({
+			modelName,
+			modelVersion,
+			framework,
+			stage: stage || 'development',
+			metadata: metadataString,
+		});
 
-			const response = await fetch(`${BASE_URL}/UploadModelBlob?${queryParams}`, getFetchOptions(config, {
+		const response = await fetch(
+			`${BASE_URL}/UploadModelBlob?${queryParams}`,
+			getFetchOptions(config, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/octet-stream',
 					'Content-Length': blobBuffer.length.toString(),
 				},
 				body: blobBuffer,
-			}));
+			})
+		);
 
-			const result = await response.json();
+		const result = await response.json();
 
-			if (!response.ok || !result.success) {
-				throw new Error(result.error || 'Upload failed');
-			}
-		} else {
-			// Models without blobs - create record only
-			const record = {
-				modelName,
-				modelVersion,
-				framework,
-				stage: stage || 'development',
-				metadata: typeof metadata === 'string' ? metadata : JSON.stringify(metadata),
-			};
+		if (!response.ok || !result.success) {
+			throw new Error(result.error || 'Upload failed');
+		}
+	} else {
+		// Models without blobs - create record only
+		const record = {
+			modelName,
+			modelVersion,
+			framework,
+			stage: stage || 'development',
+			metadata: typeof metadata === 'string' ? metadata : JSON.stringify(metadata),
+		};
 
-			const response = await fetch(`${BASE_URL}/Model/${encodeURIComponent(id)}`, getFetchOptions(config, {
+		const response = await fetch(
+			`${BASE_URL}/Model/${encodeURIComponent(id)}`,
+			getFetchOptions(config, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(record),
-			}));
+			})
+		);
 
-			if (!response.ok) {
-				const error = await response.text();
-				throw new Error(error);
+		if (!response.ok) {
+			const error = await response.text();
+			throw new Error(error);
+		}
+	}
+
+	log.success(`  ${modelName}:${modelVersion} (${framework})`);
+	return { id };
+}
+
+/**
+ * Create a model in Harper (remote mode using FetchModel worker)
+ */
+async function createModelRemote(modelData) {
+	const { modelName, modelVersion, framework, stage, metadata, modelBlob } = modelData;
+
+	// For ONNX models with file paths, use FetchModel worker
+	if (
+		framework === 'onnx' &&
+		modelBlob &&
+		typeof modelBlob === 'object' &&
+		(modelBlob.path || modelBlob.source === 'filesystem')
+	) {
+		const sourceReference = modelBlob.path || modelBlob.sourceReference;
+
+		log.info(`  Creating fetch job for ${modelName}:${modelVersion}...`);
+
+		const jobResult = await modelFetchClient.fetchModel({
+			source: 'filesystem',
+			sourceReference,
+			modelName,
+			modelVersion,
+			framework,
+			stage: stage || 'development',
+			metadata,
+		});
+
+		log.info(`    Job ${jobResult.jobId} created (${jobResult.status})`);
+
+		// Poll for completion
+		const jobId = jobResult.jobId;
+		let attempts = 0;
+		const maxAttempts = 60; // 5 minutes max
+
+		while (attempts < maxAttempts) {
+			await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds
+
+			const job = await modelFetchClient.getJob(jobId);
+
+			if (job.status === 'completed') {
+				log.success(`  ${modelName}:${modelVersion} (${framework}) - fetch completed`);
+				return { id: `${modelName}:${modelVersion}`, jobId };
+			} else if (job.status === 'failed') {
+				throw new Error(`Fetch job failed: ${job.error || 'Unknown error'}`);
 			}
+
+			// Still in progress
+			if (job.progress) {
+				log.info(`    Progress: ${job.progress}%`);
+			}
+
+			attempts++;
 		}
 
-		log.success(`  ${modelName}:${modelVersion} (${framework})`);
-		return { id };
+		throw new Error('Fetch job timed out');
+	} else {
+		// For non-ONNX models (Ollama, TensorFlow, Transformers), use local mode
+		// These are metadata-only or use external services
+		return await createModelLocal(modelData);
+	}
+}
+
+/**
+ * Create a model in Harper (dispatches to local or remote)
+ */
+async function createModel(modelData) {
+	const { modelName, modelVersion } = modelData;
+
+	try {
+		if (isRemoteMode) {
+			return await createModelRemote(modelData);
+		} else {
+			return await createModelLocal(modelData);
+		}
 	} catch (error) {
 		log.error(`  Failed to create ${modelName}:${modelVersion}: ${error.message}`);
 		throw error;
@@ -250,13 +397,31 @@ const MODEL_DEFINITIONS = {
 			'universal-sentence-encoder'
 		),
 
-		createModelDef('all-MiniLM-L6-v2', 'onnx', {
-		taskType: 'text-embedding',
-		equivalenceGroup: 'embeddings-384',
-		outputDimensions: [384],
-		description: 'Sentence-BERT MiniLM model (ONNX)',
-		backend: 'onnx',
-	}, loadOnnxModel('all-MiniLM-L6-v2.onnx')),
+		createModelDef(
+			'all-MiniLM-L6-v2',
+			'onnx',
+			{
+				taskType: 'text-embedding',
+				equivalenceGroup: 'embeddings-384',
+				outputDimensions: [384],
+				description: 'Sentence-BERT MiniLM model (ONNX)',
+				backend: 'onnx',
+			},
+			loadOnnxModel('all-MiniLM-L6-v2.onnx')
+		),
+
+		createModelDef(
+			'all-MiniLM-L6-v2-transformers',
+			'transformers',
+			{
+				taskType: 'text-embedding',
+				equivalenceGroup: 'embeddings-384',
+				outputDimensions: [384],
+				description: 'Sentence-BERT MiniLM model (Transformers.js)',
+				backend: 'transformers',
+			},
+			{ modelName: 'Xenova/all-MiniLM-L6-v2', taskType: 'feature-extraction' }
+		),
 	],
 
 	classification: [
@@ -317,7 +482,51 @@ const MODEL_DEFINITIONS = {
 };
 
 /**
- * Load models for a specific type or all types
+ * Load models from configuration profile
+ */
+async function loadModelsFromProfile(profileData) {
+	let totalLoaded = 0;
+	const summary = {
+		embeddings: [],
+		classification: [],
+		vision: [],
+		other: [],
+	};
+
+	log.info(`\nLoading models from profile: ${profileData.description || profileName}`);
+
+	for (const modelDef of profileData.models) {
+		try {
+			await createModel(modelDef);
+
+			// Categorize by task type
+			const taskType = modelDef.metadata?.taskType || 'other';
+			let category = 'other';
+
+			if (taskType.includes('embedding')) {
+				category = 'embeddings';
+			} else if (taskType.includes('classification')) {
+				category = 'classification';
+			} else if (taskType.includes('image') || taskType.includes('vision')) {
+				category = 'vision';
+			}
+
+			summary[category].push({
+				modelId: `${modelDef.modelName}:${modelDef.modelVersion}`,
+				framework: modelDef.framework,
+				equivalenceGroup: modelDef.metadata?.equivalenceGroup || 'none',
+			});
+			totalLoaded++;
+		} catch {
+			// Error already logged in createModel, continue with next model
+		}
+	}
+
+	return { totalLoaded, summary };
+}
+
+/**
+ * Load models for a specific type or all types (legacy mode)
  */
 async function loadModels(taskType = 'all') {
 	const typesToLoad = taskType === 'all' ? ['embeddings', 'classification', 'vision'] : [taskType];
@@ -346,8 +555,8 @@ async function loadModels(taskType = 'all') {
 					equivalenceGroup: modelDef.metadata.equivalenceGroup,
 				});
 				totalLoaded++;
-			} catch (error) {
-				// Error already logged, continue with next model
+			} catch {
+				// Error already logged in createModel, continue with next model
 			}
 		}
 	}
@@ -379,23 +588,26 @@ function printSummary(summary) {
 function printUsage() {
 	console.log('\nPreload Models Script');
 	log.info('Usage:');
-	console.log('  node scripts/preload-models.js                    Load all models');
-	console.log('  node scripts/preload-models.js --clean            Clean then load');
-	console.log('  node scripts/preload-models.js --type embeddings  Load specific type');
-	log.info('\nTask Types:');
-	console.log('  embeddings      Product recommendation models');
-	console.log('  classification  Price sensitivity classifiers');
-	console.log('  vision          Image tagging models');
+	console.log('  node scripts/preload-models.js                         Load development profile (default)');
+	console.log('  node scripts/preload-models.js --profile production    Load production profile');
+	console.log('  node scripts/preload-models.js --clean                 Clean then load');
+	console.log('  node scripts/preload-models.js --remote                Use FetchModel worker (for remote Harper)');
+	console.log('  node scripts/preload-models.js --config custom.json    Use custom config file');
+	console.log('  node scripts/preload-models.js --type embeddings       [Legacy] Load specific type');
+	log.info('\nAvailable Profiles (from profiles/ directory):');
+	console.log('  minimal       Single model for quick testing');
+	console.log('  testing       One model per backend (integration tests)');
+	console.log('  benchmarking  Performance comparison models');
+	console.log('  development   Full test suite with all backends');
+	console.log('  production    Production-ready models only');
+	log.info('\nModes:');
+	console.log('  Local mode (default)   Directly upload model files');
+	console.log('  Remote mode (--remote) Use FetchModel worker for ONNX models');
 	log.warn('\nNotes:');
 	console.log('  • Ensure Harper is running: npm run dev');
-	console.log('  • Ensure Ollama is running with models pulled:');
-	console.log('    ollama pull nomic-embed-text');
-	console.log('    ollama pull mxbai-embed-large');
-	console.log('    ollama pull llama2');
-	console.log('    ollama pull mistral');
-	console.log('    ollama pull llava');
-	console.log('    ollama pull bakllava');
-	console.log('  • ONNX models require manual download/conversion');
+	console.log('  • For Ollama models, ensure Ollama is running with models pulled');
+	console.log('  • ONNX models in local mode require files in models/test/');
+	console.log('  • Remote mode requires MODEL_FETCH_TOKEN in .env');
 	console.log('');
 }
 
@@ -418,6 +630,14 @@ async function main() {
 
 	log.section('Harper Edge AI - Model Preload Script');
 
+	// Initialize ModelFetchClient if in remote mode
+	if (isRemoteMode) {
+		log.info(`Mode: Remote (using FetchModel worker)`);
+		modelFetchClient = new ModelFetchClient(BASE_URL, config.modelFetchToken, config.username, config.password);
+	} else {
+		log.info(`Mode: Local (direct upload)`);
+	}
+
 	// Check Harper
 	const harperRunning = await checkHarper();
 	if (!harperRunning) {
@@ -430,13 +650,31 @@ async function main() {
 			await cleanModels();
 		}
 
-		// Load models
-		const { totalLoaded, summary } = await loadModels(taskType);
+		// Load configuration
+		const profiles = loadModelProfiles();
+
+		let result;
+
+		if (profiles && profiles.profiles && profiles.profiles[profileName]) {
+			// Use configuration-based loading
+			log.info(`Using profile: ${profileName}`);
+			result = await loadModelsFromProfile(profiles.profiles[profileName]);
+		} else if (profiles) {
+			// Config file exists but profile not found
+			const availableProfiles = Object.keys(profiles.profiles || {}).join(', ');
+			log.error(`Profile '${profileName}' not found in configuration`);
+			log.info(`Available profiles: ${availableProfiles}`);
+			process.exit(1);
+		} else {
+			// Fallback to legacy mode
+			log.warn('Using legacy hardcoded model definitions');
+			result = await loadModels(taskType);
+		}
 
 		// Print summary
-		printSummary(summary);
+		printSummary(result.summary);
 
-		log.success(`\nSuccessfully loaded ${totalLoaded} models`);
+		log.success(`\nSuccessfully loaded ${result.totalLoaded} models`);
 		log.info('\nNext steps:');
 		console.log('  • Run benchmarks: node scripts/run-benchmark.js');
 		console.log('  • View models: Query Model table in Harper');
@@ -445,6 +683,9 @@ async function main() {
 		process.exit(0);
 	} catch (error) {
 		log.error(`\nScript failed: ${error.message}`);
+		if (error.stack) {
+			console.error(error.stack);
+		}
 		process.exit(1);
 	}
 }

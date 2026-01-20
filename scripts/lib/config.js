@@ -64,6 +64,16 @@ export function getConfig(args = []) {
 	const envVars = loadEnv();
 	const cliArgs = parseArgs(args);
 
+	if (global.VERBOSE) {
+		console.log('[VERBOSE] .env file loaded:');
+		console.log('  HARPER_URL:', envVars.HARPER_URL || '(not set)');
+		console.log('  MODEL_FETCH_TOKEN:', envVars.MODEL_FETCH_TOKEN ? `${envVars.MODEL_FETCH_TOKEN.substring(0, 10)}...` : '(not set)');
+		console.log('[VERBOSE] Environment variables:');
+		console.log('  HARPER_URL:', process.env.HARPER_URL || '(not set)');
+		console.log('  MODEL_FETCH_TOKEN:', process.env.MODEL_FETCH_TOKEN ? `${process.env.MODEL_FETCH_TOKEN.substring(0, 10)}...` : '(not set)');
+		console.log('[VERBOSE] CLI arguments:', cliArgs);
+	}
+
 	const config = {
 		url:
 			cliArgs.url ||
@@ -77,9 +87,20 @@ export function getConfig(args = []) {
 
 		password: cliArgs.password || process.env.CLI_TARGET_PASSWORD || envVars.CLI_TARGET_PASSWORD || null,
 
+		modelFetchToken: cliArgs.token || process.env.MODEL_FETCH_TOKEN || envVars.MODEL_FETCH_TOKEN || null,
+
 		ollamaHost:
 			process.env.OLLAMA_HOST || envVars.OLLAMA_HOST || 'http://localhost:11434',
 	};
+
+	if (global.VERBOSE) {
+		console.log('[VERBOSE] Final configuration:');
+		console.log('  url:', config.url);
+		console.log('  username:', config.username || '(not set)');
+		console.log('  password:', config.password ? '***' : '(not set)');
+		console.log('  modelFetchToken:', config.modelFetchToken ? `${config.modelFetchToken.substring(0, 10)}...` : '(not set)');
+		console.log('');
+	}
 
 	return config;
 }

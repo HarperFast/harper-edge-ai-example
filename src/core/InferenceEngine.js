@@ -1,8 +1,3 @@
-import { OnnxBackend } from './backends/Onnx.js';
-import { TensorFlowBackend } from './backends/TensorFlow.js';
-import { OllamaBackend } from './backends/Ollama.js';
-import { TransformersBackend } from './backends/Transformers.js';
-
 /**
  * Singleton backend instances shared across all InferenceEngine instances.
  * This prevents ONNX Runtime environment conflicts when multiple engines are created.
@@ -16,21 +11,42 @@ const SHARED_BACKENDS = {
 
 /**
  * Initialize shared backends (singleton pattern)
+ * Backends are loaded dynamically to support deployments without all dependencies
  */
-function getOrCreateBackend(framework) {
+async function getOrCreateBackend(framework) {
 	if (!SHARED_BACKENDS[framework]) {
 		switch (framework) {
 			case 'onnx':
-				SHARED_BACKENDS.onnx = new OnnxBackend();
+				try {
+					const { OnnxBackend } = await import('./backends/Onnx.js');
+					SHARED_BACKENDS.onnx = new OnnxBackend();
+				} catch (err) {
+					throw new Error(`ONNX backend not available: ${err.message}`);
+				}
 				break;
 			case 'tensorflow':
-				SHARED_BACKENDS.tensorflow = new TensorFlowBackend();
+				try {
+					const { TensorFlowBackend } = await import('./backends/TensorFlow.js');
+					SHARED_BACKENDS.tensorflow = new TensorFlowBackend();
+				} catch (err) {
+					throw new Error(`TensorFlow backend not available: ${err.message}`);
+				}
 				break;
 			case 'transformers':
-				SHARED_BACKENDS.transformers = new TransformersBackend();
+				try {
+					const { TransformersBackend } = await import('./backends/Transformers.js');
+					SHARED_BACKENDS.transformers = new TransformersBackend();
+				} catch (err) {
+					throw new Error(`Transformers backend not available: ${err.message}`);
+				}
 				break;
 			case 'ollama':
-				SHARED_BACKENDS.ollama = new OllamaBackend();
+				try {
+					const { OllamaBackend } = await import('./backends/Ollama.js');
+					SHARED_BACKENDS.ollama = new OllamaBackend();
+				} catch (err) {
+					throw new Error(`Ollama backend not available: ${err.message}`);
+				}
 				break;
 		}
 	}
@@ -99,11 +115,8 @@ export class InferenceEngine {
 	 * await engine.initialize();
 	 */
 	async initialize() {
-		// Use shared singleton backends to prevent ONNX Runtime environment conflicts
-		this.backends.set('onnx', getOrCreateBackend('onnx'));
-		this.backends.set('tensorflow', getOrCreateBackend('tensorflow'));
-		this.backends.set('transformers', getOrCreateBackend('transformers'));
-		this.backends.set('ollama', getOrCreateBackend('ollama'));
+		// Backends are loaded lazily on-demand to support partial deployments
+		// (e.g., deploying only ONNX without TensorFlow dependencies)
 	}
 
 	/**
@@ -191,11 +204,17 @@ export class InferenceEngine {
 			}
 		}
 
-		// Get appropriate backend
-		const backend = this.backends.get(model.framework);
+		// Get appropriate backend (lazy-load if not already loaded)
+		let backend = this.backends.get(model.framework);
 
 		if (!backend) {
-			throw new Error(`No backend available for framework: ${model.framework}`);
+			// Backend not loaded yet, try to load it dynamically
+			backend = await getOrCreateBackend(model.framework);
+			if (backend) {
+				this.backends.set(model.framework, backend);
+			} else {
+				throw new Error(`No backend available for framework: ${model.framework}`);
+			}
 		}
 
 	// If we don't have the blob, fetch the full record
@@ -247,6 +266,16 @@ export class InferenceEngine {
 		if (model.framework === 'onnx') {
 			// ONNX needs the Buffer as-is
 			// modelData is ready
+		} else if (model.framework === 'transformers') {
+			// Transformers.js backend expects a config object with model name
+			// The blob should already contain the config JSON
+			const decoded = modelData.toString('utf-8');
+			try {
+				modelData = JSON.parse(decoded);
+			} catch {
+				// If not JSON, treat as model name string
+				modelData = decoded;
+			}
 		} else {
 			// Ollama/TensorFlow need JSON object or string
 			const decoded = modelData.toString('utf-8');

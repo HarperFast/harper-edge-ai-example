@@ -6,14 +6,20 @@
  * across different backends (Ollama, TensorFlow, ONNX).
  *
  * Usage:
- *   node scripts/run-benchmark.js            # Interactive mode
- *   node scripts/run-benchmark.js --all      # Run all benchmarks with defaults
- *   npm run benchmark                        # Interactive mode
- *   npm run benchmark:all                    # Run all benchmarks
+ *   node scripts/run-benchmark.js                    # Interactive mode
+ *   node scripts/run-benchmark.js --all              # Run all benchmarks with defaults
+ *   node scripts/run-benchmark.js --all --no-prompt  # Run all benchmarks, auto-save results
+ *   npm run benchmark                                # Interactive mode
+ *   npm run benchmark:all                            # Run all benchmarks (no prompts)
+ *
+ * Flags:
+ *   --all         Run all benchmark groups with 100 iterations each
+ *   --no-prompt   Auto-save results without prompting (useful for automation/CI)
  *
  * Features:
  *   - Interactive menu for selecting task type and equivalence group
  *   - --all flag to run all benchmark groups with sensible defaults (100 iterations)
+ *   - --no-prompt flag to auto-save results without user interaction
  *   - Generates appropriate test data for each task type
  *   - Runs benchmarks via BenchmarkEngine
  *   - Displays results in formatted table
@@ -71,7 +77,7 @@ async function checkHarper() {
 			throw new Error('Harper not responding');
 		}
 		return true;
-	} catch (error) {
+	} catch (_error) {
 		cliLog.error('Harper is not running. Please start Harper first.');
 		cliLog.warn('  Run: npm run dev');
 		return false;
@@ -122,7 +128,7 @@ function groupModels(models) {
 				framework: model.framework,
 				description: metadata.description,
 			});
-		} catch (error) {
+		} catch (_error) {
 			// Skip models with invalid metadata
 			continue;
 		}
@@ -228,7 +234,7 @@ async function runBenchmark(group, iterations) {
 		let result;
 		try {
 			result = responseText ? JSON.parse(responseText) : {};
-		} catch (e) {
+		} catch (_e) {
 			throw new Error(`Invalid JSON response: ${responseText.substring(0, 200)}`);
 		}
 
@@ -348,9 +354,19 @@ function displayResults(result) {
 }
 
 /**
- * Save results to file (optional)
+ * Save results to file (optional or automatic)
  */
-async function offerSaveResults(result) {
+async function offerSaveResults(result, noPrompt = false) {
+	if (noPrompt) {
+		// Auto-save without prompting (for automation/CI)
+		const fs = await import('fs');
+		const filename = `benchmark-${result.comparisonId}.json`;
+
+		fs.writeFileSync(filename, JSON.stringify(result, null, 2));
+		log(`✓ Results auto-saved to ${filename}`, 'green');
+		return;
+	}
+
 	const answer = await prompt('\nSave results to file? (y/N): ');
 
 	if (answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes') {
@@ -368,6 +384,7 @@ async function offerSaveResults(result) {
 async function main() {
 	const args = process.argv.slice(2);
 	const runAll = args.includes('--all');
+	const noPrompt = args.includes('--no-prompt');
 	const defaultIterations = 100;
 
 	log('\n' + '='.repeat(60), 'bright');
@@ -412,7 +429,7 @@ async function main() {
 					const result = await runBenchmark(group, defaultIterations);
 					allResults.push(result);
 					displayResults(result);
-					await offerSaveResults(result);
+					await offerSaveResults(result, noPrompt);
 				} catch (error) {
 					log(`✗ Failed: ${error.message}`, 'red');
 				}
@@ -439,7 +456,7 @@ async function main() {
 			displayResults(result);
 
 			// Offer to save
-			await offerSaveResults(result);
+			await offerSaveResults(result, noPrompt);
 
 			log('\n✓ Benchmark complete!', 'green');
 		}

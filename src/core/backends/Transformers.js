@@ -2,6 +2,8 @@ import { pipeline, env } from '@xenova/transformers';
 import { parseModelBlob } from '../utils/modelConfig.js';
 import { BaseBackend } from './Base.js';
 
+/* global logger */
+
 // Configure transformers.js for Node.js environment
 env.allowLocalModels = false; // Always download from Hugging Face
 env.useBrowserCache = false; // Use file system cache instead
@@ -10,7 +12,7 @@ env.useBrowserCache = false; // Use file system cache instead
  * Transformers.js Backend - High-level API for Hugging Face models
  *
  * Features:
- * - Uses onnxruntime-web under the hood
+ * - Uses onnxruntime-node for inference (Node.js environment)
  * - Compatible with Xenova ONNX models on Hugging Face
  * - Automatic model download and caching
  * - Built-in tokenization, pooling, and normalization
@@ -27,6 +29,7 @@ env.useBrowserCache = false; // Use file system cache instead
  * - Downloads models from Hugging Face Hub
  * - Caches to local filesystem
  * - Disables browser cache (Node.js environment)
+ * - Automatically uses onnxruntime-node in Node.js (not onnxruntime-web)
  *
  * @extends BaseBackend
  * @see {@link https://huggingface.co/docs/transformers.js} - Transformers.js docs
@@ -60,11 +63,9 @@ export class TransformersBackend extends BaseBackend {
 				primaryKey: 'modelName',
 			});
 
-			// Use model name from config, or fall back to modelId from record
+			// Get model name and task type from config
 			const modelName = config.modelName || config.model || modelRecord?.modelId || 'Xenova/all-MiniLM-L6-v2';
 			const taskType = config.taskType || config.task || 'feature-extraction';
-
-			console.log(`[TransformersBackend] Loading model: ${modelName} for task: ${taskType}`);
 
 			// Create pipeline (downloads and caches model automatically)
 			// Common tasks: 'feature-extraction', 'text-classification', 'zero-shot-classification'
@@ -85,7 +86,7 @@ export class TransformersBackend extends BaseBackend {
 				outputNames: taskType === 'feature-extraction' ? ['embeddings'] : ['output'],
 			};
 		} catch (error) {
-			console.error('Failed to load Transformers.js model:', error);
+			logger.error('Failed to load Transformers.js model:', error);
 			throw new Error(`Transformers.js model loading failed: ${error.message}`);
 		}
 	}
@@ -104,13 +105,18 @@ export class TransformersBackend extends BaseBackend {
 			const { pipe, taskType } = modelInfo;
 
 			if (taskType === 'feature-extraction') {
-				return await this._generateEmbeddings(pipe, inputs);
+				const result = await this._generateEmbeddings(pipe, inputs);
+				return result;
 			} else {
 				// Generic prediction for other task types
 				return await this._generatePrediction(pipe, inputs);
 			}
 		} catch (error) {
-			console.error('Transformers.js inference failed:', error);
+			logger.error('[TransformersBackend] Inference error:', {
+				message: error.message,
+				stack: error.stack,
+				errorType: error.constructor.name,
+			});
 			throw new Error(`Transformers.js inference failed: ${error.message}`);
 		}
 	}
@@ -145,8 +151,19 @@ export class TransformersBackend extends BaseBackend {
 			normalize: true,
 		});
 
-		// Extract embedding from output
-		const embedding = Array.from(output.data);
+		// Extract embedding from output tensor
+		// Transformers.js returns a Tensor object - use tolist() to get array
+		let embedding;
+		if (typeof output.tolist === 'function') {
+			// tolist() returns nested array for batched output, get first item
+			const result = output.tolist();
+			embedding = Array.isArray(result[0]) ? result[0] : result;
+		} else if (output.data) {
+			// onnxruntime-node provides data property
+			embedding = Array.from(output.data);
+		} else {
+			embedding = Array.from(output);
+		}
 
 		return {
 			embeddings: [embedding], // Wrap in array for consistency with other backends
