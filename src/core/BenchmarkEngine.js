@@ -13,7 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
  *
  * Algorithm Overview:
  * 1. Validates models have matching outputDimensions
- * 2. Runs N iterations for each model, cycling through test samples
+ * 2. Runs N iterations for each model, each iteration processes all samples
  * 3. Computes percentile latencies using linear interpolation
  * 4. Identifies winner as lowest avgLatency with <100% error rate
  * 5. Persists results to BenchmarkResult table
@@ -186,7 +186,7 @@ export class BenchmarkEngine {
 	 * Benchmark Algorithm:
 	 * 1. Validates all models have matching outputDimensions
 	 * 2. For each model:
-	 *    a. Runs 'iterations' predictions, cycling through testData samples
+	 *    a. Runs 'iterations' complete passes through all testData samples
 	 *    b. Records latency for each successful prediction
 	 *    c. Counts successes and errors
 	 * 3. Computes metrics for each model:
@@ -207,9 +207,9 @@ export class BenchmarkEngine {
 	 * @param {string} models[].parsedMetadata.taskType - Task type
 	 * @param {string} models[].parsedMetadata.equivalenceGroup - Equivalence group
 	 * @param {Array<number>} models[].parsedMetadata.outputDimensions - Output dimensions
-	 * @param {Array<Object>} testData - Test input samples (cycles if iterations > length)
+	 * @param {Array<Object>} testData - Test input samples
 	 * @param {Object} options - Benchmark configuration
-	 * @param {number} options.iterations - Number of predictions per model (must be > 0)
+	 * @param {number} options.iterations - Number of passes through all samples (must be > 0)
 	 * @param {string} options.taskType - Task type for filtering
 	 * @param {string} options.equivalenceGroup - Equivalence group for filtering
 	 * @param {string} [options.runBy='system'] - Identifier for who ran benchmark
@@ -278,23 +278,24 @@ export class BenchmarkEngine {
 			let successCount = 0;
 			let errorCount = 0;
 
-			// Run iterations
-			for (let i = 0; i < iterations; i++) {
-				// Cycle through test data samples
-				const sample = testData[i % testData.length];
+			// Run iterations - each iteration processes all test samples
+			for (let iter = 0; iter < iterations; iter++) {
+				for (let sampleIdx = 0; sampleIdx < testData.length; sampleIdx++) {
+					const sample = testData[sampleIdx];
 
-				try {
-					const startTime = Date.now();
-					await this.inferenceEngine.predict(model.modelName, sample, model.modelVersion, model);
-					const endTime = Date.now();
+					try {
+						const startTime = Date.now();
+						await this.inferenceEngine.predict(model.modelName, sample, model.modelVersion, model);
+						const endTime = Date.now();
 
-					const latency = endTime - startTime;
-					latencies.push(latency);
-					successCount++;
-				} catch (err) {
-					errorCount++;
-					// Don't include failed predictions in latency metrics
-					console.error(`Prediction error for model ${model.id} on sample ${i}:`, err);
+						const latency = endTime - startTime;
+						latencies.push(latency);
+						successCount++;
+					} catch (err) {
+						errorCount++;
+						// Don't include failed predictions in latency metrics
+						console.error(`Prediction error for model ${model.id} iteration ${iter} sample ${sampleIdx}:`, err);
+					}
 				}
 			}
 
@@ -302,7 +303,8 @@ export class BenchmarkEngine {
 			const sortedLatencies = latencies.sort((a, b) => a - b);
 			const hasData = sortedLatencies.length > 0;
 			const avgLatency = hasData ? latencies.reduce((sum, l) => sum + l, 0) / latencies.length : 0;
-			const errorRate = errorCount / iterations;
+			const totalAttempts = successCount + errorCount;
+			const errorRate = totalAttempts > 0 ? errorCount / totalAttempts : 0;
 
 			const metrics = {
 				avgLatency,
