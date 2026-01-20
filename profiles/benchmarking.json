@@ -12,7 +12,8 @@
 				"equivalenceGroup": "embeddings-384",
 				"outputDimensions": [384],
 				"description": "MiniLM model (ONNX) for benchmarking",
-				"backend": "onnx"
+				"backend": "onnx",
+				"tokenizerModel": "sentence-transformers/all-MiniLM-L6-v2"
 			},
 			"modelBlob": {
 				"source": "filesystem",
