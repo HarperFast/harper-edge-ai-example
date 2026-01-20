@@ -16,7 +16,7 @@
 			},
 			"modelBlob": {
 				"source": "filesystem",
-				"path": "models/test/all-MiniLM-L6-v2.onnx"
+				"path": "test/all-MiniLM-L6-v2.onnx"
 			}
 		},
 		{
