@@ -202,14 +202,14 @@ async function createModelLocal(modelData) {
 	if (modelBlob) {
 		let blobBuffer;
 
-		if (typeof modelBlob === 'object' && modelBlob.path) {
-			// ONNX model - read binary file
-			blobBuffer = readFileSync(modelBlob.path);
-		} else if (typeof modelBlob === 'object' && modelBlob.source === 'filesystem') {
+		if (typeof modelBlob === 'object' && modelBlob.source === 'filesystem' && modelBlob.path) {
 			// Config-based filesystem reference
 			// Path is relative to models/ directory (same as LocalFilesystemAdapter)
 			const modelPath = join(PROJECT_ROOT, 'models', modelBlob.path);
 			blobBuffer = readFileSync(modelPath);
+		} else if (typeof modelBlob === 'object' && modelBlob.path) {
+			// Legacy ONNX model with absolute path - read binary file directly
+			blobBuffer = readFileSync(modelBlob.path);
 		} else {
 			// Ollama/TensorFlow/Transformers - convert JSON object to Buffer
 			const jsonString = typeof modelBlob === 'string' ? modelBlob : JSON.stringify(modelBlob);
