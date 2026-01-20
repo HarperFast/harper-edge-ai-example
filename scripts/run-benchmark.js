@@ -29,8 +29,10 @@
 import * as readline from 'readline';
 import { generateTestData } from '../src/core/utils/testDataFactory.js';
 import { log as cliLog } from './lib/cli-utils.js';
+import { getConfig, getFetchOptions } from './lib/config.js';
 
-const BASE_URL = process.env.HARPER_URL || 'http://localhost:9926';
+const config = getConfig(process.argv.slice(2));
+const BASE_URL = config.url;
 
 // Keep colors object for table formatting
 const colors = {
@@ -72,7 +74,7 @@ function prompt(question) {
  */
 async function checkHarper() {
 	try {
-		const response = await fetch(`${BASE_URL}/Status`);
+		const response = await fetch(`${BASE_URL}/Status`, getFetchOptions(config));
 		if (!response.ok) {
 			throw new Error('Harper not responding');
 		}
@@ -89,7 +91,7 @@ async function checkHarper() {
  */
 async function fetchModels() {
 	// Trailing slash indicates collection (all records)
-	const response = await fetch(`${BASE_URL}/Model/`);
+	const response = await fetch(`${BASE_URL}/Model/`, getFetchOptions(config));
 
 	if (!response.ok) {
 		throw new Error(`Failed to fetch models: ${response.statusText}`);
@@ -219,11 +221,14 @@ async function runBenchmark(group, iterations) {
 			notes: `Interactive benchmark run with ${iterations} iterations`,
 		};
 
-		const response = await fetch(`${BASE_URL}/Benchmark`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(payload),
-		});
+		const response = await fetch(
+			`${BASE_URL}/Benchmark`,
+			getFetchOptions(config, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload),
+			})
+		);
 
 		const responseText = await response.text();
 

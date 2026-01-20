@@ -39,24 +39,6 @@
 			}
 		},
 		{
-			"modelName": "bench-nomic-ollama",
-			"modelVersion": "v1",
-			"framework": "ollama",
-			"stage": "benchmarking",
-			"metadata": {
-				"taskType": "text-embedding",
-				"equivalenceGroup": "embeddings-768",
-				"outputDimensions": [768],
-				"description": "Nomic embedding (Ollama) for benchmarking",
-				"backend": "ollama",
-				"requiresExternal": true
-			},
-			"modelBlob": {
-				"modelName": "nomic-embed-text",
-				"mode": "embeddings"
-			}
-		},
-		{
 			"modelName": "bench-nomic-transformers",
 			"modelVersion": "v1",
 			"framework": "transformers",
