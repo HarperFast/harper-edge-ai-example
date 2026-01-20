@@ -12,7 +12,7 @@ env.useBrowserCache = false; // Use file system cache instead
  * Transformers.js Backend - High-level API for Hugging Face models
  *
  * Features:
- * - Uses onnxruntime-web under the hood
+ * - Uses onnxruntime-node for inference (Node.js environment)
  * - Compatible with Xenova ONNX models on Hugging Face
  * - Automatic model download and caching
  * - Built-in tokenization, pooling, and normalization
@@ -29,6 +29,7 @@ env.useBrowserCache = false; // Use file system cache instead
  * - Downloads models from Hugging Face Hub
  * - Caches to local filesystem
  * - Disables browser cache (Node.js environment)
+ * - Automatically uses onnxruntime-node in Node.js (not onnxruntime-web)
  *
  * @extends BaseBackend
  * @see {@link https://huggingface.co/docs/transformers.js} - Transformers.js docs
@@ -158,7 +159,7 @@ export class TransformersBackend extends BaseBackend {
 			const result = output.tolist();
 			embedding = Array.isArray(result[0]) ? result[0] : result;
 		} else if (output.data) {
-			// onnxruntime-web (WASM) provides data property
+			// onnxruntime-node provides data property
 			embedding = Array.from(output.data);
 		} else {
 			embedding = Array.from(output);
