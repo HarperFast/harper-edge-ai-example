@@ -2,6 +2,8 @@ import { pipeline, env } from '@xenova/transformers';
 import { parseModelBlob } from '../utils/modelConfig.js';
 import { BaseBackend } from './Base.js';
 
+/* global logger */
+
 // Configure transformers.js for Node.js environment
 env.allowLocalModels = false; // Always download from Hugging Face
 env.useBrowserCache = false; // Use file system cache instead
@@ -64,8 +66,6 @@ export class TransformersBackend extends BaseBackend {
 			const modelName = config.modelName || config.model || modelRecord?.modelId || 'Xenova/all-MiniLM-L6-v2';
 			const taskType = config.taskType || config.task || 'feature-extraction';
 
-			console.log(`[TransformersBackend] Loading model: ${modelName}, task: ${taskType}`);
-
 			// Create pipeline (downloads and caches model automatically)
 			// Common tasks: 'feature-extraction', 'text-classification', 'zero-shot-classification'
 			const pipe = await pipeline(taskType, modelName);
@@ -85,7 +85,7 @@ export class TransformersBackend extends BaseBackend {
 				outputNames: taskType === 'feature-extraction' ? ['embeddings'] : ['output'],
 			};
 		} catch (error) {
-			console.error('Failed to load Transformers.js model:', error);
+			logger.error('Failed to load Transformers.js model:', error);
 			throw new Error(`Transformers.js model loading failed: ${error.message}`);
 		}
 	}
@@ -111,8 +111,7 @@ export class TransformersBackend extends BaseBackend {
 				return await this._generatePrediction(pipe, inputs);
 			}
 		} catch (error) {
-			// Log the actual error details for debugging
-			console.error('[TransformersBackend] Inference error:', {
+			logger.error('[TransformersBackend] Inference error:', {
 				message: error.message,
 				stack: error.stack,
 				errorType: error.constructor.name,
@@ -146,19 +145,9 @@ export class TransformersBackend extends BaseBackend {
 
 		// Run pipeline with mean pooling and normalization
 		// The pipeline handles tokenization, inference, pooling, and normalization automatically
-		console.log('[TransformersBackend] Calling pipeline with text:', text.substring(0, 50));
 		const output = await pipe(text, {
 			pooling: 'mean',
 			normalize: true,
-		});
-
-		console.log('[TransformersBackend] Pipeline returned:', {
-			type: typeof output,
-			constructor: output?.constructor?.name,
-			hasTolist: typeof output.tolist === 'function',
-			hasData: !!output.data,
-			hasCpuData: !!output.cpuData,
-			keys: Object.keys(output),
 		});
 
 		// Extract embedding from output tensor
@@ -174,8 +163,6 @@ export class TransformersBackend extends BaseBackend {
 		} else {
 			embedding = Array.from(output);
 		}
-
-		console.log('[TransformersBackend] Extracted embedding, length:', embedding.length);
 
 		return {
 			embeddings: [embedding], // Wrap in array for consistency with other backends
