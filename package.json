@@ -31,7 +31,7 @@
 		"preload:testing": "node scripts/preload-models.js --profile testing --clean",
 		"preload:benchmarking": "node scripts/preload-models.js --profile benchmarking --clean",
 		"benchmark": "node scripts/run-benchmark.js",
-		"benchmark:all": "node scripts/run-benchmark.js --all",
+		"benchmark:all": "node scripts/run-benchmark.js --all --no-prompt",
 		"pull-ollama": "node scripts/pull-ollama-models.js",
 		"generate-test-models": "node scripts/generate-test-models.js",
 		"prepare": "husky"

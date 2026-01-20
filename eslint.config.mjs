@@ -32,7 +32,13 @@ export default defineConfig([
 		rules: {
 			'eqeqeq': 'warn',
 			'no-undef': 'off', // disable no-undef as it doesn't work well with Harper's global variables
-			'no-unused-vars': ['error', { argsIgnorePattern: '^_' }], // allow unused vars prefixed with _
+			'no-unused-vars': [
+				'error',
+				{
+					argsIgnorePattern: '^_', // allow unused function args prefixed with _
+					caughtErrorsIgnorePattern: '^_', // allow unused catch errors prefixed with _
+				},
+			],
 		},
 	},
 ]);
