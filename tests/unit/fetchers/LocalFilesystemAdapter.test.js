@@ -19,14 +19,10 @@ import {
 describe('LocalFilesystemAdapter', () => {
 	let adapter;
 	let originalCwd;
-	let testFixturesDir;
 
 	beforeEach(() => {
 		// Save original cwd
 		originalCwd = process.cwd();
-
-		// Set up test fixtures directory
-		testFixturesDir = path.join(originalCwd, 'tests', 'fixtures');
 
 		// Create adapter (it will use process.cwd() + 'models')
 		adapter = new LocalFilesystemAdapter();
@@ -45,6 +41,66 @@ describe('LocalFilesystemAdapter', () => {
 		it('should set baseDir to models/ in current working directory', () => {
 			const expectedBaseDir = path.resolve(process.cwd(), 'models');
 			assert.equal(adapter.baseDir, expectedBaseDir);
+		});
+	});
+
+	describe('constructor - DEV_MODE handling', () => {
+		let originalDevMode;
+
+		beforeEach(() => {
+			// Save original DEV_MODE
+			originalDevMode = process.env.DEV_MODE;
+		});
+
+		afterEach(() => {
+			// Restore original DEV_MODE
+			if (originalDevMode === undefined) {
+				delete process.env.DEV_MODE;
+			} else {
+				process.env.DEV_MODE = originalDevMode;
+			}
+		});
+
+		it('should use import.meta.url path when DEV_MODE is true', () => {
+			process.env.DEV_MODE = 'true';
+			const devAdapter = new LocalFilesystemAdapter();
+
+			// In DEV_MODE, baseDir should point to project root + models
+			// The adapter calculates 3 levels up from src/core/fetchers/
+			assert.ok(devAdapter.baseDir.endsWith('models'));
+			assert.ok(devAdapter.baseDir.includes('edge-ai-ops'));
+			assert.equal(typeof devAdapter.baseDir, 'string');
+		});
+
+		it('should use process.cwd() when DEV_MODE is false', () => {
+			process.env.DEV_MODE = 'false';
+			const prodAdapter = new LocalFilesystemAdapter();
+
+			const expectedBaseDir = path.resolve(process.cwd(), 'models');
+			assert.equal(prodAdapter.baseDir, expectedBaseDir);
+		});
+
+		it('should use process.cwd() when DEV_MODE is not set', () => {
+			delete process.env.DEV_MODE;
+			const prodAdapter = new LocalFilesystemAdapter();
+
+			const expectedBaseDir = path.resolve(process.cwd(), 'models');
+			assert.equal(prodAdapter.baseDir, expectedBaseDir);
+		});
+
+		it('should handle DEV_MODE with different string values', () => {
+			// Test that only the string 'true' triggers DEV_MODE
+			process.env.DEV_MODE = 'TRUE';
+			const adapter1 = new LocalFilesystemAdapter();
+			assert.equal(adapter1.baseDir, path.resolve(process.cwd(), 'models'));
+
+			process.env.DEV_MODE = '1';
+			const adapter2 = new LocalFilesystemAdapter();
+			assert.equal(adapter2.baseDir, path.resolve(process.cwd(), 'models'));
+
+			process.env.DEV_MODE = 'yes';
+			const adapter3 = new LocalFilesystemAdapter();
+			assert.equal(adapter3.baseDir, path.resolve(process.cwd(), 'models'));
 		});
 	});
 
@@ -179,9 +235,7 @@ describe('LocalFilesystemAdapter', () => {
 			assert.ok(buffer.length > 0);
 
 			// Verify contents match the file
-			const expectedContent = await fs.readFile(
-				path.join(adapter.baseDir, 'test-fixtures/test-model.onnx')
-			);
+			const expectedContent = await fs.readFile(path.join(adapter.baseDir, 'test-fixtures/test-model.onnx'));
 			assert.deepEqual(buffer, expectedContent);
 		});
 
