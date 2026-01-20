@@ -34,8 +34,7 @@
 		"benchmark": "node scripts/run-benchmark.js",
 		"benchmark:all": "node scripts/run-benchmark.js --all --no-prompt",
 		"pull-ollama": "node scripts/pull-ollama-models.js",
-		"generate-test-models": "node scripts/generate-test-models.js",
-		"prepare": "husky"
+		"generate-test-models": "node scripts/generate-test-models.js"
 	},
 	"lint-staged": {
 		"*.js": [
@@ -65,9 +64,9 @@
 	"author": "HarperDB",
 	"license": "Apache-2.0",
 	"dependencies": {
-		"@xenova/transformers": "^2.17.2",
+		"uuid": "^11.0.3",
 		"onnxruntime-node": "1.20.1",
-		"uuid": "^11.0.3"
+		"@xenova/transformers": "^2.17.2"
 	},
 	"optionalDependencies": {
 		"sharp": "^0.32.6"
