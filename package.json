@@ -19,6 +19,7 @@
 		"test:profile:testing": "node scripts/test-profile-deployment.js --profile testing",
 		"test:profile:benchmarking": "node scripts/test-profile-deployment.js --profile benchmarking",
 		"test:profile:deploy": "node scripts/test-profile-deployment.js --deploy",
+		"test:benchmark": "node --test tests/integration/benchmark-comparison.test.js",
 		"lint": "eslint .",
 		"lint:fix": "eslint --fix .",
 		"format": "prettier --write .",
